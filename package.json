@@ -3,9 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 5253",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 5253",
     "db:up": "docker compose up -d --wait",
     "db:push": "drizzle-kit push",
     "import:mtg": "node src/import/mtg.ts",

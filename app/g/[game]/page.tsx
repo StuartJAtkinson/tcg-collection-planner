@@ -19,6 +19,7 @@ const FORMATS: Record<string, string[]> = {
   mtg: ['standard', 'pioneer', 'modern', 'legacy', 'vintage', 'commander', 'pauper'],
   pokemon: ['standard', 'expanded', 'unlimited'],
 };
+const properCase = (s: string) => s[0].toUpperCase() + s.slice(1);
 
 export default async function GamePage({
   params,
@@ -59,18 +60,30 @@ export default async function GamePage({
     tabs = order.map((label) => ({ label, sets: sets.filter((s) => (s.series ?? 'Other') === label) }));
   }
   tabs = tabs.filter((t) => t.sets.length > 0);
-  const active = tabs.find((t) => t.label === kind) ?? tabs.find((t) => t.label === 'Expansions') ?? tabs[0];
-  const years = active ? [...new Set(active.sets.map((s) => s.year))] : [];
 
-  const tabHref = (label: string) =>
-    `/g/${game}?kind=${encodeURIComponent(label)}${format ? `&format=${encodeURIComponent(format)}` : ''}`;
+  // kind is a multi-select toggle set, comma-separated in the URL; defaults to Expansions
+  const selected = new Set(
+    kind ? kind.split(',').filter(Boolean) : [tabs.find((t) => t.label === 'Expansions')?.label ?? tabs[0]?.label],
+  );
+  const shown = tabs
+    .filter((t) => selected.has(t.label))
+    .flatMap((t) => t.sets)
+    .sort((a, b) => b.released.localeCompare(a.released)); // flatMap groups by tab; re-sort by date across tabs
+  const years = [...new Set(shown.map((s) => s.year))];
+
+  const tabHref = (label: string) => {
+    const next = new Set(selected);
+    next.has(label) ? next.delete(label) : next.add(label);
+    const kindParam = [...next].join(',');
+    return `/g/${game}?${kindParam ? `kind=${encodeURIComponent(kindParam)}` : ''}${format ? `${kindParam ? '&' : ''}format=${encodeURIComponent(format)}` : ''}`;
+  };
 
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">{gameRow.name}</h1>
         <form method="get" className="no-print flex items-center gap-2 text-sm">
-          {active && <input type="hidden" name="kind" value={active.label} />}
+          <input type="hidden" name="kind" value={[...selected].join(',')} />
           <select
             name="format"
             defaultValue={format ?? ''}
@@ -78,7 +91,7 @@ export default async function GamePage({
           >
             <option value="">All formats</option>
             {FORMATS[game]?.map((f) => (
-              <option key={f} value={f}>{f}</option>
+              <option key={f} value={f}>{properCase(f)}</option>
             ))}
           </select>
           <button className="rounded border border-neutral-700 px-3 py-1 hover:bg-neutral-800">Apply</button>
@@ -91,7 +104,7 @@ export default async function GamePage({
             key={t.label}
             href={tabHref(t.label)}
             className={`rounded-full border px-3 py-1 text-sm ${
-              t === active
+              selected.has(t.label)
                 ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300'
                 : 'border-neutral-700 text-neutral-300 hover:border-neutral-500'
             }`}
@@ -105,7 +118,7 @@ export default async function GamePage({
         <section key={year} className="mb-8">
           <h2 className="mb-3 border-b border-neutral-800 pb-1 text-lg font-semibold text-neutral-300">{year}</h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {active!.sets
+            {shown
               .filter((s) => s.year === year)
               .map((s) => {
                 const pct = s.total ? Math.round((100 * s.owned) / s.total) : 0;

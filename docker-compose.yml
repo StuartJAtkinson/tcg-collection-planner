@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: cards
       POSTGRES_DB: cards
     ports:
-      - "5432:5432"
+      - "5254:5432" # host port avoids map-merch's postgres on 5432 (see H:\GitHub\PORTS.md)
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
