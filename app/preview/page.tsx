@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 
 const FIELDS = client`
   c.id, c.name, c.collector_number, c.rarity_raw, c.rarity_tier, c.image_small, c.image_large,
-  c.set_id, c.game_id, c.artist, c.attrs, s.code as set_code, s.name as set_name,
+  c.set_id, c.game_id, c.artist, c.attrs, s.code as set_code, s.name as set_name, s.icon_url as set_icon_url,
   coalesce((select array_agg(f.value) from card_facets f where f.card_id = c.id and f.facet = 'color'), '{}') as colors`;
 
 export default async function PreviewPage({ searchParams }: { searchParams: Promise<{ name?: string }> }) {

@@ -15,6 +15,7 @@ export type MockCardSource = {
   image_small: string | null;
   image_large: string | null;
   set_code: string;
+  set_icon_url: string | null;
   game_id: string;
   artist: string | null;
   colors: string[]; // from card_facets, facet='color'
@@ -32,6 +33,8 @@ export function cardToMockFaces(card: MockCardSource): MockFace[] {
     rarity: card.rarity_raw,
     rarityTier: card.rarity_tier,
     setCode: card.set_code,
+    setIconUrl: card.set_icon_url,
+    game: card.game_id,
     collectorNumber: card.collector_number,
     artist: card.artist,
   };

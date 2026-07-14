@@ -4,13 +4,14 @@ import { tokenScore } from './csv.ts';
 export type CandidateCard = {
   id: string; name: string; collector_number: string; rarity_raw: string | null; rarity_tier: number | null;
   image_small: string | null; image_large: string | null; finishes: string[]; artist: string | null;
-  attrs: Record<string, any> | null; game_id: string; set_code: string; set_name: string;
+  attrs: Record<string, any> | null; game_id: string; set_code: string; set_name: string; set_icon_url: string | null;
   release_date: string | null; colors: string[]; score: number;
 };
 
 const SELECT = client`
   select c.id, c.name, c.collector_number, c.rarity_raw, c.rarity_tier, c.image_small, c.image_large,
          c.finishes, c.attrs, c.game_id, c.artist, s.code as set_code, s.name as set_name, s.release_date,
+         s.icon_url as set_icon_url,
          coalesce((select array_agg(f.value) from card_facets f where f.card_id = c.id and f.facet = 'color'), '{}') as colors
   from cards c join sets s on s.id = c.set_id`;
 

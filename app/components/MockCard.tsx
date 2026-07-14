@@ -27,6 +27,8 @@ export type MockFace = {
   imageUrl?: string | null;
   rarity?: string | null;
   setCode?: string | null;
+  setIconUrl?: string | null; // Scryfall/pokemon-tcg-data set symbol SVG, hotlinked (not recoloured)
+  game?: string | null; // drives the set-icon invert filter (mtg icons are black-on-transparent)
   collectorNumber?: string | null;
   artist?: string | null;
 };
@@ -121,83 +123,112 @@ function Face({ face, rotated }: { face: MockFace; rotated?: boolean }) {
       style={{ background: bg, color: fg }}
       // real Magic cards' border is ~7% of card width/height (3.5% each side); frame is
       // w-56 = 224px, so 224 * 0.035 = 7.84px — keep this in sync if the width ever changes
-      className={`flex aspect-[5/7] w-56 shrink-0 flex-col overflow-hidden rounded-lg border-[7.84px] border-black/70 p-1.5 text-[11px] shadow-lg ${rotated ? 'rotate-180' : ''}`}
+      className={`relative flex aspect-[5/7] w-56 shrink-0 flex-col overflow-hidden rounded-lg border-[7.84px] border-black/70 p-1.5 text-[11px] shadow-lg ${rotated ? 'rotate-180' : ''}`}
     >
-      {/* a) name/cost plate — rounded rectangle, name left, mana cost/hp right */}
-      <div className="flex items-center justify-between gap-1 rounded-md bg-black/15 px-1.5 py-0.5">
-        <span className="truncate text-[13px] font-bold leading-tight">{face.name}</span>
-        <span className="flex shrink-0 items-center gap-0.5">
-          {face.hp ? (
-            <span className="text-[11px] font-bold">{face.hp} HP</span>
-          ) : (
-            face.costTokens?.map((t, i) => <ManaPip key={i} token={t} />)
-          )}
-        </span>
-      </div>
-
-      {/* b) art box: full frame width, same side margin as every other element, sized to the
-          art's own aspect ratio (object-contain) rather than stretched/cropped. Shorter than
-          a real card's art box to leave room for the type line's rarity symbol below. No
-          image: an honest placeholder, same footprint, never blocks layout. */}
-      <div className="my-1 flex aspect-[5/3.2] w-full shrink-0 items-center justify-center overflow-hidden rounded border border-black/20 bg-black/10">
-        {face.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={face.imageUrl} alt="" className="h-full w-full object-contain" />
-        ) : (
-          <span className="px-2 text-center text-[9px] italic opacity-50">no art loaded</span>
-        )}
-      </div>
-
-      {/* c) type line — same plate treatment as the name bar (mirrors it), pulled up/down with
-          negative margin so it physically overlaps the art box's bottom edge and the text
-          box's top edge, like the banner on a real card, rather than sitting in its own
-          separate slot between them */}
-      {(face.typeLine || face.rarityTier) && (
-        <div className="relative z-10 -my-2.5 flex items-center gap-1 truncate rounded-md bg-black/15 px-1.5 py-0.5 text-[10px] font-semibold">
-          {face.rarityTier && (
-            <span
-              style={{ background: RARITY_COLORS[face.rarityTier] ?? RARITY_COLORS[1] }}
-              className="inline-block h-2 w-2 shrink-0 rounded-full border border-black/40"
-            />
-          )}
-          <span className="truncate">{face.typeLine}</span>
-        </div>
+      {/* 1) no separate art-only crop is available, so the whole card photo is stretched to
+          the mock's own frame size and sits behind everything as a mask — the art window
+          below is just a transparent gap in the opaque chrome that reveals it. Layout is
+          close enough to a real card's that the art lines up in roughly the right place. */}
+      {face.imageUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={face.imageUrl} alt="" className="absolute inset-0 h-full w-full object-fill" />
       )}
 
-      {/* d) main text box: i) abilities  ii) rule  iii) italic flavor  iv) quote attribution */}
-      <div className={`mt-1 flex-1 overflow-hidden rounded-sm bg-black/5 px-1 py-0.5 leading-snug ${bodySize}`}>
-        {face.rulesText && <p className="whitespace-pre-wrap">{face.rulesText}</p>}
-        {face.attacks?.map((a, i) => (
-          <div key={i} className="mt-0.5 flex items-baseline justify-between gap-1">
-            <span className="flex items-center gap-0.5">
-              {a.cost?.map((t, j) => <Pip key={j} token={t} />)}
-              <span className="font-semibold">{a.name}</span>
-            </span>
-            {a.damage && <span className="font-bold">{a.damage}</span>}
-          </div>
-        ))}
-        {flavor && (
-          <>
-            <hr className="my-1 border-black/50" />
-            <p className="whitespace-pre-wrap italic opacity-70">{flavor.quote}</p>
-            {flavor.attribution && <p className="text-right italic opacity-60">{flavor.attribution}</p>}
-          </>
-        )}
-      </div>
+      <div className="relative z-10 flex h-full flex-col">
+        {/* a) name/cost plate — rounded rectangle, name left, mana cost/hp right */}
+        <div className="flex items-center justify-between gap-1 rounded-md bg-black/90 px-1.5 py-0.5">
+          <span className="truncate text-[13px] font-bold leading-tight">{face.name}</span>
+          <span className="flex shrink-0 items-center gap-0.5">
+            {face.hp ? (
+              <span className="text-[11px] font-bold">{face.hp} HP</span>
+            ) : (
+              face.costTokens?.map((t, i) => <ManaPip key={i} token={t} />)
+            )}
+          </span>
+        </div>
 
-      {/* e) collector number + illustrator */}
-      <div className="mt-1 flex items-start justify-between text-[8px] uppercase opacity-70">
-        <span className="flex flex-col">
-          <span className="truncate">
-            {face.rarity ?? ''} {face.setCode ? `· ${face.setCode}` : ''} {face.collectorNumber ?? ''}
-          </span>
-          {face.artist && <span className="truncate normal-case">Illus. {face.artist}</span>}
-        </span>
-        {(face.power || face.toughness) && (
-          <span className="shrink-0 rounded-sm border border-black/30 bg-black/10 px-1 font-bold normal-case">
-            {face.power}/{face.toughness}
-          </span>
+        {/* b) art window: transparent — reveals the masked card image behind at roughly the
+            right spot. +10% taller than the previous pass. No image at all: shows the honest
+            placeholder instead, same footprint. */}
+        <div className="my-1 aspect-[5/3.52] w-full shrink-0 overflow-hidden rounded border border-black/20">
+          {!face.imageUrl && (
+            <div className="flex h-full w-full items-center justify-center bg-black/10">
+              <span className="px-2 text-center text-[9px] italic opacity-50">no art loaded</span>
+            </div>
+          )}
+        </div>
+
+        {/* c) type line — mirrors the name plate, overlapping the art/text seam. Rarity moved
+            to a reserved slot on the right: the real set-symbol SVG, hotlinked exactly like
+            the Master Sets/checklist pages already do (mask-image recolouring was tried first
+            but Scryfall's icon host doesn't send CORS headers, so a masked/recoloured version
+            can't load in the browser at all — a plain <img> has no such restriction). Falls
+            back to a plain rarity-coloured dot if no icon URL is known. Type text is flex-1
+            to fill the remaining width up to the reserved icon slot. */}
+        {(face.typeLine || face.rarityTier) && (
+          <div className="relative z-10 -my-2.5 flex items-center gap-1 rounded-md bg-black/90 px-1.5 py-0.5 text-[10px] font-semibold">
+            <span className="flex-1 truncate">{face.typeLine}</span>
+            <span className="shrink-0">
+              {face.setIconUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={face.setIconUrl}
+                  alt=""
+                  className={`h-3 w-3 ${face.game === 'mtg' ? 'invert' : ''}`}
+                />
+              ) : (
+                face.rarityTier && (
+                  <span
+                    style={{ background: RARITY_COLORS[face.rarityTier] ?? RARITY_COLORS[1] }}
+                    className="inline-block h-2 w-2 rounded-full border border-black/40"
+                  />
+                )
+              )}
+            </span>
+          </div>
         )}
+
+        {/* d) main text box: abilities/attacks pinned to the top, rule+flavor+attribution
+            pinned to the bottom (justify-between) rather than immediately following the
+            rules text — matches how a real card leaves the gap in the middle, not the end */}
+        <div className={`mt-1 flex flex-1 flex-col justify-between overflow-hidden rounded-sm bg-black/90 px-1 py-0.5 leading-snug ${bodySize}`}>
+          <div>
+            {face.rulesText && <p className="whitespace-pre-wrap">{face.rulesText}</p>}
+            {face.attacks?.map((a, i) => (
+              <div key={i} className="mt-0.5 flex items-baseline justify-between gap-1">
+                <span className="flex items-center gap-0.5">
+                  {a.cost?.map((t, j) => <Pip key={j} token={t} />)}
+                  <span className="font-semibold">{a.name}</span>
+                </span>
+                {a.damage && <span className="font-bold">{a.damage}</span>}
+              </div>
+            ))}
+          </div>
+          {flavor && (
+            <div>
+              <hr className="my-1 border-black/50" />
+              <p className="whitespace-pre-wrap italic opacity-70">{flavor.quote}</p>
+              {flavor.attribution && <p className="text-right italic opacity-60">{flavor.attribution}</p>}
+            </div>
+          )}
+        </div>
+
+        {/* e) collector number + illustrator, one line only — rarity text dropped (the type
+            line's symbol already covers it); P/T sized up now that a full second line isn't
+            competing for space */}
+        <div className="mt-1 flex items-center justify-between gap-1 rounded-sm bg-black/90 px-1 py-0.5 text-[8px] opacity-90">
+          <span className="truncate">
+            <span className="uppercase">
+              {face.setCode ?? ''} {face.collectorNumber ?? ''}
+            </span>
+            {face.artist && <span className="normal-case"> · Illus. {face.artist}</span>}
+          </span>
+          {(face.power || face.toughness) && (
+            <span className="shrink-0 rounded-sm border border-black/30 bg-black/20 px-1 text-[10.5px] font-bold">
+              {face.power}/{face.toughness}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
