@@ -1,0 +1,33 @@
+{
+  "name": "card-collection",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "db:up": "docker compose up -d --wait",
+    "db:push": "drizzle-kit push",
+    "import:mtg": "node src/import/mtg.ts",
+    "import:pokemon": "node src/import/pokemon.ts",
+    "import": "node src/import/mtg.ts && node src/import/pokemon.ts",
+    "verify": "node src/verify.ts"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.2",
+    "next": "^16.2.10",
+    "postgres": "^3.4.9",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.2",
+    "@types/node": "^26.1.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "drizzle-kit": "^0.31.10",
+    "postcss": "^8.5.19",
+    "tailwindcss": "^4.3.2",
+    "typescript": "7.0.2"
+  }
+}
