@@ -11,20 +11,30 @@ export type MockCardSource = {
   name: string;
   collector_number: string;
   rarity_raw: string | null;
+  rarity_tier: number | null;
   image_small: string | null;
   image_large: string | null;
   set_code: string;
   game_id: string;
+  artist: string | null;
   colors: string[]; // from card_facets, facet='color'
   attrs: Record<string, any> | null;
 };
 
 // dual/transform/split cards -> 2 faces, rendered side by side. We don't always know the
 // layout (adventure vs transform vs split), so this doesn't try to be clever about it — both
-// faces just render, second one rotated as a visual nod to the physical flip.
+// faces just render, second one rotated as a visual nod to the physical flip. Scryfall's
+// artist credit is card-level, not per-face, so both faces show the same illustrator even
+// when a dual-faced card technically had two.
 export function cardToMockFaces(card: MockCardSource): MockFace[] {
   const attrs = card.attrs ?? {};
-  const common = { rarity: card.rarity_raw, setCode: card.set_code, collectorNumber: card.collector_number };
+  const common = {
+    rarity: card.rarity_raw,
+    rarityTier: card.rarity_tier,
+    setCode: card.set_code,
+    collectorNumber: card.collector_number,
+    artist: card.artist,
+  };
 
   if (card.game_id === 'mtg') {
     const faces = attrs.card_faces;

@@ -179,10 +179,10 @@ export default async function ResolvePage({
                         </label>
                       ))}
                     </div>
-                    <label className="flex cursor-pointer items-center gap-1.5 text-xs text-neutral-400 hover:text-neutral-200">
-                      <input type="radio" name={`choice_${i}`} value="skip" defaultChecked />
-                      None of these / skip
-                    </label>
+                    {/* no explicit "skip" option: nothing pre-checked, radio grouping already
+                        guarantees at most one candidate highlighted, and a row with no
+                        selection simply submits no choice_<i> field — the action only ever
+                        processes rows that actually have one */}
                   </div>
                 )}
               </div>

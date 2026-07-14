@@ -38,7 +38,7 @@ export async function resolveImportRows(formData: FormData) {
     if (!key.startsWith('choice_')) continue;
     const i = key.slice('choice_'.length);
     const choice = String(value);
-    if (choice === 'skip' || !choice) continue;
+    if (!choice) continue;
 
     const [card] = await client`select finishes from cards where id = ${choice}`;
     if (!card) continue;

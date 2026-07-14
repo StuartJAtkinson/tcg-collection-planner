@@ -1,5 +1,8 @@
 // A vector/font-only rendering of a card — no art required, laid out in standardized frame
-// positions (title, cost, art box, type line, rules text, flavor text, bottom info bar).
+// positions matching the standard Magic card anatomy (name/cost plate, art box, type line
+// with rarity symbol, rules text box with a flavor-text rule and quote attribution, bottom
+// collector/illustrator bar). Deliberately the "standard" frame only — Planeswalkers, Sagas,
+// split cards etc. have their own real layouts and are a later concern, not modeled here.
 // First step toward a future 3D/OpenGL binder renderer: everything but the art texture is
 // cheap vector+font geometry, so a binder full of these can render (and occlusion-cull) far
 // more cheaply than a wall of raster card images. Art is genuinely optional — if no image URL
@@ -17,6 +20,7 @@ export type MockFace = {
   power?: string | null;
   toughness?: string | null;
   colors?: string[]; // MTG color letters (WUBRG/C) or pokemon energy types — drives frame color
+  rarityTier?: number | null; // 1-5, normalized cross-game — drives the type-line rarity symbol
   rulesText?: string | null;
   attacks?: { name: string; cost?: string[]; damage?: string; text?: string }[];
   flavorText?: string | null;
@@ -24,6 +28,7 @@ export type MockFace = {
   rarity?: string | null;
   setCode?: string | null;
   collectorNumber?: string | null;
+  artist?: string | null;
 };
 
 const MTG_COLORS: Record<string, string> = {
@@ -35,9 +40,24 @@ const PKM_COLORS: Record<string, string> = {
   Dragon: '#6a5acd', Fairy: '#e17ac6',
 };
 const DARK_FRAMES = new Set(['B', 'Darkness', 'Dragon']);
+// standard rarity symbol colours: common=black, uncommon=silver, rare=gold, mythic=orange, special=purple
+const RARITY_COLORS: Record<number, string> = {
+  1: '#3a3a3a', 2: '#c0c9d1', 3: '#d4af37', 4: '#f0713a', 5: '#a76fd1',
+};
+
+// pokemon energy tokens are full type names ("Fire", "Colorless") — too long for a 16px pip,
+// so they get abbreviated to one letter for display; colour lookup still uses the full name
+const PKM_ABBR: Record<string, string> = {
+  Fire: 'F', Water: 'W', Grass: 'G', Lightning: 'L', Psychic: 'P',
+  Fighting: 'T', Colorless: 'C', Darkness: 'D', Metal: 'M', Dragon: 'N', Fairy: 'Y',
+};
 
 function pipColor(token: string) {
   return MTG_COLORS[token] ?? PKM_COLORS[token] ?? '#8c8c8c';
+}
+
+function pipLabel(token: string) {
+  return PKM_ABBR[token] ?? token;
 }
 
 function frameColor(colors?: string[]) {
@@ -47,13 +67,32 @@ function frameColor(colors?: string[]) {
   return MTG_COLORS[colors[0]] ?? PKM_COLORS[colors[0]] ?? '#8c8c8c';
 }
 
+// crude "shrink to fit" without measuring the DOM (this renders server-side, no client JS):
+// pick a smaller font size as the total text volume grows, same way paper Magic cards do.
+function textFitClass(chars: number) {
+  if (chars > 380) return 'text-[7px]';
+  if (chars > 260) return 'text-[7.5px]';
+  if (chars > 160) return 'text-[8px]';
+  if (chars > 80) return 'text-[8.5px]';
+  return 'text-[9px]';
+}
+
+// flavor text often carries its attribution as a trailing "—Author, Source" line
+function splitAttribution(flavorText: string) {
+  const lines = flavorText.split('\n');
+  if (lines.length > 1 && /^[-—]/.test(lines[lines.length - 1].trim())) {
+    return { quote: lines.slice(0, -1).join('\n'), attribution: lines[lines.length - 1].trim() };
+  }
+  return { quote: flavorText, attribution: null };
+}
+
 function Pip({ token }: { token: string }) {
   return (
     <span
       style={{ background: pipColor(token) }}
       className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-black/40 text-[9px] font-bold text-black/80"
     >
-      {token}
+      {pipLabel(token)}
     </span>
   );
 }
@@ -63,13 +102,18 @@ function Face({ face, rotated }: { face: MockFace; rotated?: boolean }) {
   const dark = face.colors?.some((c) => DARK_FRAMES.has(c));
   const fg = dark ? '#f0f0f0' : '#1a1a1a';
 
+  const attacksText = face.attacks?.map((a) => `${a.name} ${a.text ?? ''}`).join(' ') ?? '';
+  const bodyChars = (face.rulesText?.length ?? 0) + attacksText.length + (face.flavorText?.length ?? 0);
+  const bodySize = textFitClass(bodyChars);
+  const flavor = face.flavorText ? splitAttribution(face.flavorText) : null;
+
   return (
     <div
       style={{ background: bg, color: fg }}
-      className={`flex aspect-[5/7] w-56 shrink-0 flex-col overflow-hidden rounded-lg border-2 border-black/30 p-1.5 text-[11px] shadow-lg ${rotated ? 'rotate-180' : ''}`}
+      className={`flex aspect-[5/7] w-56 shrink-0 flex-col overflow-hidden rounded-lg border-[3px] border-black/70 p-1.5 text-[11px] shadow-lg ${rotated ? 'rotate-180' : ''}`}
     >
-      {/* title bar */}
-      <div className="flex items-center justify-between gap-1">
+      {/* a) name/cost plate — rounded rectangle, name left, mana cost/hp right */}
+      <div className="flex items-center justify-between gap-1 rounded-md bg-black/15 px-1.5 py-0.5">
         <span className="truncate text-[13px] font-bold leading-tight">{face.name}</span>
         <span className="flex shrink-0 items-center gap-0.5">
           {face.hp ? (
@@ -80,11 +124,11 @@ function Face({ face, rotated }: { face: MockFace; rotated?: boolean }) {
         </span>
       </div>
 
-      {/* art box: full frame width, sits directly under the title at the same side margin as
-          every other element — sized to the art's own aspect ratio (object-contain) rather
-          than stretched/cropped to fill a fixed box. No image: an honest placeholder, same
-          footprint, never blocks layout. */}
-      <div className="my-1 flex aspect-[5/4] w-full shrink-0 items-center justify-center overflow-hidden rounded border border-black/20 bg-black/10">
+      {/* b) art box: full frame width, same side margin as every other element, sized to the
+          art's own aspect ratio (object-contain) rather than stretched/cropped. Shorter than
+          a real card's art box to leave room for the type line's rarity symbol below. No
+          image: an honest placeholder, same footprint, never blocks layout. */}
+      <div className="my-1 flex aspect-[5/3.2] w-full shrink-0 items-center justify-center overflow-hidden rounded border border-black/20 bg-black/10">
         {face.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={face.imageUrl} alt="" className="h-full w-full object-contain" />
@@ -93,15 +137,21 @@ function Face({ face, rotated }: { face: MockFace; rotated?: boolean }) {
         )}
       </div>
 
-      {/* type line */}
-      {face.typeLine && (
-        <div className="truncate rounded-sm bg-black/10 px-1 py-0.5 text-[10px] font-semibold">
-          {face.typeLine}
+      {/* c) type line — rarity symbol and type text both left-aligned, matching the name */}
+      {(face.typeLine || face.rarityTier) && (
+        <div className="flex items-center gap-1 truncate rounded-sm bg-black/10 px-1 py-0.5 text-[10px] font-semibold">
+          {face.rarityTier && (
+            <span
+              style={{ background: RARITY_COLORS[face.rarityTier] ?? RARITY_COLORS[1] }}
+              className="inline-block h-2 w-2 shrink-0 rounded-full border border-black/40"
+            />
+          )}
+          <span className="truncate">{face.typeLine}</span>
         </div>
       )}
 
-      {/* rules text + attacks + flavor */}
-      <div className="mt-1 flex-1 overflow-hidden rounded-sm bg-black/5 px-1 py-0.5 text-[9px] leading-snug">
+      {/* d) main text box: i) abilities  ii) rule  iii) italic flavor  iv) quote attribution */}
+      <div className={`mt-1 flex-1 overflow-hidden rounded-sm bg-black/5 px-1 py-0.5 leading-snug ${bodySize}`}>
         {face.rulesText && <p className="whitespace-pre-wrap">{face.rulesText}</p>}
         {face.attacks?.map((a, i) => (
           <div key={i} className="mt-0.5 flex items-baseline justify-between gap-1">
@@ -112,18 +162,25 @@ function Face({ face, rotated }: { face: MockFace; rotated?: boolean }) {
             {a.damage && <span className="font-bold">{a.damage}</span>}
           </div>
         ))}
-        {face.flavorText && (
-          <p className="mt-1 border-t border-black/10 pt-0.5 italic opacity-70">{face.flavorText}</p>
+        {flavor && (
+          <>
+            <hr className="my-1 border-black/50" />
+            <p className="whitespace-pre-wrap italic opacity-70">{flavor.quote}</p>
+            {flavor.attribution && <p className="text-right italic opacity-60">{flavor.attribution}</p>}
+          </>
         )}
       </div>
 
-      {/* bottom info bar */}
-      <div className="mt-1 flex items-center justify-between text-[8px] uppercase opacity-70">
-        <span className="truncate">
-          {face.rarity ?? ''} {face.setCode ? `· ${face.setCode}` : ''} {face.collectorNumber ?? ''}
+      {/* e) collector number + illustrator */}
+      <div className="mt-1 flex items-start justify-between text-[8px] uppercase opacity-70">
+        <span className="flex flex-col">
+          <span className="truncate">
+            {face.rarity ?? ''} {face.setCode ? `· ${face.setCode}` : ''} {face.collectorNumber ?? ''}
+          </span>
+          {face.artist && <span className="truncate normal-case">Illus. {face.artist}</span>}
         </span>
         {(face.power || face.toughness) && (
-          <span className="rounded-sm border border-black/30 bg-black/10 px-1 font-bold normal-case">
+          <span className="shrink-0 rounded-sm border border-black/30 bg-black/10 px-1 font-bold normal-case">
             {face.power}/{face.toughness}
           </span>
         )}
