@@ -1,6 +1,8 @@
 node_modules/
 data/
 .env
+*.csv
+*-unmatched.csv
 .playwright-mcp/
 .next/
 next-env.d.ts
