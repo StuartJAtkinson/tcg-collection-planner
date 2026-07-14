@@ -74,9 +74,14 @@ async function main() {
         artist: c.artist ?? null,
         // ponytail: variant detection (reverse holo, 1st ed) deferred to phase 3 holdings
         finishes: ['normal'],
-        // no true oracle id for pokemon; normalized name is the best available "same card"
-        // grouping (weaker than mtg's oracle_id — errata/rules text changes go undetected)
-        oracleId: c.name.trim().toLowerCase(),
+        // no true oracle id for pokemon. Pokédex number is a stable species identity that
+        // survives 27 years of name-formatting drift (Farfetch'd's apostrophe, δ-species,
+        // "Mr. Mime" spacing…) so it wins for actual Pokémon cards — including multi-number
+        // fusion cards (Tag Team GX). Trainer/Energy cards carry no dex number and fall back
+        // to normalized name. Either way this only ever drives a display hint, never completion.
+        oracleId: c.nationalPokedexNumbers?.length
+          ? `dex:${[...c.nationalPokedexNumbers].sort((a: number, b: number) => a - b).join(',')}`
+          : c.name.trim().toLowerCase(),
         attrs: {
           hp: c.hp, types: c.types, subtypes: c.subtypes, evolvesFrom: c.evolvesFrom,
           abilities: c.abilities, attacks: c.attacks, weaknesses: c.weaknesses,

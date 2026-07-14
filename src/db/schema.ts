@@ -50,9 +50,10 @@ export const cards = pgTable(
     finishes: text('finishes').array().notNull(),
     attrs: jsonb('attrs'), // tier 3: display-only, game-specific
     // groups every printing of "the same card" (Gatherer's all-printings concept): Scryfall's
-    // oracle_id for mtg (identical rules text across reprints); pokemon has no such id, so this
-    // falls back to a normalized name — a weaker guarantee (errata/rules changes go undetected),
-    // acceptable since it only ever drives a display hint, never completion math.
+    // oracle_id for mtg (identical rules text across reprints); pokemon groups by national
+    // Pokédex number ("dex:6" etc, stable across name-formatting drift; "dex:6,654" for
+    // multi-number fusion cards), falling back to normalized name for Trainer/Energy cards,
+    // which have no dex number. Only ever drives a display hint, never completion math.
     oracleId: text('oracle_id'),
   },
   (t) => [
