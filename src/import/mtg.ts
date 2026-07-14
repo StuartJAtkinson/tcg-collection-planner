@@ -108,6 +108,7 @@ async function main() {
       rarityRaw: c.rarity, rarityTier: RARITY_TIER[c.rarity] ?? 3,
       imageSmall: img?.small ?? null, imageLarge: img?.large ?? img?.normal ?? null,
       artist: c.artist ?? null, finishes: c.finishes ?? ['nonfoil'], attrs: attrsFor(c),
+      oracleId: c.oracle_id ?? c.card_faces?.[0]?.oracle_id ?? null,
     });
     facetBatch.push(...facetsFor(c));
     for (const [key, finish] of [['usd', 'nonfoil'], ['usd_foil', 'foil'], ['usd_etched', 'etched']] as const) {

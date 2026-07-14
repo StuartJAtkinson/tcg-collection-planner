@@ -10,7 +10,7 @@ type SP = { view?: string; rarity?: string; kind?: string; color?: string; artis
 type Card = {
   id: string; name: string; collector_number: string; rarity_raw: string | null;
   image_small: string | null; artist: string | null; finishes: string[];
-  owned_finishes: string[]; owned: boolean; usd: number | null;
+  owned_finishes: string[]; owned: boolean; for_play: boolean; usd: number | null;
 };
 
 const chunk = <T,>(arr: T[], n: number): T[][] =>
@@ -48,6 +48,13 @@ export default async function SetPage({
     select c.id, c.name, c.collector_number, c.rarity_raw, c.image_small, c.artist, c.finishes,
            coalesce(hh.owned_finishes, '{}') as owned_finishes,
            coalesce(array_length(hh.owned_finishes, 1), 0) > 0 as owned,
+           -- Gatherer-style "all printings" grouping: own any other print sharing oracle_id? (mtg
+           -- oracle_id groups identical rules text across reprints; pokemon falls back to name)
+           coalesce(array_length(hh.owned_finishes, 1), 0) = 0
+             and exists (
+               select 1 from cards c2 join holdings h2 on h2.card_id = c2.id
+               where c2.oracle_id = c.oracle_id and c2.id != c.id and c.oracle_id is not null
+             ) as for_play,
            p.usd::float as usd
     from cards c
     left join lateral (select array_agg(h.finish) as owned_finishes from holdings h where h.card_id = c.id) hh on true
@@ -98,12 +105,19 @@ export default async function SetPage({
     </select>
   );
 
-  // primary finish owns the slot; a second finish (e.g. foil) gets its own small toggle
+  // primary finish owns the slot; a second finish (e.g. foil) gets its own small toggle.
+  // ring: emerald = this exact printing owned, amber-dashed = "Collected — For Play" (you
+  // own the card under a different print/set, per oracle_id/name grouping), grey = neither.
   const tile = (c: Card) => {
     const [primary, ...rest] = c.finishes.length ? c.finishes : ['normal'];
     return (
       <div key={c.id} className={c.owned ? '' : 'opacity-90'}>
-        <div className={`relative overflow-hidden rounded-lg ${c.owned ? 'ring-2 ring-emerald-500' : ''}`}>
+        <div
+          title={c.for_play ? 'Collected — For Play (owned under a different printing)' : undefined}
+          className={`relative overflow-hidden rounded-lg ${
+            c.owned ? 'ring-2 ring-emerald-500' : c.for_play ? 'ring-2 ring-dashed ring-amber-500/70' : ''
+          }`}
+        >
           {c.image_small ? (
             <img src={c.image_small} alt={c.name} loading="lazy" className="w-full" />
           ) : (
@@ -112,6 +126,11 @@ export default async function SetPage({
             </div>
           )}
           {!c.owned && <div className="absolute inset-0 bg-neutral-950/40" />}
+          {c.for_play && (
+            <div className="no-print absolute bottom-1 left-1 right-1 rounded bg-amber-500/90 px-1 py-0.5 text-center text-[9px] font-semibold uppercase text-neutral-950">
+              For Play
+            </div>
+          )}
           <form action={toggleHolding.bind(null, c.id, primary)} className="no-print absolute right-1 top-1">
             <button
               title={c.owned_finishes.includes(primary) ? `Owned (${primary}) — click to remove` : `Mark owned (${primary})`}
@@ -177,6 +196,9 @@ export default async function SetPage({
           </div>
           {stats.cost_to_complete != null && (
             <div>cost to complete ≈ <span className="text-neutral-100">${stats.cost_to_complete.toFixed(2)}</span></div>
+          )}
+          {cards.some((c) => c.for_play) && (
+            <div className="mt-1 text-amber-400">◐ dashed = have this card, different printing</div>
           )}
         </div>
       </div>
@@ -261,7 +283,7 @@ export default async function SetPage({
             <tbody>
               {cards.map((c) => (
                 <tr key={c.id} className="border-b border-neutral-300">
-                  <td className="py-0.5 text-center">{c.owned ? '☑' : '☐'}</td>
+                  <td className="py-0.5 text-center">{c.owned ? '☑' : c.for_play ? '◐' : '☐'}</td>
                   <td className="py-0.5">{c.collector_number}</td>
                   <td className="py-0.5">{c.name}</td>
                   <td className="py-0.5">{c.rarity_raw}</td>

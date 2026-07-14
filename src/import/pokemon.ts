@@ -74,6 +74,9 @@ async function main() {
         artist: c.artist ?? null,
         // ponytail: variant detection (reverse holo, 1st ed) deferred to phase 3 holdings
         finishes: ['normal'],
+        // no true oracle id for pokemon; normalized name is the best available "same card"
+        // grouping (weaker than mtg's oracle_id — errata/rules text changes go undetected)
+        oracleId: c.name.trim().toLowerCase(),
         attrs: {
           hp: c.hp, types: c.types, subtypes: c.subtypes, evolvesFrom: c.evolvesFrom,
           abilities: c.abilities, attacks: c.attacks, weaknesses: c.weaknesses,

@@ -5,3 +5,4 @@ data/
 .next/
 next-env.d.ts
 startStop.md
+.claude/

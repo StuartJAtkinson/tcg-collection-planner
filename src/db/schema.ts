@@ -49,8 +49,17 @@ export const cards = pgTable(
     artist: text('artist'),
     finishes: text('finishes').array().notNull(),
     attrs: jsonb('attrs'), // tier 3: display-only, game-specific
+    // groups every printing of "the same card" (Gatherer's all-printings concept): Scryfall's
+    // oracle_id for mtg (identical rules text across reprints); pokemon has no such id, so this
+    // falls back to a normalized name — a weaker guarantee (errata/rules changes go undetected),
+    // acceptable since it only ever drives a display hint, never completion math.
+    oracleId: text('oracle_id'),
   },
-  (t) => [index('cards_set_sort_idx').on(t.setId, t.sortKey), index('cards_name_idx').on(t.name)],
+  (t) => [
+    index('cards_set_sort_idx').on(t.setId, t.sortKey),
+    index('cards_name_idx').on(t.name),
+    index('cards_oracle_idx').on(t.oracleId),
+  ],
 );
 
 export const cardFacets = pgTable(
@@ -97,6 +106,7 @@ export const holdings = pgTable(
     finish: text('finish').notNull().default('normal'),
     quantity: integer('quantity').notNull().default(1),
     condition: text('condition'),
+    grade: text('grade'), // e.g. "PSA 10" — distinct from condition (raw NM/LP/…), set once slabbed
     paid: numeric('paid', { precision: 12, scale: 2 }),
     containerId: integer('container_id').references(() => containers.id),
   },

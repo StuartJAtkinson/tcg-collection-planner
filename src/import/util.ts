@@ -61,6 +61,7 @@ export async function upsertCards(cardRows: CardRow[], facetRows: FacetRow[], pr
       attrs: sql`excluded.attrs`,
       rarityRaw: sql`excluded.rarity_raw`,
       rarityTier: sql`excluded.rarity_tier`,
+      oracleId: sql`excluded.oracle_id`,
     },
   });
   // ponytail: facets are insert-only; card reclassifications don't happen in practice.
