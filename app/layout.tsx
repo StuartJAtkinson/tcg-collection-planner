@@ -1,4 +1,5 @@
 import './globals.css';
+import { readdirSync } from 'node:fs';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { client } from '../src/db/index.ts';
@@ -10,6 +11,7 @@ export const metadata = {
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const games = await client`select id, name from games order by id`;
+  const hasUnmatched = readdirSync(process.cwd()).some((f) => f.endsWith('-unmatched.csv'));
   return (
     <html lang="en">
       <body className="min-h-screen bg-neutral-950 text-neutral-100">
@@ -21,6 +23,11 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 {g.name}
               </Link>
             ))}
+            {hasUnmatched && (
+              <Link href="/resolve" className="ml-auto text-amber-400 hover:text-amber-300">
+                Resolve unmatched imports
+              </Link>
+            )}
           </nav>
         </header>
         <main className="mx-auto max-w-7xl px-4 py-6">{children}</main>

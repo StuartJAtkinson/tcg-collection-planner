@@ -53,3 +53,19 @@ exact header text and I'll add it as an alias — safer than the importer silent
 
 **Quantities add on re-run** (so a second export with new cards merges correctly) — don't run
 the same file twice, or clear `holdings` first if you need a clean retry.
+
+Real-world naming drift ("Universes Beyond: FINAL FANTASY" vs Scryfall's "Final Fantasy",
+"10th Edition" vs "Tenth Edition") is handled by exact match first, falling back to
+token-overlap fuzzy set matching (ordinal-word normalization + light stemming) — verified
+against a real 2,796-row export at a 94.7% match rate on supported-game rows.
+
+## Resolving unmatched rows
+
+Open **http://localhost:5253/resolve** (also linked in the nav whenever a `*-unmatched.csv`
+exists). For each unresolved row it shows the raw import data next to ranked candidate cards
+from the catalogue, each rendered as a **MockCard** — a vector/font-only card face (title,
+mana/energy pips, art *if available*, type line, rules text, flavor text) rather than a
+lookup of the raster art, so it renders even for candidates with no cached image. Pick a
+candidate (or "None of these / skip") per row and submit — resolved rows become holdings and
+are removed from the file; skipped rows stay for next time. `?file=` picks a specific
+unmatched CSV if more than one exists; `?page=` paginates (10 rows/page).

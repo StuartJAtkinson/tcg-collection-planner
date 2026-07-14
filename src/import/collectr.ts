@@ -8,96 +8,14 @@
 // have doesn't show up in the "detected columns" line, tell me its exact header text and I'll
 // add the alias — much cheaper than guessing wrong and silently mis-importing your collection.
 //
+// Rows that can't be confidently matched are written to <file>-unmatched.csv for manual
+// review — resolve them at /resolve in the app (candidate search + a mock-card preview per
+// candidate), or hand-fix and re-run.
+//
 // Usage: node src/import/collectr.ts path/to/export.csv
 import { readFileSync, writeFileSync } from 'node:fs';
 import { client } from '../db/index.ts';
-
-const ALIASES: Record<string, string[]> = {
-  game: ['game', 'tcg', 'category', 'sport'],
-  name: ['card name', 'name', 'item name', 'card', 'title', 'product name'],
-  set: ['set name', 'set', 'edition', 'series'],
-  setCode: ['set code', 'code', 'set abbreviation'],
-  number: ['card number', 'collector number', 'number', 'card #', '#', 'no.'],
-  rarity: ['rarity'],
-  variant: ['variant', 'variance', 'foil', 'finish', 'foil/normal', 'printing'],
-  condition: ['condition', 'card condition'],
-  gradingCompany: ['grading company', 'grader', 'graded by'],
-  grade: ['grade', 'grading', 'grade value'],
-  quantity: ['quantity', 'qty', 'count'],
-  purchasePrice: ['purchase price', 'paid', 'price paid', 'cost', 'cost basis', 'average cost paid'],
-  dateAdded: ['date added', 'date', 'purchase date', 'date acquired'],
-  watchlist: ['watchlist', 'wishlist'],
-};
-
-function parseCsv(text: string): string[][] {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let field = '';
-  let inQuotes = false;
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    if (inQuotes) {
-      if (ch === '"' && text[i + 1] === '"') { field += '"'; i++; }
-      else if (ch === '"') inQuotes = false;
-      else field += ch;
-    } else if (ch === '"') inQuotes = true;
-    else if (ch === ',') { row.push(field); field = ''; }
-    else if (ch === '\n' || ch === '\r') {
-      if (ch === '\r' && text[i + 1] === '\n') i++;
-      row.push(field); field = '';
-      if (row.some((f) => f !== '')) rows.push(row);
-      row = [];
-    } else field += ch;
-  }
-  if (field || row.length) { row.push(field); if (row.some((f) => f !== '')) rows.push(row); }
-  return rows;
-}
-
-const DIACRITIC_MARKS = new RegExp(`[${String.fromCharCode(0x300)}-${String.fromCharCode(0x36f)}]`, 'g');
-const norm = (s: string) => s.toLowerCase().normalize('NFKD').replace(DIACRITIC_MARKS, '').replace(/[^a-z0-9]/g, '');
-const money = (s: string) => { const m = s.replace(/,/g, '').match(/-?\d+(\.\d+)?/); return m ? parseFloat(m[0]) : null; };
-
-function resolveHeaders(headerRow: string[]) {
-  const normed = headerRow.map(norm);
-  const idx: Record<string, number> = {};
-  for (const [field, aliases] of Object.entries(ALIASES)) {
-    const i = normed.findIndex((h) => aliases.some((a) => norm(a) === h));
-    if (i !== -1) idx[field] = i;
-  }
-  return idx;
-}
-
-const GAME_MAP: Record<string, string> = {
-  magic: 'mtg', mtg: 'mtg', magicthegathering: 'mtg',
-  pokemon: 'pokemon', pokemontcg: 'pokemon',
-};
-
-// exporters vary in set-name spelling ("10th Edition" vs "Tenth Edition", "Commander: X" vs
-// "X Commander", "Universes Beyond: X" vs "X") too much to enumerate by hand, so exact/code
-// lookup falls back to token-overlap scoring rather than a hardcoded alias table.
-const ORDINALS: Record<string, string> = {
-  '1st': 'first', '2nd': 'second', '3rd': 'third', '4th': 'fourth', '5th': 'fifth',
-  '6th': 'sixth', '7th': 'seventh', '8th': 'eighth', '9th': 'ninth', '10th': 'tenth',
-  '11th': 'eleventh', '12th': 'twelfth',
-};
-const stem = (w: string) => (w.length > 3 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w);
-const tokenize = (s: string) =>
-  new Set(s.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).map((w) => stem(ORDINALS[w] ?? w)));
-
-function bestFuzzySetMatch(setName: string, candidates: { id: string; gameId: string; name: string }[]) {
-  const target = tokenize(setName);
-  let best: { id: string; gameId: string; name: string; score: number } | undefined;
-  let secondScore = 0;
-  for (const c of candidates) {
-    const tokens = tokenize(c.name);
-    const intersection = [...target].filter((t) => tokens.has(t)).length;
-    const union = new Set([...target, ...tokens]).size;
-    const score = union ? intersection / union : 0;
-    if (!best || score > best.score) { secondScore = best?.score ?? 0; best = { ...c, score }; }
-    else if (score > secondScore) secondScore = score;
-  }
-  return best && best.score >= 0.4 && best.score - secondScore >= 0.1 - 1e-9 ? best : undefined;
-}
+import { bestFuzzySetMatch, GAME_MAP, money, normalizeGrade, norm, parseCsv, pickFinish, resolveHeaders } from './csv.ts';
 
 async function main() {
   const path = process.argv[2];
@@ -172,18 +90,12 @@ async function main() {
     }
     if (!card) { unmatched.push({ row, reason: `"${name}" not found in "${setName}"` }); continue; }
 
-    const variant = get('variant')?.toLowerCase() ?? '';
-    const finish = card.finishes.find((f) => variant.includes(f.toLowerCase()))
-      ?? (variant.includes('foil') || variant.includes('holo') ? card.finishes.find((f) => f !== 'nonfoil' && f !== 'normal') : undefined)
-      ?? card.finishes[0] ?? 'normal';
-
+    const finish = pickFinish(card.finishes, get('variant'));
     const quantity = get('quantity') ? parseInt(get('quantity')!, 10) || 1 : 1;
     const paidRaw = get('purchasePrice');
     const paid = paidRaw ? money(paidRaw) : null;
     const condition = get('condition') || null;
-    const gradeRaw = get('grade');
-    const grade = !gradeRaw || gradeRaw.toLowerCase() === 'ungraded' ? null
-      : get('gradingCompany') ? `${get('gradingCompany')} ${gradeRaw}` : gradeRaw;
+    const grade = normalizeGrade(get('grade'), get('gradingCompany'));
 
     await client`
       insert into holdings (user_id, card_id, finish, quantity, condition, grade, paid)
@@ -208,7 +120,7 @@ async function main() {
       ...unmatched.map((u) => [...u.row, u.reason].map((f) => `"${String(f).replace(/"/g, '""')}"`).join(',')),
     ].join('\n');
     writeFileSync(reviewPath, out);
-    console.log(`unmatched rows written to ${reviewPath} for manual review`);
+    console.log(`unmatched rows written to ${reviewPath} for manual review — or resolve them at /resolve?file=${encodeURIComponent(reviewPath)}`);
   }
 
   await client.end();
