@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { toggleHolding } from '../../../src/actions.ts';
 import { client } from '../../../src/db/index.ts';
 import PrintButton from './print-button.tsx';
 
@@ -8,7 +9,8 @@ export const dynamic = 'force-dynamic';
 type SP = { view?: string; rarity?: string; kind?: string; color?: string; artist?: string; q?: string };
 type Card = {
   id: string; name: string; collector_number: string; rarity_raw: string | null;
-  image_small: string | null; artist: string | null; owned: boolean; usd: number | null;
+  image_small: string | null; artist: string | null; finishes: string[];
+  owned_finishes: string[]; owned: boolean; usd: number | null;
 };
 
 const chunk = <T,>(arr: T[], n: number): T[][] =>
@@ -43,10 +45,12 @@ export default async function SetPage({
     where c.set_id = ${id}`;
 
   const cards = (await client`
-    select c.id, c.name, c.collector_number, c.rarity_raw, c.image_small, c.artist,
-           exists (select 1 from holdings h where h.card_id = c.id) as owned,
+    select c.id, c.name, c.collector_number, c.rarity_raw, c.image_small, c.artist, c.finishes,
+           coalesce(hh.owned_finishes, '{}') as owned_finishes,
+           coalesce(array_length(hh.owned_finishes, 1), 0) > 0 as owned,
            p.usd::float as usd
     from cards c
+    left join lateral (select array_agg(h.finish) as owned_finishes from holdings h where h.card_id = c.id) hh on true
     left join lateral (
       select usd from prices p where p.card_id = c.id
       order by (p.finish = 'nonfoil') desc, p.as_of desc limit 1
@@ -94,25 +98,55 @@ export default async function SetPage({
     </select>
   );
 
-  const tile = (c: Card) => (
-    <div key={c.id} className={c.owned ? '' : 'opacity-90'}>
-      <div className={`relative overflow-hidden rounded-lg ${c.owned ? 'ring-2 ring-emerald-500' : ''}`}>
-        {c.image_small ? (
-          <img src={c.image_small} alt={c.name} loading="lazy" className="w-full" />
-        ) : (
-          <div className="flex aspect-[5/7] items-center justify-center bg-neutral-800 p-2 text-center text-xs text-neutral-400">
-            {c.name}
-          </div>
-        )}
-        {!c.owned && <div className="absolute inset-0 bg-neutral-950/40" />}
+  // primary finish owns the slot; a second finish (e.g. foil) gets its own small toggle
+  const tile = (c: Card) => {
+    const [primary, ...rest] = c.finishes.length ? c.finishes : ['normal'];
+    return (
+      <div key={c.id} className={c.owned ? '' : 'opacity-90'}>
+        <div className={`relative overflow-hidden rounded-lg ${c.owned ? 'ring-2 ring-emerald-500' : ''}`}>
+          {c.image_small ? (
+            <img src={c.image_small} alt={c.name} loading="lazy" className="w-full" />
+          ) : (
+            <div className="flex aspect-[5/7] items-center justify-center bg-neutral-800 p-2 text-center text-xs text-neutral-400">
+              {c.name}
+            </div>
+          )}
+          {!c.owned && <div className="absolute inset-0 bg-neutral-950/40" />}
+          <form action={toggleHolding.bind(null, c.id, primary)} className="no-print absolute right-1 top-1">
+            <button
+              title={c.owned_finishes.includes(primary) ? `Owned (${primary}) — click to remove` : `Mark owned (${primary})`}
+              className={`flex h-6 w-6 items-center justify-center rounded-full border text-xs font-bold ${
+                c.owned_finishes.includes(primary)
+                  ? 'border-emerald-400 bg-emerald-500 text-neutral-950'
+                  : 'border-neutral-400 bg-neutral-950/70 text-transparent hover:text-neutral-300'
+              }`}
+            >
+              ✓
+            </button>
+          </form>
+          {rest[0] && (
+            <form action={toggleHolding.bind(null, c.id, rest[0])} className="no-print absolute left-1 top-1">
+              <button
+                title={c.owned_finishes.includes(rest[0]) ? `Owned (${rest[0]}) — click to remove` : `Mark owned (${rest[0]})`}
+                className={`rounded-full border px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
+                  c.owned_finishes.includes(rest[0])
+                    ? 'border-amber-400 bg-amber-500 text-neutral-950'
+                    : 'border-neutral-400 bg-neutral-950/70 text-neutral-300'
+                }`}
+              >
+                {rest[0].slice(0, 4)}
+              </button>
+            </form>
+          )}
+        </div>
+        <div className="mt-1 flex justify-between text-xs text-neutral-400">
+          <span>#{c.collector_number}</span>
+          {c.usd != null && <span>${c.usd.toFixed(2)}</span>}
+        </div>
+        <div className="truncate text-sm">{c.name}</div>
       </div>
-      <div className="mt-1 flex justify-between text-xs text-neutral-400">
-        <span>#{c.collector_number}</span>
-        {c.usd != null && <span>${c.usd.toFixed(2)}</span>}
-      </div>
-      <div className="truncate text-sm">{c.name}</div>
-    </div>
-  );
+    );
+  };
 
   const views = [
     ['grid', 'Grid'],

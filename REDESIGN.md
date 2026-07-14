@@ -154,7 +154,8 @@ Prices are stored native per vendor/currency (no conversions at rest); a tiny da
 |---|---|---|
 | 1 | Postgres schema + MTG & Pokémon importers | catalogue is complete and queryable |
 | 2 | Master Sets + Set checklist pages, group/sort/filter by facets | the headline feature, read-only |
-| 3 | Holdings + containers (binder/deck/graded): click a slot → own it (quantity, finish); completion everywhere. Fresh start — no migration from the old app | inventory overlay |
+| 3a | ✅ Click-to-own on the set checklist: per-finish toggle buttons write `holdings` directly via a server action; completion/cost-to-complete update live. `containers` table exists but has no UI yet (assignment is 3b). Fresh start — no migration from the old app | inventory overlay |
+| 3b | Container CRUD (create binder/deck/graded box, move holdings into one), quantity/condition/paid editing | organising what's owned |
 | 4 | Binder mode + print, card detail, search | daily-driver complete |
 | 5 | Nightly price job + analytics | value tracking |
 | 6 | Scanner (primary intake: scan → match → holding) / basket optimiser | the ambitious bits |

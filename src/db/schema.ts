@@ -77,25 +77,31 @@ export const prices = pgTable(
   (t) => [primaryKey({ columns: [t.cardId, t.finish, t.asOf] })],
 );
 
-// inventory overlay — single user today, user_id column from day 1 per the plan
-export const binders = pgTable('binders', {
+// inventory overlay — single user today, user_id column from day 1 per the plan.
+// One slot per card: any owned finish satisfies completion, wherever the card physically
+// lives — a card in a deck or out for grading still counts. containerId is just "where is
+// it right now" (null = general collection pool); it never affects completion math.
+export const containers = pgTable('containers', {
   id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
   userId: text('user_id').notNull().default('stuart'),
   name: text('name').notNull(),
-  pocketLayout: smallint('pocket_layout').notNull().default(9), // 9 or 12
+  kind: text('kind').notNull().default('binder'), // binder | deck | graded | box
+  pocketLayout: smallint('pocket_layout'), // 9 or 12, binders only
 });
 
 export const holdings = pgTable(
   'holdings',
   {
-    id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
     userId: text('user_id').notNull().default('stuart'),
     cardId: text('card_id').notNull().references(() => cards.id),
     finish: text('finish').notNull().default('normal'),
     quantity: integer('quantity').notNull().default(1),
     condition: text('condition'),
     paid: numeric('paid', { precision: 12, scale: 2 }),
-    binderId: integer('binder_id').references(() => binders.id),
+    containerId: integer('container_id').references(() => containers.id),
   },
-  (t) => [index('holdings_card_idx').on(t.cardId)],
+  (t) => [
+    // one row per (card, finish): "own it" toggles this row, quantity absorbs duplicates
+    primaryKey({ columns: [t.userId, t.cardId, t.finish] }),
+  ],
 );
