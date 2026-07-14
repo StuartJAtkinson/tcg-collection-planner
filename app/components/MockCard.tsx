@@ -69,6 +69,18 @@ function frameColor(colors?: string[]) {
   return MTG_COLORS[colors[0]] ?? PKM_COLORS[colors[0]] ?? '#8c8c8c';
 }
 
+// a muted, darker tone of the frame colour — used for the opaque chrome plates instead of the
+// frame colour itself. Real card text boxes/name plates are a darker shade of the frame, not
+// an identical fill; it also has to stay visually distinct from the frame when there's no art
+// to mask (a plate the exact same colour as its background is just invisible).
+function darken(hex: string, factor = 0.6): string {
+  const n = parseInt(hex.slice(1), 16);
+  const r = Math.round(((n >> 16) & 255) * factor);
+  const g = Math.round(((n >> 8) & 255) * factor);
+  const b = Math.round((n & 255) * factor);
+  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+}
+
 // crude "shrink to fit" without measuring the DOM (this renders server-side, no client JS):
 // pick a smaller font size as the total text volume grows, same way paper Magic cards do.
 function textFitClass(chars: number) {
@@ -112,6 +124,7 @@ function Face({ face, rotated }: { face: MockFace; rotated?: boolean }) {
   const bg = frameColor(face.colors);
   const dark = face.colors?.some((c) => DARK_FRAMES.has(c));
   const fg = dark ? '#f0f0f0' : '#1a1a1a';
+  const plateBg = darken(bg);
 
   const attacksText = face.attacks?.map((a) => `${a.name} ${a.text ?? ''}`).join(' ') ?? '';
   const bodyChars = (face.rulesText?.length ?? 0) + attacksText.length + (face.flavorText?.length ?? 0);
@@ -139,7 +152,7 @@ function Face({ face, rotated }: { face: MockFace; rotated?: boolean }) {
             colour (not translucent black) so it stays on-brand with the card's colour identity
             and, since it needs to be fully opaque to mask the image behind it, doesn't leave
             any see-through seam. */}
-        <div style={{ backgroundColor: bg }} className="flex items-center justify-between gap-1 rounded-md px-1.5 py-0.5">
+        <div style={{ backgroundColor: plateBg }} className="flex items-center justify-between gap-1 rounded-md px-1.5 py-0.5">
           <span className="truncate text-[13px] font-bold leading-tight">{face.name}</span>
           <span className="flex shrink-0 items-center gap-0.5">
             {face.hp ? (
@@ -169,7 +182,7 @@ function Face({ face, rotated }: { face: MockFace; rotated?: boolean }) {
             back to a plain rarity-coloured dot if no icon URL is known. Type text is flex-1
             to fill the remaining width up to the reserved icon slot. */}
         {(face.typeLine || face.rarityTier) && (
-          <div style={{ backgroundColor: bg }} className="relative z-10 -my-2.5 flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold">
+          <div style={{ backgroundColor: plateBg }} className="relative z-10 -my-2.5 flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold">
             <span className="flex-1 truncate">{face.typeLine}</span>
             <span className="shrink-0">
               {face.setIconUrl ? (
@@ -195,7 +208,7 @@ function Face({ face, rotated }: { face: MockFace; rotated?: boolean }) {
             pinned to the bottom (justify-between) rather than immediately following the
             rules text — matches how a real card leaves the gap in the middle, not the end.
             Nudged down a bit more from the type line (mt-2.5, not just mt-1). */}
-        <div style={{ backgroundColor: bg }} className={`mt-2.5 flex flex-1 flex-col justify-between overflow-hidden rounded-sm px-1 py-0.5 leading-snug ${bodySize}`}>
+        <div style={{ backgroundColor: plateBg }} className={`mt-2.5 flex flex-1 flex-col justify-between overflow-hidden rounded-sm px-1 py-0.5 leading-snug ${bodySize}`}>
           <div>
             {face.rulesText && <p className="whitespace-pre-wrap">{face.rulesText}</p>}
             {face.attacks?.map((a, i) => (
@@ -223,7 +236,7 @@ function Face({ face, rotated }: { face: MockFace; rotated?: boolean }) {
             two opaque plates isn't actually empty — it's a sliver of the masked card image
             showing through underneath, which usually reads as a stray black line since that's
             typically the real card's own bottom border/legal-text strip. */}
-        <div style={{ backgroundColor: bg }} className="mt-0 flex items-center justify-between gap-1 rounded-sm px-1 py-0.5 text-[8px]">
+        <div style={{ backgroundColor: plateBg }} className="mt-0 flex items-center justify-between gap-1 rounded-sm px-1 py-0.5 text-[8px]">
           <span className="truncate">
             <span className="uppercase">
               {face.setCode ?? ''} {face.collectorNumber ?? ''}
