@@ -14,6 +14,11 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const hasUnmatched = readdirSync(process.cwd()).some((f) => f.endsWith('-unmatched.csv'));
   return (
     <html lang="en">
+      <head>
+        {/* self-hosted MTG mana symbol font (mana-font, MIT) — /public/mana.min.css +
+            /public/fonts/mana.woff2, trimmed to a single woff2 @font-face, no CDN dependency */}
+        <link rel="stylesheet" href="/mana.min.css" />
+      </head>
       <body className="min-h-screen bg-neutral-950 text-neutral-100">
         <header className="no-print sticky top-0 z-10 border-b border-neutral-800 bg-neutral-900/80 backdrop-blur">
           <nav className="flex items-center gap-6 px-6 py-2">

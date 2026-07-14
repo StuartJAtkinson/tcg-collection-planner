@@ -97,6 +97,15 @@ function Pip({ token }: { token: string }) {
   );
 }
 
+// real MTG mana symbols via the self-hosted Mana font (public/mana.min.css) — Scryfall's
+// {2}{W}{U}{W/U}{W/P} tokens map to mana-font's ms-2/ms-w/ms-u/ms-wu/ms-wp classes by
+// lowercasing and dropping the slash. Only used for MTG (Pokémon energy has no font coverage
+// and keeps the plain colour+letter Pip above).
+function ManaPip({ token }: { token: string }) {
+  const cls = token.toLowerCase().replace(/\//g, '');
+  return <i className={`ms ms-cost ms-${cls} text-[16px]`} />;
+}
+
 function Face({ face, rotated }: { face: MockFace; rotated?: boolean }) {
   const bg = frameColor(face.colors);
   const dark = face.colors?.some((c) => DARK_FRAMES.has(c));
@@ -110,7 +119,9 @@ function Face({ face, rotated }: { face: MockFace; rotated?: boolean }) {
   return (
     <div
       style={{ background: bg, color: fg }}
-      className={`flex aspect-[5/7] w-56 shrink-0 flex-col overflow-hidden rounded-lg border-[3px] border-black/70 p-1.5 text-[11px] shadow-lg ${rotated ? 'rotate-180' : ''}`}
+      // real Magic cards' border is ~7% of card width/height (3.5% each side); frame is
+      // w-56 = 224px, so 224 * 0.035 = 7.84px — keep this in sync if the width ever changes
+      className={`flex aspect-[5/7] w-56 shrink-0 flex-col overflow-hidden rounded-lg border-[7.84px] border-black/70 p-1.5 text-[11px] shadow-lg ${rotated ? 'rotate-180' : ''}`}
     >
       {/* a) name/cost plate — rounded rectangle, name left, mana cost/hp right */}
       <div className="flex items-center justify-between gap-1 rounded-md bg-black/15 px-1.5 py-0.5">
@@ -119,7 +130,7 @@ function Face({ face, rotated }: { face: MockFace; rotated?: boolean }) {
           {face.hp ? (
             <span className="text-[11px] font-bold">{face.hp} HP</span>
           ) : (
-            face.costTokens?.map((t, i) => <Pip key={i} token={t} />)
+            face.costTokens?.map((t, i) => <ManaPip key={i} token={t} />)
           )}
         </span>
       </div>
@@ -137,9 +148,10 @@ function Face({ face, rotated }: { face: MockFace; rotated?: boolean }) {
         )}
       </div>
 
-      {/* c) type line — rarity symbol and type text both left-aligned, matching the name */}
+      {/* c) type line — plain text row (no plate, unlike the name), rarity symbol and type
+          text both left-aligned, matching the name */}
       {(face.typeLine || face.rarityTier) && (
-        <div className="flex items-center gap-1 truncate rounded-sm bg-black/10 px-1 py-0.5 text-[10px] font-semibold">
+        <div className="flex items-center gap-1 truncate px-0.5 py-0.5 text-[10px] font-semibold">
           {face.rarityTier && (
             <span
               style={{ background: RARITY_COLORS[face.rarityTier] ?? RARITY_COLORS[1] }}
