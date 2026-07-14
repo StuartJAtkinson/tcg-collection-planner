@@ -148,10 +148,12 @@ function Face({ face, rotated }: { face: MockFace; rotated?: boolean }) {
         )}
       </div>
 
-      {/* c) type line — plain text row (no plate, unlike the name), rarity symbol and type
-          text both left-aligned, matching the name */}
+      {/* c) type line — same plate treatment as the name bar (mirrors it), pulled up/down with
+          negative margin so it physically overlaps the art box's bottom edge and the text
+          box's top edge, like the banner on a real card, rather than sitting in its own
+          separate slot between them */}
       {(face.typeLine || face.rarityTier) && (
-        <div className="flex items-center gap-1 truncate px-0.5 py-0.5 text-[10px] font-semibold">
+        <div className="relative z-10 -my-2.5 flex items-center gap-1 truncate rounded-md bg-black/15 px-1.5 py-0.5 text-[10px] font-semibold">
           {face.rarityTier && (
             <span
               style={{ background: RARITY_COLORS[face.rarityTier] ?? RARITY_COLORS[1] }}
