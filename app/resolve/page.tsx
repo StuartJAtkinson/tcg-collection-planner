@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import Link from 'next/link';
-import { cardToMockFaces } from '../components/cardToMockFaces.ts';
+import { importRowToMockFace } from '../components/cardToMockFaces.ts';
 import MockCard from '../components/MockCard.tsx';
 import { resolveImportRows } from '../../src/actions.ts';
 import { findCandidates } from '../../src/import/candidates.ts';
@@ -117,21 +117,23 @@ export default async function ResolvePage({
               <input type="hidden" name={`grade_${i}`} value={get(row, 'grade') ?? ''} />
               <input type="hidden" name={`gradingCompany_${i}`} value={get(row, 'gradingCompany') ?? ''} />
 
-              <div className="mb-3 flex flex-wrap gap-4">
-                {/* "here's the import data" panel */}
-                <div className="w-64 shrink-0 rounded-lg border border-neutral-700 bg-neutral-950 p-3 text-xs">
-                  <div className="mb-1 font-semibold text-neutral-300">Import data</div>
-                  {header.map((h, hi) =>
-                    row[hi] ? (
-                      <div key={hi} className="flex gap-2">
-                        <span className="w-28 shrink-0 text-neutral-500">{h}</span>
-                        <span className="break-words text-neutral-200">{row[hi]}</span>
-                      </div>
-                    ) : null,
-                  )}
-                  <div className="mt-2 text-amber-400">{reason}</div>
+              <div className="mb-3 flex flex-wrap items-start gap-4">
+                {/* left: what was scanned, generated as a mock card — the raw import text has
+                    no art, so this is the one place a fully vector/font card face earns its
+                    keep. Commerce/tracking fields (price paid, condition, grade, quantity,
+                    date...) aren't part of the physical card, so they're shown as plain text
+                    below rather than folded into the card face. */}
+                <div className="shrink-0">
+                  <div className="mb-1 text-xs font-semibold text-neutral-400">Scanned as</div>
+                  <MockCard faces={[importRowToMockFace((f) => get(row, f))]} />
+                  <div className="mt-2 max-w-56 text-xs text-neutral-500">
+                    {get(row, 'variant') && <div>Variant: {get(row, 'variant')}</div>}
+                  </div>
+                  <div className="mt-1 max-w-56 text-xs text-amber-400">{reason}</div>
                 </div>
 
+                {/* right: real candidates from the catalogue — these already have real art, so
+                    just show the actual card image rather than re-deriving a mock render */}
                 <div className="flex flex-1 flex-wrap gap-4">
                   {candidates.length === 0 ? (
                     <div className="self-center text-sm text-neutral-500">
@@ -141,10 +143,18 @@ export default async function ResolvePage({
                     candidates.map((c) => (
                       <label
                         key={c.id}
-                        className="flex cursor-pointer flex-col items-center gap-1 rounded-lg border border-transparent p-1 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-500/10"
+                        className="flex w-40 cursor-pointer flex-col items-center gap-1 rounded-lg border border-transparent p-1 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-500/10"
                       >
                         <input type="radio" name={`choice_${i}`} value={c.id} className="mb-1" />
-                        <MockCard faces={cardToMockFaces(c)} />
+                        <div className="overflow-hidden rounded-lg border border-neutral-700">
+                          {c.image_small ? (
+                            <img src={c.image_small} alt={c.name} className="w-full" />
+                          ) : (
+                            <div className="flex aspect-[5/7] items-center justify-center bg-neutral-800 p-2 text-center text-xs text-neutral-400">
+                              {c.name}
+                            </div>
+                          )}
+                        </div>
                         <div className="text-center text-[10px] text-neutral-400">
                           {c.set_name}
                           <br />

@@ -74,3 +74,18 @@ export function cardToMockFaces(card: MockCardSource): MockFace[] {
     imageUrl: card.image_small ?? card.image_large ?? null,
   }];
 }
+
+// Builds a mock face straight from an unresolved import row — there's no catalogue match yet,
+// so no oracle text/mana cost/art exists to show. Only fields actually printed on a physical
+// card go in (name, set, collector number, rarity); commerce/tracking metadata (price paid,
+// condition, grade, quantity, date added...) isn't part of the card object and stays out of
+// the generated face, though it's still shown separately alongside it in the UI.
+export function importRowToMockFace(get: (field: string) => string | undefined): MockFace {
+  return {
+    name: get('name') || '(unknown)',
+    rarity: get('rarity') ?? null,
+    setCode: get('setCode') ?? get('set') ?? null,
+    collectorNumber: get('number') ?? null,
+    imageUrl: null,
+  };
+}

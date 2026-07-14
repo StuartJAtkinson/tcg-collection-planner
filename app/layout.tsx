@@ -16,7 +16,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     <html lang="en">
       <body className="min-h-screen bg-neutral-950 text-neutral-100">
         <header className="no-print sticky top-0 z-10 border-b border-neutral-800 bg-neutral-900/80 backdrop-blur">
-          <nav className="mx-auto flex max-w-7xl items-center gap-6 px-4 py-3">
+          <nav className="flex items-center gap-6 px-6 py-2">
             <Link href="/" className="text-lg font-bold tracking-tight">Card Collector</Link>
             {games.map((g) => (
               <Link key={g.id} href={`/g/${g.id}`} className="text-neutral-300 hover:text-white">
@@ -30,7 +30,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             )}
           </nav>
         </header>
-        <main className="mx-auto max-w-7xl px-4 py-6">{children}</main>
+        <main className="px-6 py-6">{children}</main>
       </body>
     </html>
   );

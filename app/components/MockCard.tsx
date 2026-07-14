@@ -80,11 +80,14 @@ function Face({ face, rotated }: { face: MockFace; rotated?: boolean }) {
         </span>
       </div>
 
-      {/* art box: real image if we have one, otherwise an honest placeholder — never blocks layout */}
-      <div className="my-1 flex flex-1 items-center justify-center overflow-hidden rounded border border-black/20 bg-black/10">
+      {/* art box: full frame width, sits directly under the title at the same side margin as
+          every other element — sized to the art's own aspect ratio (object-contain) rather
+          than stretched/cropped to fill a fixed box. No image: an honest placeholder, same
+          footprint, never blocks layout. */}
+      <div className="my-1 flex aspect-[5/4] w-full shrink-0 items-center justify-center overflow-hidden rounded border border-black/20 bg-black/10">
         {face.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={face.imageUrl} alt="" className="h-full w-full object-cover" />
+          <img src={face.imageUrl} alt="" className="h-full w-full object-contain" />
         ) : (
           <span className="px-2 text-center text-[9px] italic opacity-50">no art loaded</span>
         )}
