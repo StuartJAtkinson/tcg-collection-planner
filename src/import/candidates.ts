@@ -5,12 +5,12 @@ export type CandidateCard = {
   id: string; name: string; collector_number: string; rarity_raw: string | null;
   image_small: string | null; image_large: string | null; finishes: string[];
   attrs: Record<string, any> | null; game_id: string; set_code: string; set_name: string;
-  colors: string[]; score: number;
+  release_date: string | null; colors: string[]; score: number;
 };
 
 const SELECT = client`
   select c.id, c.name, c.collector_number, c.rarity_raw, c.image_small, c.image_large,
-         c.finishes, c.attrs, c.game_id, s.code as set_code, s.name as set_name,
+         c.finishes, c.attrs, c.game_id, s.code as set_code, s.name as set_name, s.release_date,
          coalesce((select array_agg(f.value) from card_facets f where f.card_id = c.id and f.facet = 'color'), '{}') as colors
   from cards c join sets s on s.id = c.set_id`;
 
@@ -35,5 +35,9 @@ export async function findCandidates(
     score: tokenScore(name, r.name) * 0.7 + (setNameHint ? tokenScore(setNameHint, r.set_name) * 0.3 : 0),
   })) as CandidateCard[];
   scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, limit);
+  const top = scored.slice(0, limit);
+  // relevance picks which cards qualify; display order is chronological (newest first) since
+  // a scanned collection skews toward recently-bought/recently-printed cards
+  top.sort((a, b) => (b.release_date ?? '').localeCompare(a.release_date ?? ''));
+  return top;
 }

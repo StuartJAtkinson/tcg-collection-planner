@@ -117,12 +117,13 @@ export default async function ResolvePage({
               <input type="hidden" name={`grade_${i}`} value={get(row, 'grade') ?? ''} />
               <input type="hidden" name={`gradingCompany_${i}`} value={get(row, 'gradingCompany') ?? ''} />
 
-              <div className="mb-3 flex flex-wrap items-start gap-4">
+              <div className="mb-3 flex items-start gap-4">
                 {/* left: what was scanned, generated as a mock card — the raw import text has
                     no art, so this is the one place a fully vector/font card face earns its
                     keep. Commerce/tracking fields (price paid, condition, grade, quantity,
                     date...) aren't part of the physical card, so they're shown as plain text
-                    below rather than folded into the card face. */}
+                    below rather than folded into the card face — and the skip choice lives
+                    down here too, so it doesn't eat a card-sized slot in the candidate row. */}
                 <div className="shrink-0">
                   <div className="mb-1 text-xs font-semibold text-neutral-400">Scanned as</div>
                   <MockCard faces={[importRowToMockFace((f) => get(row, f))]} />
@@ -130,20 +131,28 @@ export default async function ResolvePage({
                     {get(row, 'variant') && <div>Variant: {get(row, 'variant')}</div>}
                   </div>
                   <div className="mt-1 max-w-56 text-xs text-amber-400">{reason}</div>
+                  <label className="mt-2 flex cursor-pointer items-center gap-1.5 text-xs text-neutral-400 hover:text-neutral-200">
+                    <input type="radio" name={`choice_${i}`} value="skip" defaultChecked />
+                    None of these / skip
+                  </label>
                 </div>
 
-                {/* right: real candidates from the catalogue — these already have real art, so
-                    just show the actual card image rather than re-deriving a mock render */}
-                <div className="flex flex-1 flex-wrap gap-4">
-                  {candidates.length === 0 ? (
-                    <div className="self-center text-sm text-neutral-500">
-                      No catalogue candidates — this game/card isn&apos;t supported yet.
-                    </div>
-                  ) : (
-                    candidates.map((c) => (
+                {/* right: real candidates from the catalogue, newest print first (a scanned
+                    collection skews toward recently-bought cards) — these already have real
+                    art, so just show the actual card image rather than re-deriving a mock
+                    render. Horizontal scroll instead of wrapping: unlikely to ever exceed ~8
+                    candidates, and a second row would just cost more vertical space for no
+                    reason — legibility at that point is a browser-zoom problem, not a layout one. */}
+                {candidates.length === 0 ? (
+                  <div className="self-center text-sm text-neutral-500">
+                    No catalogue candidates — this game/card isn&apos;t supported yet.
+                  </div>
+                ) : (
+                  <div className="flex gap-4 overflow-x-auto pb-1">
+                    {candidates.map((c) => (
                       <label
                         key={c.id}
-                        className="flex w-40 cursor-pointer flex-col items-center gap-1 rounded-lg border border-transparent p-1 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-500/10"
+                        className="flex w-56 shrink-0 cursor-pointer flex-col items-center gap-1 rounded-lg border border-transparent p-1 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-500/10"
                       >
                         <input type="radio" name={`choice_${i}`} value={c.id} className="mb-1" />
                         <div className="overflow-hidden rounded-lg border border-neutral-700">
@@ -161,13 +170,9 @@ export default async function ResolvePage({
                           {Math.round(c.score * 100)}% match
                         </div>
                       </label>
-                    ))
-                  )}
-                  <label className="flex cursor-pointer items-center gap-1 self-center rounded-lg border border-neutral-700 px-3 py-2 text-sm text-neutral-400 has-[:checked]:border-neutral-400 has-[:checked]:text-neutral-200">
-                    <input type="radio" name={`choice_${i}`} value="skip" defaultChecked className="mr-1" />
-                    None of these / skip
-                  </label>
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           ))}
