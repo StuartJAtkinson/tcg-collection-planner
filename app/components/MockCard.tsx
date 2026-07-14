@@ -73,7 +73,7 @@ function frameColor(colors?: string[]) {
 // frame colour itself. Real card text boxes/name plates are a darker shade of the frame, not
 // an identical fill; it also has to stay visually distinct from the frame when there's no art
 // to mask (a plate the exact same colour as its background is just invisible).
-function darken(hex: string, factor = 0.6): string {
+function darken(hex: string, factor = 0.45): string {
   const n = parseInt(hex.slice(1), 16);
   const r = Math.round(((n >> 16) & 255) * factor);
   const g = Math.round(((n >> 8) & 255) * factor);

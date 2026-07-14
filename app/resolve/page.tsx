@@ -190,11 +190,15 @@ export default async function ResolvePage({
           ))}
         </div>
 
-        <div className="sticky bottom-0 mt-6 flex items-center gap-3 border-t border-neutral-800 bg-neutral-950/95 py-3">
-          <button className="rounded bg-emerald-600 px-4 py-2 font-semibold text-white hover:bg-emerald-500">
+        {/* fixed to the right edge rather than a full-width sticky bar — that used to sit on
+            top of the card grid whenever the page was tall enough to scroll under it */}
+        <div className="fixed bottom-6 right-6 z-20 flex flex-col items-end gap-1">
+          <button className="rounded bg-emerald-600 px-4 py-2 font-semibold text-white shadow-lg hover:bg-emerald-500">
             Import selected matches
           </button>
-          <span className="text-sm text-neutral-500">Rows left as "skip" stay in the file for next time.</span>
+          <span className="rounded bg-neutral-950/90 px-2 py-1 text-xs text-neutral-400">
+            Unselected rows stay in the file for next time.
+          </span>
         </div>
       </form>
 
