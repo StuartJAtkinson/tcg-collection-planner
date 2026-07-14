@@ -122,8 +122,7 @@ export default async function ResolvePage({
                     no art, so this is the one place a fully vector/font card face earns its
                     keep. Commerce/tracking fields (price paid, condition, grade, quantity,
                     date...) aren't part of the physical card, so they're shown as plain text
-                    below rather than folded into the card face — and the skip choice lives
-                    down here too, so it doesn't eat a card-sized slot in the candidate row. */}
+                    below rather than folded into the card face. */}
                 <div className="shrink-0">
                   <div className="mb-1 text-xs font-semibold text-neutral-400">Scanned as</div>
                   <MockCard faces={[importRowToMockFace((f) => get(row, f))]} />
@@ -131,46 +130,52 @@ export default async function ResolvePage({
                     {get(row, 'variant') && <div>Variant: {get(row, 'variant')}</div>}
                   </div>
                   <div className="mt-1 max-w-56 text-xs text-amber-400">{reason}</div>
-                  <label className="mt-2 flex cursor-pointer items-center gap-1.5 text-xs text-neutral-400 hover:text-neutral-200">
-                    <input type="radio" name={`choice_${i}`} value="skip" defaultChecked />
-                    None of these / skip
-                  </label>
                 </div>
 
                 {/* right: real candidates from the catalogue, newest print first (a scanned
                     collection skews toward recently-bought cards) — these already have real
                     art, so just show the actual card image rather than re-deriving a mock
-                    render. Horizontal scroll instead of wrapping: unlikely to ever exceed ~8
-                    candidates, and a second row would just cost more vertical space for no
-                    reason — legibility at that point is a browser-zoom problem, not a layout one. */}
+                    render. Horizontal scroll instead of wrapping — legibility past a screenful
+                    is a browser-zoom concern, not a layout one — with the skip choice below the
+                    row rather than occupying a card-sized slot inside it. */}
                 {candidates.length === 0 ? (
                   <div className="self-center text-sm text-neutral-500">
                     No catalogue candidates — this game/card isn&apos;t supported yet.
                   </div>
                 ) : (
-                  <div className="flex gap-4 overflow-x-auto pb-1">
-                    {candidates.map((c) => (
-                      <label
-                        key={c.id}
-                        className="flex w-56 shrink-0 cursor-pointer flex-col items-center gap-1 rounded-lg border border-transparent p-1 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-500/10"
-                      >
-                        <input type="radio" name={`choice_${i}`} value={c.id} className="mb-1" />
-                        <div className="overflow-hidden rounded-lg border border-neutral-700">
-                          {c.image_small ? (
-                            <img src={c.image_small} alt={c.name} className="w-full" />
-                          ) : (
-                            <div className="flex aspect-[5/7] items-center justify-center bg-neutral-800 p-2 text-center text-xs text-neutral-400">
-                              {c.name}
-                            </div>
-                          )}
-                        </div>
-                        <div className="text-center text-[10px] text-neutral-400">
-                          {c.set_name}
-                          <br />
-                          {Math.round(c.score * 100)}% match
-                        </div>
-                      </label>
-                    ))}
+                  <div className="flex min-w-0 flex-col gap-2">
+                    <div className="flex gap-4 overflow-x-auto pb-1">
+                      {candidates.map((c) => (
+                        <label
+                          key={c.id}
+                          className="flex w-56 shrink-0 cursor-pointer flex-col items-center gap-1 rounded-lg border border-transparent p-1 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-500/10"
+                        >
+                          <input type="radio" name={`choice_${i}`} value={c.id} className="mb-1" />
+                          {/* fixed height matching MockCard's rendered frame exactly (313.6px
+                              = 224px * 7/5, its aspect-[5/7] at w-56) rather than deriving it
+                              from width + the image's own aspect ratio, which drifts from
+                              MockCard's border/padding thickness */}
+                          <div className="flex h-[313.6px] w-full items-center justify-center overflow-hidden rounded-lg border border-neutral-700">
+                            {c.image_small ? (
+                              <img src={c.image_small} alt={c.name} className="h-full w-full object-contain" />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center bg-neutral-800 p-2 text-center text-xs text-neutral-400">
+                                {c.name}
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-center text-[10px] text-neutral-400">
+                            {c.set_name}
+                            <br />
+                            {Math.round(c.score * 100)}% match
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                    <label className="flex cursor-pointer items-center gap-1.5 text-xs text-neutral-400 hover:text-neutral-200">
+                      <input type="radio" name={`choice_${i}`} value="skip" defaultChecked />
+                      None of these / skip
+                    </label>
                   </div>
                 )}
               </div>

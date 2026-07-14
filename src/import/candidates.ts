@@ -16,28 +16,42 @@ const SELECT = client`
 
 // exact case-insensitive name match first (covers "ambiguous" and correctly-spelled
 // "not found in set" rows); broadens to an ILIKE scan only if that comes up short.
+//
+// A card resolved by exact name (e.g. "Terminate", 29 real printings) is NEVER truncated to
+// `limit` — those printings genuinely differ (border colour, art, frame era) and the whole
+// point of this tool is letting a human pick the right one visually, so all of them are
+// returned and the page scrolls horizontally. Truncating by score here would be arbitrary:
+// this query runs fresh on every page load with no ORDER BY tiebreaker among score ties, so
+// "top N" isn't even stable across reloads — a card could visibly vanish and reappear for no
+// reason. `limit` still caps the fuzzy/no-exact-match fallback, where relevance genuinely
+// needs to filter a large field down to plausible candidates.
 export async function findCandidates(
   name: string,
   setNameHint: string | undefined,
   gameHint: string | undefined,
-  limit = 5,
+  limit = 8,
 ): Promise<CandidateCard[]> {
-  const rows = await client`${SELECT} where lower(c.name) = ${name.toLowerCase()} ${gameHint ? client`and c.game_id = ${gameHint}` : client``}`;
-  const seen = new Set(rows.map((r) => r.id));
-  if (rows.length < limit * 4) {
+  const exact = await client`${SELECT} where lower(c.name) = ${name.toLowerCase()} ${gameHint ? client`and c.game_id = ${gameHint}` : client``}`;
+
+  let pool: CandidateCard[];
+  if (exact.length) {
+    pool = exact.map((r) => ({ ...r, score: 1 })) as CandidateCard[];
+  } else {
     const needle = `%${name.slice(0, 24)}%`;
     const broader = await client`
       ${SELECT} where c.name ilike ${needle} ${gameHint ? client`and c.game_id = ${gameHint}` : client``} limit 300`;
-    for (const r of broader) if (!seen.has(r.id)) { rows.push(r); seen.add(r.id); }
+    const scored = broader.map((r) => ({
+      ...r,
+      score: tokenScore(name, r.name) * 0.7 + (setNameHint ? tokenScore(setNameHint, r.set_name) * 0.3 : 0),
+    })) as CandidateCard[];
+    // deterministic tiebreak (id) so the same "top N" shows on every reload, not whatever
+    // arbitrary order Postgres happened to return tied rows in
+    scored.sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
+    pool = scored.slice(0, limit);
   }
-  const scored = rows.map((r) => ({
-    ...r,
-    score: tokenScore(name, r.name) * 0.7 + (setNameHint ? tokenScore(setNameHint, r.set_name) * 0.3 : 0),
-  })) as CandidateCard[];
-  scored.sort((a, b) => b.score - a.score);
-  const top = scored.slice(0, limit);
-  // relevance picks which cards qualify; display order is chronological (newest first) since
-  // a scanned collection skews toward recently-bought/recently-printed cards
-  top.sort((a, b) => (b.release_date ?? '').localeCompare(a.release_date ?? ''));
-  return top;
+
+  // display order is chronological (newest first) — a scanned collection skews toward
+  // recently-bought/recently-printed cards
+  pool.sort((a, b) => (b.release_date ?? '').localeCompare(a.release_date ?? ''));
+  return pool;
 }
