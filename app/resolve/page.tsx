@@ -124,8 +124,11 @@ export default async function ResolvePage({
                     date...) aren't part of the physical card, so they're shown as plain text
                     below rather than folded into the card face. */}
                 <div className="shrink-0">
-                  <div className="mb-1 text-xs font-semibold text-neutral-400">Scanned as</div>
-                  <MockCard faces={[importRowToMockFace((f) => get(row, f))]} />
+                  {/* same border+padding shell as a candidate label so the mock card's top and
+                      bottom line up with the real ones exactly — no label text above it */}
+                  <div className="rounded-lg border border-transparent p-1">
+                    <MockCard faces={[importRowToMockFace((f) => get(row, f))]} />
+                  </div>
                   <div className="mt-2 max-w-56 text-xs text-neutral-500">
                     {get(row, 'variant') && <div>Variant: {get(row, 'variant')}</div>}
                   </div>
@@ -146,11 +149,15 @@ export default async function ResolvePage({
                   <div className="flex min-w-0 flex-col gap-2">
                     <div className="flex gap-4 overflow-x-auto pb-1">
                       {candidates.map((c) => (
+                        // radio is sr-only — a real, functional, keyboard-focusable form
+                        // control the label still toggles on click, just not rendered as a
+                        // circle that would push the card down and mismatch MockCard's top.
+                        // Selection reads entirely as the border/background below.
                         <label
                           key={c.id}
-                          className="flex w-56 shrink-0 cursor-pointer flex-col items-center gap-1 rounded-lg border border-transparent p-1 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-500/10"
+                          className="w-56 shrink-0 cursor-pointer rounded-lg border border-transparent p-1 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-500/10"
                         >
-                          <input type="radio" name={`choice_${i}`} value={c.id} className="mb-1" />
+                          <input type="radio" name={`choice_${i}`} value={c.id} className="sr-only" />
                           {/* fixed height matching MockCard's rendered frame exactly (313.6px
                               = 224px * 7/5, its aspect-[5/7] at w-56) rather than deriving it
                               from width + the image's own aspect ratio, which drifts from
@@ -164,7 +171,7 @@ export default async function ResolvePage({
                               </div>
                             )}
                           </div>
-                          <div className="text-center text-[10px] text-neutral-400">
+                          <div className="mt-1 text-center text-[10px] text-neutral-400">
                             {c.set_name}
                             <br />
                             {Math.round(c.score * 100)}% match
