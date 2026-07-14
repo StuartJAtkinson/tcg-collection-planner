@@ -135,8 +135,11 @@ function Face({ face, rotated }: { face: MockFace; rotated?: boolean }) {
       )}
 
       <div className="relative z-10 flex h-full flex-col">
-        {/* a) name/cost plate — rounded rectangle, name left, mana cost/hp right */}
-        <div className="flex items-center justify-between gap-1 rounded-md bg-black/90 px-1.5 py-0.5">
+        {/* a) name/cost plate — rounded rectangle, name left, mana cost/hp right. Solid frame
+            colour (not translucent black) so it stays on-brand with the card's colour identity
+            and, since it needs to be fully opaque to mask the image behind it, doesn't leave
+            any see-through seam. */}
+        <div style={{ backgroundColor: bg }} className="flex items-center justify-between gap-1 rounded-md px-1.5 py-0.5">
           <span className="truncate text-[13px] font-bold leading-tight">{face.name}</span>
           <span className="flex shrink-0 items-center gap-0.5">
             {face.hp ? (
@@ -166,7 +169,7 @@ function Face({ face, rotated }: { face: MockFace; rotated?: boolean }) {
             back to a plain rarity-coloured dot if no icon URL is known. Type text is flex-1
             to fill the remaining width up to the reserved icon slot. */}
         {(face.typeLine || face.rarityTier) && (
-          <div className="relative z-10 -my-2.5 flex items-center gap-1 rounded-md bg-black/90 px-1.5 py-0.5 text-[10px] font-semibold">
+          <div style={{ backgroundColor: bg }} className="relative z-10 -my-2.5 flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold">
             <span className="flex-1 truncate">{face.typeLine}</span>
             <span className="shrink-0">
               {face.setIconUrl ? (
@@ -190,8 +193,9 @@ function Face({ face, rotated }: { face: MockFace; rotated?: boolean }) {
 
         {/* d) main text box: abilities/attacks pinned to the top, rule+flavor+attribution
             pinned to the bottom (justify-between) rather than immediately following the
-            rules text — matches how a real card leaves the gap in the middle, not the end */}
-        <div className={`mt-1 flex flex-1 flex-col justify-between overflow-hidden rounded-sm bg-black/90 px-1 py-0.5 leading-snug ${bodySize}`}>
+            rules text — matches how a real card leaves the gap in the middle, not the end.
+            Nudged down a bit more from the type line (mt-2.5, not just mt-1). */}
+        <div style={{ backgroundColor: bg }} className={`mt-2.5 flex flex-1 flex-col justify-between overflow-hidden rounded-sm px-1 py-0.5 leading-snug ${bodySize}`}>
           <div>
             {face.rulesText && <p className="whitespace-pre-wrap">{face.rulesText}</p>}
             {face.attacks?.map((a, i) => (
@@ -215,8 +219,11 @@ function Face({ face, rotated }: { face: MockFace; rotated?: boolean }) {
 
         {/* e) collector number + illustrator, one line only — rarity text dropped (the type
             line's symbol already covers it); P/T sized up now that a full second line isn't
-            competing for space */}
-        <div className="mt-1 flex items-center justify-between gap-1 rounded-sm bg-black/90 px-1 py-0.5 text-[8px] opacity-90">
+            competing for space. mt-0 (flush against the text box, not mt-1): any gap between
+            two opaque plates isn't actually empty — it's a sliver of the masked card image
+            showing through underneath, which usually reads as a stray black line since that's
+            typically the real card's own bottom border/legal-text strip. */}
+        <div style={{ backgroundColor: bg }} className="mt-0 flex items-center justify-between gap-1 rounded-sm px-1 py-0.5 text-[8px]">
           <span className="truncate">
             <span className="uppercase">
               {face.setCode ?? ''} {face.collectorNumber ?? ''}
