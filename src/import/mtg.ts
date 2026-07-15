@@ -162,6 +162,22 @@ async function main() {
   }
   console.log(`  ${crossoverIds.length} crossover (Universes Beyond) sets flagged`);
 
+  // Scryfall has no set key-art, so the binder cover marquee falls back to the set's
+  // highest-value card image (its most iconic/expensive card reads as the "face" of the set)
+  console.log('mtg: cover art (highest-value card per set)');
+  await client`
+    update sets s set logo_url = best.image_large
+    from (
+      select distinct on (c.set_id) c.set_id, c.image_large
+      from cards c
+      left join lateral (
+        select usd from prices p where p.card_id = c.id order by p.as_of desc limit 1
+      ) p on true
+      where c.game_id = 'mtg' and c.image_large is not null
+      order by c.set_id, coalesce(p.usd, 0) desc
+    ) best
+    where s.id = best.set_id`;
+
   await client.end();
 }
 

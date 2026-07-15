@@ -59,6 +59,7 @@ async function main() {
     id: s.id, gameId: 'pokemon', code: s.ptcgoCode ?? s.id, name: s.name,
     releaseDate: s.releaseDate?.replaceAll('/', '-') ?? null, series: s.series ?? null,
     setType: setTypeFor(s), cardCount: s.total ?? s.printedTotal ?? null, iconUrl: s.images?.symbol ?? null,
+    logoUrl: s.images?.logo ?? null, // official set launch logo — the binder cover marquee
     legalities: s.legalities ?? null,
   }));
   await db.insert(sets).values(setRows).onConflictDoUpdate({
@@ -66,6 +67,7 @@ async function main() {
     set: {
       name: sql`excluded.name`, releaseDate: sql`excluded.release_date`, series: sql`excluded.series`,
       setType: sql`excluded.set_type`, cardCount: sql`excluded.card_count`, iconUrl: sql`excluded.icon_url`,
+      logoUrl: sql`excluded.logo_url`,
       legalities: sql`excluded.legalities`,
     },
   });

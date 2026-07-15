@@ -29,6 +29,7 @@ export const sets = pgTable(
     setType: text('set_type'),
     cardCount: integer('card_count'),
     iconUrl: text('icon_url'),
+    logoUrl: text('logo_url'), // set launch art: pokemon-tcg-data ships official logos; mtg has none (Scryfall has no set key-art)
     legalities: jsonb('legalities'), // {standard: 'Legal', …} — pokemon from source, mtg aggregated at import
     // non-Magic-IP crossover set (Universes Beyond etc.) — derived at import from Scryfall's
     // triangle security stamp on the set's cards, since Scryfall has no set-level UB field

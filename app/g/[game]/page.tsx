@@ -35,7 +35,8 @@ export default async function GamePage({
   const { game } = await params;
   const { kind, format } = await searchParams;
 
-  const [gameRow] = await client`select id, name from games where id = ${game}`;
+  const allGames = await client`select id, name from games order by id`;
+  const gameRow = allGames.find((g) => g.id === game);
   if (!gameRow) notFound();
 
   const sets = await client`
@@ -109,8 +110,25 @@ export default async function GamePage({
 
   return (
     <div>
+      <h1 className="mb-2 text-2xl font-bold">Collections</h1>
+      {/* games as tabs under Collections */}
+      <div className="no-print mb-4 flex gap-2">
+        {allGames.map((g) => (
+          <Link
+            key={g.id}
+            href={`/g/${g.id}`}
+            className={`rounded-t-lg border-b-2 px-3 py-1.5 text-sm font-medium ${
+              g.id === game
+                ? 'border-emerald-500 text-white'
+                : 'border-transparent text-neutral-400 hover:text-neutral-200'
+            }`}
+          >
+            {g.name}
+          </Link>
+        ))}
+      </div>
+
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">{gameRow.name}</h1>
         <div className="no-print flex flex-wrap items-center gap-1.5 text-sm">
           <span className="text-xs uppercase text-neutral-500">Format</span>
           {FORMATS[game]?.map((f) => (

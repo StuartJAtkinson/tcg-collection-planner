@@ -1,23 +1,18 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { toggleHolding } from '../../../src/actions.ts';
 import { client } from '../../../src/db/index.ts';
 import PrintButton from './print-button.tsx';
 
 export const dynamic = 'force-dynamic';
 
-type SP = { view?: string; c?: string; r?: string; rarity?: string; kind?: string; color?: string; q?: string };
+// Collections set checklist: Grid + Print only, read-only ownership (derived from binders/
+// decks). The physical binder-book view now lives on the Binders page, per binder container.
+type SP = { view?: string; rarity?: string; kind?: string; color?: string; q?: string };
 type Card = {
   id: string; name: string; collector_number: string; rarity_raw: string | null;
   image_small: string | null; artist: string | null; finishes: string[];
   owned_finishes: string[]; owned: boolean; for_play: boolean; usd: number | null;
 };
-
-const chunk = <T,>(arr: T[], n: number): T[][] =>
-  Array.from({ length: Math.ceil(arr.length / n) }, (_, i) => arr.slice(i * n, i * n + n));
-
-const clampDim = (raw: string | undefined, fallback: number) =>
-  Math.min(12, Math.max(1, parseInt(raw ?? '', 10) || fallback));
 
 export default async function SetPage({
   params,
@@ -28,10 +23,7 @@ export default async function SetPage({
 }) {
   const { id } = await params;
   const sp = await searchParams;
-  const view = sp.view ?? 'binder';
-  // binder pocket layout, cols x rows, each 1-12 — 3x3 is the classic 9-pocket default
-  const cols = clampDim(sp.c, 3);
-  const rows = clampDim(sp.r, 3);
+  const view = sp.view ?? 'grid';
 
   const [set] = await client`
     select s.*, to_char(s.release_date, 'YYYY-MM-DD') as released, g.name as game_name
@@ -63,7 +55,7 @@ export default async function SetPage({
              ) as for_play,
            p.usd::float as usd
     from cards c
-    left join lateral (select array_agg(h.finish) as owned_finishes from holdings h where h.card_id = c.id) hh on true
+    left join lateral (select array_agg(distinct h.finish) as owned_finishes from holdings h where h.card_id = c.id) hh on true
     left join lateral (
       select usd from prices p where p.card_id = c.id
       order by (p.finish = 'nonfoil') desc, p.as_of desc limit 1
@@ -117,72 +109,59 @@ export default async function SetPage({
     </div>
   );
 
-  // primary finish owns the slot; a second finish (e.g. foil) gets its own small toggle.
-  // ring: emerald = this exact printing owned, amber-dashed = "Collected — For Play" (you
-  // own the card under a different print/set, per oracle_id/name grouping), grey = neither.
-  const tile = (c: Card) => {
-    const [primary, ...rest] = c.finishes.length ? c.finishes : ['normal'];
-    return (
-      <div key={c.id} className={c.owned ? '' : 'opacity-90'}>
-        <div
-          title={c.for_play ? 'Collected — For Play (owned under a different printing)' : undefined}
-          className={`relative overflow-hidden rounded-lg ${
-            c.owned ? 'ring-2 ring-emerald-500' : c.for_play ? 'ring-2 ring-dashed ring-amber-500/70' : ''
-          }`}
-        >
-          {c.image_small ? (
-            <img src={c.image_small} alt={c.name} loading="lazy" className="w-full" />
-          ) : (
-            <div className="flex aspect-[5/7] items-center justify-center bg-neutral-800 p-2 text-center text-xs text-neutral-400">
-              {c.name}
-            </div>
-          )}
-          {!c.owned && <div className="absolute inset-0 bg-neutral-950/40" />}
-          {c.for_play && (
-            <div className="no-print absolute bottom-1 left-1 right-1 rounded bg-amber-500/90 px-1 py-0.5 text-center text-[9px] font-semibold uppercase text-neutral-950">
-              For Play
-            </div>
-          )}
-          <form action={toggleHolding.bind(null, c.id, primary)} className="no-print absolute right-1 top-1">
-            <button
-              title={c.owned_finishes.includes(primary) ? `Owned (${primary}) — click to remove` : `Mark owned (${primary})`}
-              className={`flex h-6 w-6 items-center justify-center rounded-full border text-xs font-bold ${
-                c.owned_finishes.includes(primary)
-                  ? 'border-emerald-400 bg-emerald-500 text-neutral-950'
-                  : 'border-neutral-400 bg-neutral-950/70 text-transparent hover:text-neutral-300'
-              }`}
-            >
-              ✓
-            </button>
-          </form>
-          {rest[0] && (
-            <form action={toggleHolding.bind(null, c.id, rest[0])} className="no-print absolute left-1 top-1">
-              <button
-                title={c.owned_finishes.includes(rest[0]) ? `Owned (${rest[0]}) — click to remove` : `Mark owned (${rest[0]})`}
-                className={`rounded-full border px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
-                  c.owned_finishes.includes(rest[0])
-                    ? 'border-amber-400 bg-amber-500 text-neutral-950'
-                    : 'border-neutral-400 bg-neutral-950/70 text-neutral-300'
+  // Collections is read-only ownership: the ring is derived from what's in your binders/decks,
+  // not toggled here (that lives on the Binders page / phase-3b container CRUD). ring: emerald
+  // = this exact printing owned somewhere, amber-dashed = "For Play" (owned under a different
+  // printing, per oracle_id), grey = neither.
+  const tile = (c: Card) => (
+    <div key={c.id} className={c.owned ? '' : 'opacity-90'}>
+      <div
+        title={c.for_play ? 'Collected — For Play (owned under a different printing)' : undefined}
+        className={`relative overflow-hidden rounded-lg ${
+          c.owned ? 'ring-2 ring-emerald-500' : c.for_play ? 'ring-2 ring-dashed ring-amber-500/70' : ''
+        }`}
+      >
+        {c.image_small ? (
+          <img src={c.image_small} alt={c.name} loading="lazy" className="w-full" />
+        ) : (
+          <div className="flex aspect-[5/7] items-center justify-center bg-neutral-800 p-2 text-center text-xs text-neutral-400">
+            {c.name}
+          </div>
+        )}
+        {!c.owned && <div className="absolute inset-0 bg-neutral-950/40" />}
+        {c.for_play && (
+          <div className="no-print absolute bottom-1 left-1 right-1 rounded bg-amber-500/90 px-1 py-0.5 text-center text-[9px] font-semibold uppercase text-neutral-950">
+            For Play
+          </div>
+        )}
+        {c.owned_finishes.length > 0 && (
+          <div className="no-print absolute right-1 top-1 flex flex-col gap-0.5">
+            {c.owned_finishes.map((f) => (
+              <span
+                key={f}
+                className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase ${
+                  f === 'normal' || f === 'nonfoil'
+                    ? 'bg-emerald-500 text-neutral-950'
+                    : 'bg-amber-500 text-neutral-950'
                 }`}
               >
-                {rest[0].slice(0, 4)}
-              </button>
-            </form>
-          )}
-        </div>
-        <div className="mt-1 flex justify-between text-xs text-neutral-400">
-          <span>#{c.collector_number}</span>
-          {c.usd != null && <span>${c.usd.toFixed(2)}</span>}
-        </div>
-        <div className="truncate text-sm">{c.name}</div>
+                {f === 'normal' || f === 'nonfoil' ? '✓' : f.slice(0, 4)}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
-    );
-  };
+      <div className="mt-1 flex justify-between text-xs text-neutral-400">
+        <span>#{c.collector_number}</span>
+        {c.usd != null && <span>${c.usd.toFixed(2)}</span>}
+      </div>
+      <div className="truncate text-sm">{c.name}</div>
+    </div>
+  );
 
   const views = [
-    ['binder', `Binder ${cols}×${rows}`],
-    ['print', 'Print'],
     ['grid', 'Grid'],
+    ['print', 'Print'],
   ] as const;
 
   return (
@@ -218,7 +197,7 @@ export default async function SetPage({
         {views.map(([v, label]) => (
           <Link
             key={v}
-            href={qs({ view: v === 'binder' ? undefined : v })}
+            href={qs({ view: v === 'grid' ? undefined : v })}
             className={`rounded-full border px-3 py-1 ${
               view === v
                 ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300'
@@ -228,23 +207,8 @@ export default async function SetPage({
             {label}
           </Link>
         ))}
-        {view === 'binder' && (
-          <form method="get" className="flex items-center gap-1 text-xs text-neutral-400">
-            {sp.q && <input type="hidden" name="q" value={sp.q} />}
-            {sp.rarity && <input type="hidden" name="rarity" value={sp.rarity} />}
-            {sp.kind && <input type="hidden" name="kind" value={sp.kind} />}
-            {sp.color && <input type="hidden" name="color" value={sp.color} />}
-            <input type="number" name="c" min={1} max={12} defaultValue={cols} className="w-14 rounded border border-neutral-700 bg-neutral-900 px-1.5 py-0.5" />
-            cols ×
-            <input type="number" name="r" min={1} max={12} defaultValue={rows} className="w-14 rounded border border-neutral-700 bg-neutral-900 px-1.5 py-0.5" />
-            rows
-            <button className="rounded border border-neutral-700 px-2 py-0.5 hover:bg-neutral-800">Apply</button>
-          </form>
-        )}
         <form method="get" className="ml-auto flex items-center gap-2">
-          {view !== 'binder' && <input type="hidden" name="view" value={view} />}
-          {sp.c && <input type="hidden" name="c" value={sp.c} />}
-          {sp.r && <input type="hidden" name="r" value={sp.r} />}
+          {view !== 'grid' && <input type="hidden" name="view" value={view} />}
           {sp.rarity && <input type="hidden" name="rarity" value={sp.rarity} />}
           {sp.kind && <input type="hidden" name="kind" value={sp.kind} />}
           {sp.color && <input type="hidden" name="color" value={sp.color} />}
@@ -277,56 +241,6 @@ export default async function SetPage({
           {cards.map(tile)}
         </div>
       )}
-
-      {view === 'binder' &&
-        (() => {
-          // rendered as the physical book: pages chunked to cols x rows pockets, paired into
-          // two-page spreads, with the first spread being [blank cover | page 1] so the layout
-          // reads like an opened binder. Fixed pocket width keeps card size consistent across
-          // any cols x rows choice — a 2x3 spread is a small box and several fit per screen
-          // row (flex-wrap decides), a 12-wide spread is huge and scrolls horizontally.
-          const POCKET_W = 96; // px
-          const pages: (Card[] | 'cover')[] = ['cover', ...chunk(cards, cols * rows)];
-          const spreads = chunk(pages, 2);
-          const pageW = cols * POCKET_W + (cols - 1) * 4;
-          const pocketGrid = { display: 'grid', gap: 4, gridTemplateColumns: `repeat(${cols}, ${POCKET_W}px)` } as const;
-          return (
-            <div className="overflow-x-auto pb-2">
-              <div className="flex flex-wrap gap-x-10 gap-y-8">
-                {spreads.map((spread, si) => (
-                  <div key={si} className="flex items-stretch gap-1.5">
-                    {spread.map((page, pi) => {
-                      const pageNo = si * 2 + pi; // 0 is the cover
-                      return (
-                        <div key={pi} className="flex flex-col rounded-lg border border-neutral-800 bg-neutral-900 p-2">
-                          <div className="mb-1.5 text-xs uppercase tracking-wide text-neutral-500">
-                            {pageNo === 0 ? 'Cover' : `Page ${pageNo} of ${pages.length - 1}`}
-                          </div>
-                          {page === 'cover' ? (
-                            <div
-                              style={{ width: pageW }}
-                              className="flex flex-1 items-center justify-center rounded border border-neutral-800 bg-neutral-950 text-xs uppercase tracking-widest text-neutral-600"
-                            >
-                              {set.name}
-                            </div>
-                          ) : (
-                            <div style={pocketGrid}>
-                              {page.map(tile)}
-                              {/* empty pockets fill out the last page, like a real sleeve sheet */}
-                              {Array.from({ length: cols * rows - page.length }, (_, k) => (
-                                <div key={`e${k}`} className="aspect-[5/7] rounded border border-dashed border-neutral-800" />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })()}
 
       {view === 'print' && (
         <div className="mx-auto max-w-3xl rounded-xl bg-white p-6 text-black print:max-w-none print:rounded-none print:p-0">
