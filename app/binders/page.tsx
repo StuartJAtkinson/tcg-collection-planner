@@ -1,67 +1,201 @@
-// Binders section, sibling to Decks: the physical binder containers that organise the
-// collection. Like /decks it is not game-split — one page, game dividers. The 'main'
-// collection pool shows here as the default binder until per-binder containers exist
-// (creating binders + assigning pages/pockets is phase 3b container CRUD). Each binder links
-// to its own book-spread view at /binders/[id].
+// Binders section. Three parts, no sub-tabs:
+//  1. Unsorted collection + real binders (the physical containers).
+//  2. Interpret portfolios — reclassify imported containers as deck / binder / unsorted.
+//  3. Create Binders — like the advisor: a completion frequency analysis finds the "step jump"
+//     from scattered promos/decks to substantially-collected sets, and suggests a dedicated
+//     binder for every set past the threshold; the rest are destined for functional-grouping
+//     binders (built next). Ownership counts cards anywhere you own them (incl. decks) but not
+//     for-play (a different printing of the same oracle card).
 import Link from 'next/link';
 import { client } from '../../src/db/index.ts';
+import { createSetBinder, setContainerKind } from '../../src/actions.ts';
 
 export const dynamic = 'force-dynamic';
 
-export default async function BindersPage() {
-  const binders = await client`
+const KINDS = ['unsorted', 'binder', 'deck'] as const;
+
+export default async function BindersPage({ searchParams }: { searchParams: Promise<{ game?: string; pct?: string }> }) {
+  const sp = await searchParams;
+  const game = sp.game ?? 'mtg';
+  const threshold = Math.min(100, Math.max(1, parseInt(sp.pct ?? '60', 10) || 60));
+
+  const containers = await client`
     select ct.id, ct.name, ct.kind,
-           count(distinct h.card_id)::int as distinct_cards,
            coalesce(sum(h.quantity), 0)::int as total_cards,
+           count(distinct h.card_id)::int as distinct_cards,
            coalesce(
              (select g2.name from holdings h2
-              join cards c2 on c2.id = h2.card_id
-              join games g2 on g2.id = c2.game_id
-              where h2.container_id = ct.id
-              group by g2.name order by sum(h2.quantity) desc limit 1),
-             'Empty'
+              join cards c2 on c2.id = h2.card_id join games g2 on g2.id = c2.game_id
+              where h2.container_id = ct.id group by g2.name order by sum(h2.quantity) desc limit 1),
+             '—'
            ) as game_name
-    from containers ct
-    left join holdings h on h.container_id = ct.id
-    where ct.kind in ('collection', 'binder')
-    group by ct.id
-    order by ct.kind, ct.name`;
+    from containers ct left join holdings h on h.container_id = ct.id
+    group by ct.id order by ct.kind, ct.name`;
 
-  const games = [...new Set(binders.map((b) => b.game_name))];
+  const binders = containers.filter((c) => c.kind === 'binder' || c.kind === 'unsorted');
+
+  // per-set completion for this game: owned = distinct exact cards held anywhere
+  const setStats = (await client`
+    select c.set_id, s.name, s.icon_url, count(*)::int as total,
+           count(distinct h.card_id)::int as owned
+    from cards c join sets s on s.id = c.set_id
+    left join holdings h on h.card_id = c.id
+    where c.game_id = ${game}
+    group by c.set_id, s.name, s.icon_url
+    having count(distinct h.card_id) > 0
+    order by count(distinct h.card_id)::float / count(*) desc`) as unknown as {
+    set_id: string; name: string; icon_url: string | null; total: number; owned: number;
+  }[];
+
+  // frequency analysis: histogram of completion %, and the "worthwhile floor" — the largest
+  // relative gap in the sorted owned-counts marks where the promo/deck scatter ends
+  const bands = Array.from({ length: 10 }, (_, i) => ({
+    lo: i * 10,
+    hi: i * 10 + 10,
+    sets: setStats.filter((s) => {
+      const p = (100 * s.owned) / s.total;
+      return p > i * 10 && p <= i * 10 + 10;
+    }).length,
+  }));
+  // worthwhile floor = the owned-count where the promo/deck scatter ends. Search the largest
+  // ABSOLUTE gap within the lower ~80% of sorted owned-counts, so the single top set (a big
+  // outlier) doesn't dominate — that upper gap is real but isn't the scatter boundary.
+  const ownedCounts = [...setStats.map((s) => s.owned)].sort((a, b) => a - b);
+  const searchTo = Math.max(2, Math.floor(ownedCounts.length * 0.8));
+  let floor = 10;
+  let bestGap = 0;
+  for (let i = 1; i < searchTo; i++) {
+    const gap = ownedCounts[i] - ownedCounts[i - 1];
+    if (gap > bestGap) { bestGap = gap; floor = ownedCounts[i]; }
+  }
+
+  const suggestions = setStats.filter((s) => (100 * s.owned) / s.total >= threshold && s.owned >= floor);
+  const suggestedIds = new Set(suggestions.map((s) => s.set_id));
+  const restCards = setStats.filter((s) => !suggestedIds.has(s.set_id)).reduce((n, s) => n + s.owned, 0);
+  const maxBand = Math.max(1, ...bands.map((b) => b.sets));
 
   return (
     <div>
       <h1 className="mb-1 text-2xl font-bold">Binders</h1>
-      <p className="mb-6 text-sm text-neutral-400">
-        Physical binders that organise the collection. The <span className="text-neutral-200">Main</span> pool is the
-        default binder; named binders and per-page pocket layout arrive with container editing (phase 3b).
-      </p>
 
-      {binders.length === 0 ? (
-        <p className="text-sm text-neutral-500">No binders yet.</p>
-      ) : (
-        games.map((gameName) => (
-          <div key={gameName} className="mb-6">
-            <h3 className="mb-2 text-sm font-semibold uppercase tracking-wide text-neutral-500">{gameName}</h3>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-              {binders
-                .filter((b) => b.game_name === gameName)
-                .map((b) => (
-                  <Link
-                    key={b.id}
-                    href={`/binders/${encodeURIComponent(b.id)}`}
-                    className="rounded-lg border border-neutral-800 bg-neutral-900 p-3 hover:border-neutral-600"
-                  >
-                    <div className="truncate font-medium">{b.name}</div>
-                    <div className="mt-1 text-xs text-neutral-400">
-                      {b.total_cards} cards · {b.distinct_cards} distinct
-                    </div>
-                  </Link>
-                ))}
-            </div>
+      {/* 1. physical binders */}
+      <section className="mb-10">
+        <h2 className="mb-3 border-b border-neutral-800 pb-1 text-lg font-semibold text-neutral-300">
+          Your binders <span className="text-sm font-normal text-neutral-500">{binders.length}</span>
+        </h2>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          {binders.map((b) => (
+            <Link key={b.id} href={`/binders/${encodeURIComponent(b.id)}`}
+              className="rounded-lg border border-neutral-800 bg-neutral-900 p-3 hover:border-neutral-600">
+              <div className="flex items-center gap-1.5">
+                {b.kind === 'unsorted' && <span className="rounded bg-neutral-700 px-1 text-[10px] uppercase">unsorted</span>}
+                <span className="truncate font-medium">{b.name}</span>
+              </div>
+              <div className="mt-1 text-xs text-neutral-400">{b.total_cards} cards · {b.distinct_cards} distinct</div>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* 2. interpret portfolios */}
+      <section className="mb-10">
+        <h2 className="mb-3 border-b border-neutral-800 pb-1 text-lg font-semibold text-neutral-300">Interpret portfolios</h2>
+        <p className="mb-3 text-sm text-neutral-400">
+          Imported Collectr portfolios were guessed as decks or unsorted. Correct them here — mark real binders, decks,
+          or leave loose cards as unsorted.
+        </p>
+        <form action={setContainerKind} className="max-w-3xl">
+          <div className="mb-3 grid gap-1.5">
+            {containers.map((c) => (
+              <div key={c.id} className="flex items-center gap-3 rounded border border-neutral-800 bg-neutral-900 px-3 py-1.5 text-sm">
+                <span className="w-48 shrink-0 truncate">{c.name}</span>
+                <span className="w-24 shrink-0 text-xs text-neutral-500">{c.total_cards} cards</span>
+                <div className="flex gap-1.5">
+                  {KINDS.map((k) => (
+                    <label key={k} className="cursor-pointer rounded-full border border-neutral-700 px-2 py-0.5 text-xs text-neutral-300 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-500/10 has-[:checked]:text-emerald-300">
+                      <input type="radio" name={`kind_${c.id}`} value={k} defaultChecked={c.kind === k} className="sr-only" />
+                      {k[0].toUpperCase() + k.slice(1)}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
-        ))
-      )}
+          <button className="rounded bg-emerald-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-emerald-500">Apply</button>
+        </form>
+      </section>
+
+      {/* 3. create binders */}
+      <section>
+        <h2 className="mb-1 border-b border-neutral-800 pb-1 text-lg font-semibold text-neutral-300">Create binders</h2>
+        <p className="mb-4 max-w-3xl text-sm text-neutral-400">
+          Sets you&apos;ve collected past the threshold get a dedicated binder; everything else is destined for
+          functional-grouping binders (colour / rarity / type / mana value / alphabetical…, built next). Ownership
+          counts copies held anywhere including decks, but not for-play copies of a different printing.
+        </p>
+
+        <form className="mb-4 flex items-center gap-2 text-sm">
+          {(['mtg', 'pokemon'] as const).map((g) => (
+            <Link key={g} href={`/binders?game=${g}&pct=${threshold}`}
+              className={`rounded-full border px-2.5 py-0.5 text-xs ${game === g ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300' : 'border-neutral-700 text-neutral-300 hover:border-neutral-500'}`}>
+              {g === 'mtg' ? 'Magic' : 'Pokémon'}
+            </Link>
+          ))}
+          <input type="hidden" name="game" value={game} />
+          <label className="ml-2 flex items-center gap-1 text-neutral-400">
+            threshold %
+            <input type="number" name="pct" min={1} max={100} defaultValue={threshold} className="w-16 rounded border border-neutral-700 bg-neutral-900 px-2 py-1" />
+          </label>
+          <button className="rounded border border-neutral-700 px-3 py-1 hover:bg-neutral-800">Apply</button>
+        </form>
+
+        {/* frequency analysis histogram — the step jump from scatter to worthwhile sets */}
+        <div className="mb-6 max-w-xl">
+          <div className="mb-1 text-xs uppercase tracking-wide text-neutral-500">Set completion spread</div>
+          <div className="flex items-end gap-1" style={{ height: 80 }}>
+            {bands.map((b) => (
+              <div key={b.lo} className="flex flex-1 flex-col items-center justify-end" title={`${b.lo}-${b.hi}%: ${b.sets} sets`}>
+                <div className="w-full rounded-t bg-emerald-600/70" style={{ height: `${(100 * b.sets) / maxBand}%` }} />
+                <div className="mt-0.5 text-[8px] text-neutral-500">{b.lo}</div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-1 text-xs text-neutral-500">
+            worthwhile floor ≈ <span className="text-neutral-300">{floor}</span> cards (largest owned-count gap) ·
+            threshold <span className="text-neutral-300">{threshold}%</span>
+          </div>
+        </div>
+
+        {suggestions.length === 0 ? (
+          <p className="text-sm text-neutral-500">
+            No sets meet {threshold}% completion (min {floor} cards) yet — all {restCards.toLocaleString()} owned{' '}
+            {game === 'mtg' ? 'Magic' : 'Pokémon'} cards would go to functional-grouping binders. Lower the threshold to
+            see near-complete sets.
+          </p>
+        ) : (
+          <div className="grid gap-2">
+            <div className="text-sm text-neutral-400">{suggestions.length} suggested binder{suggestions.length > 1 ? 's' : ''}; {restCards.toLocaleString()} cards to functional grouping</div>
+            {suggestions.map((s) => {
+              const pct = Math.round((100 * s.owned) / s.total);
+              return (
+                <div key={s.set_id} className="flex items-center gap-3 rounded-lg border border-neutral-800 bg-neutral-900 px-4 py-2">
+                  {s.icon_url && <img src={s.icon_url} alt="" className={`h-6 w-6 shrink-0 ${game === 'mtg' ? 'invert' : ''}`} />}
+                  <span className="w-64 shrink-0 truncate font-medium">{s.name}</span>
+                  <div className="h-2 flex-1 overflow-hidden rounded bg-neutral-800">
+                    <div className="h-2 rounded bg-emerald-500" style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className="w-24 shrink-0 text-right text-sm text-neutral-400">{s.owned}/{s.total} · {pct}%</span>
+                  <form action={createSetBinder}>
+                    <input type="hidden" name="set_id" value={s.set_id} />
+                    <input type="hidden" name="set_name" value={s.name} />
+                    <button className="rounded bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-500">Create binder</button>
+                  </form>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

@@ -1,10 +1,8 @@
 'use server';
 
-import { and, eq } from 'drizzle-orm';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { revalidatePath } from 'next/cache';
-import { db, client } from './db/index.ts';
-import { holdings } from './db/schema.ts';
+import { client } from './db/index.ts';
 import { money, normalizeGrade, parseCsv, pickFinish, portfolioToContainer } from './import/csv.ts';
 
 const USER = 'stuart';
@@ -17,24 +15,36 @@ async function ensureContainer(c: { id: string; name: string; kind: string }): P
   return c.id;
 }
 
-// one holding row per (user, card, finish, container) — the checklist toggle manages the
-// 'main' collection pool only; deck rows are created by imports/resolve and untouched here.
-// completion counts distinct owned card_id regardless of finish or container, per the
-// one-slot-per-card model: any variant anywhere satisfies the slot.
-export async function toggleHolding(cardId: string, finish: string) {
-  await ensureContainer({ id: 'main', name: 'Main', kind: 'collection' });
-  const where = and(
-    eq(holdings.userId, USER),
-    eq(holdings.cardId, cardId),
-    eq(holdings.finish, finish),
-    eq(holdings.containerId, 'main'),
-  );
-  const [existing] = await db.select().from(holdings).where(where);
-  if (existing) {
-    await db.delete(holdings).where(where);
-  } else {
-    await db.insert(holdings).values({ userId: USER, cardId, finish, containerId: 'main' });
+// Portfolio interpretation: reclassify a container (deck / binder / unsorted). This is the
+// post-import step that decides which Collectr portfolios were really decks vs binders; the
+// import seeds a conservative guess (see portfolioToContainer) and this refines it.
+export async function setContainerKind(formData: FormData) {
+  for (const [key, value] of formData.entries()) {
+    if (!key.startsWith('kind_')) continue;
+    const id = key.slice('kind_'.length);
+    const kind = String(value);
+    if (!['deck', 'binder', 'unsorted'].includes(kind)) continue;
+    await client`update containers set kind = ${kind} where id = ${id} and user_id = ${USER}`;
   }
+  revalidatePath('/binders');
+  revalidatePath('/decks');
+}
+
+// Create Binders: materialize a suggested set-binder. Moves every owned holding of the set
+// that is currently sitting in the unsorted pool into a new binder container. Cards already
+// filed in decks or other binders are left where they are — this only files the loose ones.
+export async function createSetBinder(formData: FormData) {
+  const setId = String(formData.get('set_id') ?? '');
+  const setName = String(formData.get('set_name') ?? 'Set');
+  if (!setId) return;
+  const binderId = `binder-${setId}`;
+  await ensureContainer({ id: binderId, name: `${setName} binder`, kind: 'binder' });
+  await client`
+    update holdings h set container_id = ${binderId}
+    from cards c
+    where h.card_id = c.id and c.set_id = ${setId}
+      and h.user_id = ${USER} and h.container_id = 'unsorted'`;
+  revalidatePath('/binders');
 }
 
 // applies picks made on /resolve: each `choice_<i>` field is a chosen card id (unselected rows

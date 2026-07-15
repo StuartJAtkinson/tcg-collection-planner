@@ -95,12 +95,14 @@ export function normalizeGrade(gradeRaw: string | undefined, gradingCompany: str
   return gradingCompany ? `${gradingCompany} ${gradeRaw}` : gradeRaw;
 }
 
-// Collectr's Portfolio Name -> container: "Main" (or blank/unknown) is the general collection
-// pool; anything else is one of the user's decks. Returns the container slug id + the row
-// needed to lazily create it.
+// Collectr's Portfolio Name -> container. Initial import classifies conservatively: "Main"
+// (or blank/unknown) becomes the 'unsorted' pool — cards you own but haven't physically filed
+// into a binder — and every other portfolio becomes a 'deck'. Whether a portfolio is really a
+// deck vs a binder is refined afterwards on the portfolio-interpretation step (/binders →
+// Interpret portfolios), which just changes container.kind.
 export function portfolioToContainer(portfolio: string | undefined): { id: string; name: string; kind: string } {
   const name = portfolio?.trim();
-  if (!name || norm(name) === 'main') return { id: 'main', name: 'Main', kind: 'collection' };
+  if (!name || norm(name) === 'main') return { id: 'unsorted', name: 'Unsorted collection', kind: 'unsorted' };
   return { id: norm(name), name, kind: 'deck' };
 }
 
