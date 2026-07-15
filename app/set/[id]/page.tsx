@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { client } from '../../../src/db/index.ts';
+import FilterSidebar, { type FilterGroup } from '../../components/FilterSidebar.tsx';
+import FoilCard from '../../components/FoilCard.tsx';
 import PrintButton from './print-button.tsx';
 
 export const dynamic = 'force-dynamic';
@@ -12,6 +14,7 @@ type Card = {
   id: string; name: string; collector_number: string; rarity_raw: string | null;
   image_small: string | null; artist: string | null; finishes: string[];
   owned_finishes: string[]; owned: boolean; for_play: boolean; usd: number | null;
+  set_nonfoil: number; set_foil: number; deck_nonfoil: number; deck_foil: number; func_total: number;
 };
 
 export default async function SetPage({
@@ -42,20 +45,40 @@ export default async function SetPage({
     ) p on true
     where c.set_id = ${id}`;
 
+  // per-card ownership breakdown by finish bucket (nonfoil vs anything foil-ish), split by
+  // whether the copy sits in a deck container; plus the functional total across every printing
+  // sharing this card's oracle identity. Drives the ring, the finish badges, the foil sheen,
+  // and the per-card indicator strip.
   const cards = (await client`
+    with hold as (
+      select h.card_id,
+             sum(case when h.finish in ('normal','nonfoil') then h.quantity else 0 end)::int as set_nonfoil,
+             sum(case when h.finish not in ('normal','nonfoil') then h.quantity else 0 end)::int as set_foil,
+             sum(case when ct.kind = 'deck' and h.finish in ('normal','nonfoil') then h.quantity else 0 end)::int as deck_nonfoil,
+             sum(case when ct.kind = 'deck' and h.finish not in ('normal','nonfoil') then h.quantity else 0 end)::int as deck_foil,
+             array_agg(distinct h.finish) as owned_finishes
+      from holdings h join containers ct on ct.id = h.container_id
+      group by h.card_id
+    ),
+    oracle_total as (
+      select c.oracle_id, sum(coalesce(hd.set_nonfoil,0) + coalesce(hd.set_foil,0))::int as total
+      from cards c left join hold hd on hd.card_id = c.id
+      where c.oracle_id is not null
+      group by c.oracle_id
+    )
     select c.id, c.name, c.collector_number, c.rarity_raw, c.image_small, c.artist, c.finishes,
-           coalesce(hh.owned_finishes, '{}') as owned_finishes,
-           coalesce(array_length(hh.owned_finishes, 1), 0) > 0 as owned,
-           -- Gatherer-style "all printings" grouping: own any other print sharing oracle_id? (mtg
-           -- oracle_id groups identical rules text across reprints; pokemon falls back to name)
-           coalesce(array_length(hh.owned_finishes, 1), 0) = 0
-             and exists (
-               select 1 from cards c2 join holdings h2 on h2.card_id = c2.id
-               where c2.oracle_id = c.oracle_id and c2.id != c.id and c.oracle_id is not null
-             ) as for_play,
+           coalesce(hd.owned_finishes, '{}') as owned_finishes,
+           coalesce(hd.owned_finishes, '{}') <> '{}' as owned,
+           coalesce(hd.set_nonfoil, 0) as set_nonfoil,
+           coalesce(hd.set_foil, 0) as set_foil,
+           coalesce(hd.deck_nonfoil, 0) as deck_nonfoil,
+           coalesce(hd.deck_foil, 0) as deck_foil,
+           coalesce(ot.total, 0) as func_total,
+           (hd.card_id is null and ot.total > 0) as for_play,
            p.usd::float as usd
     from cards c
-    left join lateral (select array_agg(distinct h.finish) as owned_finishes from holdings h where h.card_id = c.id) hh on true
+    left join hold hd on hd.card_id = c.id
+    left join oracle_total ot on ot.oracle_id = c.oracle_id
     left join lateral (
       select usd from prices p where p.card_id = c.id
       order by (p.finish = 'nonfoil') desc, p.as_of desc limit 1
@@ -78,91 +101,80 @@ export default async function SetPage({
     group by 1 order by 2 desc`;
 
   const pct = stats.total ? Math.round((100 * stats.owned) / stats.total) : 0;
-  const qs = (over: Record<string, string | undefined>) => {
-    const p = new URLSearchParams();
-    for (const [k, v] of Object.entries({ ...sp, ...over })) if (v) p.set(k, v);
-    const s = p.toString();
-    return s ? `?${s}` : '';
-  };
 
-  // toggle-chip filter group, same look as the game page's kind tabs — clicking the active
-  // chip again clears it (natural "select none"), single-select within each group
-  const chips = (name: string, label: string, current: string | undefined, opts: { value: string; n?: number }[]) => (
-    <div className="flex min-w-0 items-center gap-1.5">
-      <span className="shrink-0 text-xs uppercase text-neutral-500">{label}</span>
-      <div className="flex gap-1.5 overflow-x-auto pb-0.5">
-        {opts.map((o) => (
-          <Link
-            key={o.value}
-            href={qs({ [name]: current === o.value ? undefined : o.value })}
-            className={`shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs ${
-              current === o.value
-                ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300'
-                : 'border-neutral-700 text-neutral-300 hover:border-neutral-500'
-            }`}
-          >
-            {o.value}
-            {o.n ? <span className="text-neutral-500"> {o.n}</span> : null}
-          </Link>
-        ))}
-      </div>
-    </div>
-  );
+  const slicers: FilterGroup[] = [
+    { name: 'rarity', label: 'Rarity', current: sp.rarity, options: (rarities as any[]).map((r) => ({ value: r.value, label: r.value, n: r.n })) },
+    { name: 'kind', label: 'Kind', current: sp.kind, options: facetOpts.filter((f) => f.facet === 'kind').map((f) => ({ value: f.value, label: f.value, n: f.n })) },
+    { name: 'color', label: 'Colour', current: sp.color, options: facetOpts.filter((f) => f.facet === 'color').map((f) => ({ value: f.value, label: f.value, n: f.n })) },
+  ];
+  const displayGroups: FilterGroup[] = [
+    { name: 'view', label: 'Display', current: view === 'grid' ? '' : view, options: [{ value: 'print', label: 'Print' }] },
+  ];
 
   // Collections is read-only ownership: the ring is derived from what's in your binders/decks,
   // not toggled here (that lives on the Binders page / phase-3b container CRUD). ring: emerald
   // = this exact printing owned somewhere, amber-dashed = "For Play" (owned under a different
-  // printing, per oracle_id), grey = neither.
-  const tile = (c: Card) => (
-    <div key={c.id} className={c.owned ? '' : 'opacity-90'}>
-      <div
-        title={c.for_play ? 'Collected — For Play (owned under a different printing)' : undefined}
-        className={`relative overflow-hidden rounded-lg ${
-          c.owned ? 'ring-2 ring-emerald-500' : c.for_play ? 'ring-2 ring-dashed ring-amber-500/70' : ''
-        }`}
-      >
-        {c.image_small ? (
-          <img src={c.image_small} alt={c.name} loading="lazy" className="w-full" />
-        ) : (
-          <div className="flex aspect-[5/7] items-center justify-center bg-neutral-800 p-2 text-center text-xs text-neutral-400">
-            {c.name}
+  // printing, per oracle_id), grey = neither. Owned foils get the holographic sheen.
+  // "For trade" = copies of this printing beyond one kept + what's committed to decks.
+  const tile = (c: Card) => {
+    const hasFoil = c.set_foil > 0;
+    const tradeNonfoil = Math.max(0, c.set_nonfoil - c.deck_nonfoil - 1);
+    const tradeFoil = Math.max(0, c.set_foil - c.deck_foil - 1);
+    // indicator rows: [label, nonfoil, foil] — Total is finish-agnostic (functional card)
+    const indicator: [string, string, string | null][] = [
+      ['Σ', String(c.func_total), null],
+      ['set', String(c.set_nonfoil), String(c.set_foil)],
+      ['deck', String(c.deck_nonfoil), String(c.deck_foil)],
+      ['trade', String(tradeNonfoil), String(tradeFoil)],
+    ];
+    return (
+      <div key={c.id} className={`flex gap-1 ${c.owned ? '' : 'opacity-90'}`}>
+        <div className="min-w-0 flex-1">
+          <FoilCard
+            foil={hasFoil}
+            className={`relative overflow-hidden rounded-lg ${
+              c.owned ? 'ring-2 ring-emerald-500' : c.for_play ? 'ring-2 ring-dashed ring-amber-500/70' : ''
+            }`}
+          >
+            {c.image_small ? (
+              <img src={c.image_small} alt={c.name} loading="lazy" className="w-full" />
+            ) : (
+              <div className="flex aspect-[5/7] items-center justify-center bg-neutral-800 p-2 text-center text-xs text-neutral-400">
+                {c.name}
+              </div>
+            )}
+            {!c.owned && <div className="absolute inset-0 z-[3] bg-neutral-950/40" />}
+            {c.for_play && (
+              <div className="no-print absolute bottom-1 left-1 right-1 z-[3] rounded bg-amber-500/90 px-1 py-0.5 text-center text-[9px] font-semibold uppercase text-neutral-950">
+                For Play
+              </div>
+            )}
+          </FoilCard>
+          <div className="mt-1 flex justify-between text-xs text-neutral-400">
+            <span>#{c.collector_number}</span>
+            {c.usd != null && <span>${c.usd.toFixed(2)}</span>}
           </div>
-        )}
-        {!c.owned && <div className="absolute inset-0 bg-neutral-950/40" />}
-        {c.for_play && (
-          <div className="no-print absolute bottom-1 left-1 right-1 rounded bg-amber-500/90 px-1 py-0.5 text-center text-[9px] font-semibold uppercase text-neutral-950">
-            For Play
-          </div>
-        )}
-        {c.owned_finishes.length > 0 && (
-          <div className="no-print absolute right-1 top-1 flex flex-col gap-0.5">
-            {c.owned_finishes.map((f) => (
-              <span
-                key={f}
-                className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase ${
-                  f === 'normal' || f === 'nonfoil'
-                    ? 'bg-emerald-500 text-neutral-950'
-                    : 'bg-amber-500 text-neutral-950'
-                }`}
-              >
-                {f === 'normal' || f === 'nonfoil' ? '✓' : f.slice(0, 4)}
-              </span>
+          <div className="truncate text-sm">{c.name}</div>
+        </div>
+
+        {/* ownership indicator strip alongside the card, only when owned */}
+        {c.owned && (
+          <div className="no-print flex w-9 shrink-0 flex-col justify-start gap-px rounded bg-neutral-900/70 py-0.5 text-center text-[8px] leading-tight text-neutral-400">
+            {indicator.map(([label, nf, f]) => (
+              <div key={label} title={`${label}: nonfoil ${nf}${f != null ? ` · foil ${f}` : ''}`} className="px-0.5">
+                <div className="uppercase text-neutral-600">{label}</div>
+                <div className="text-neutral-200">
+                  {nf}
+                  {f != null && <span className="text-amber-400">/{f}</span>}
+                </div>
+              </div>
             ))}
           </div>
         )}
       </div>
-      <div className="mt-1 flex justify-between text-xs text-neutral-400">
-        <span>#{c.collector_number}</span>
-        {c.usd != null && <span>${c.usd.toFixed(2)}</span>}
-      </div>
-      <div className="truncate text-sm">{c.name}</div>
-    </div>
-  );
+    );
+  };
 
-  const views = [
-    ['grid', 'Grid'],
-    ['print', 'Print'],
-  ] as const;
 
   return (
     <div>
@@ -193,87 +205,57 @@ export default async function SetPage({
         </div>
       </div>
 
-      <div className="no-print mb-4 flex flex-wrap items-center gap-2 text-sm">
-        {views.map(([v, label]) => (
-          <Link
-            key={v}
-            href={qs({ view: v === 'grid' ? undefined : v })}
-            className={`rounded-full border px-3 py-1 ${
-              view === v
-                ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300'
-                : 'border-neutral-700 text-neutral-300 hover:border-neutral-500'
-            }`}
-          >
-            {label}
-          </Link>
-        ))}
-        <form method="get" className="ml-auto flex items-center gap-2">
-          {view !== 'grid' && <input type="hidden" name="view" value={view} />}
-          {sp.rarity && <input type="hidden" name="rarity" value={sp.rarity} />}
-          {sp.kind && <input type="hidden" name="kind" value={sp.kind} />}
-          {sp.color && <input type="hidden" name="color" value={sp.color} />}
-          <input
-            type="search"
-            name="q"
-            defaultValue={sp.q ?? ''}
-            placeholder="name…"
-            className="w-40 rounded border border-neutral-700 bg-neutral-900 px-2 py-1"
-          />
-        </form>
-        {(sp.q || sp.rarity || sp.kind || sp.color) && (
-          <Link href={qs({ q: undefined, rarity: undefined, kind: undefined, color: undefined })} className="text-neutral-400 hover:text-white">
-            clear
-          </Link>
-        )}
-      </div>
+      <div className="flex gap-6">
+        <FilterSidebar
+          display={displayGroups}
+          search={{ name: 'q', value: sp.q, placeholder: 'card name…' }}
+          slicers={slicers}
+          clearHref={`/set/${encodeURIComponent(id)}`}
+        />
 
-      {/* filters as toggle chips (matching the master-sets kind tabs), not dropdowns */}
-      <div className="no-print mb-4 flex flex-col gap-1.5 text-sm">
-        {chips('rarity', 'Rarity', sp.rarity, rarities as any)}
-        {chips('kind', 'Kind', sp.kind, facetOpts.filter((f) => f.facet === 'kind') as any)}
-        {chips('color', 'Colour', sp.color, facetOpts.filter((f) => f.facet === 'color') as any)}
-      </div>
+        <div className="min-w-0 flex-1">
+          <div className="mb-3 text-sm text-neutral-400">{cards.length} cards shown</div>
 
-      <div className="mb-3 text-sm text-neutral-400">{cards.length} cards shown</div>
-
-      {view === 'grid' && (
-        <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(150px,1fr))]">
-          {cards.map(tile)}
-        </div>
-      )}
-
-      {view === 'print' && (
-        <div className="mx-auto max-w-3xl rounded-xl bg-white p-6 text-black print:max-w-none print:rounded-none print:p-0">
-          <div className="mb-3 flex items-center justify-between">
-            <div className="font-bold">
-              {set.name} <span className="font-normal text-neutral-500">({set.code?.toUpperCase()}) — {stats.total} cards</span>
+          {view === 'grid' && (
+            <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(168px,1fr))]">
+              {cards.map(tile)}
             </div>
-            <PrintButton />
-          </div>
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="border-b-2 border-black text-left">
-                <th className="w-8 py-1"></th>
-                <th className="w-14 py-1">#</th>
-                <th className="py-1">Name</th>
-                <th className="py-1">Rarity</th>
-                <th className="w-16 py-1 text-right">Price</th>
-              </tr>
-            </thead>
-            <tbody>
-              {cards.map((c) => (
-                <tr key={c.id} className="border-b border-neutral-300">
-                  <td className="py-0.5 text-center">{c.owned ? '☑' : c.for_play ? '◐' : '☐'}</td>
-                  <td className="py-0.5">{c.collector_number}</td>
-                  <td className="py-0.5">{c.name}</td>
-                  <td className="py-0.5">{c.rarity_raw}</td>
-                  <td className="py-0.5 text-right">{c.usd != null ? `$${c.usd.toFixed(2)}` : ''}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          )}
+
+          {view === 'print' && (
+            <div className="mx-auto max-w-3xl rounded-xl bg-white p-6 text-black print:max-w-none print:rounded-none print:p-0">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="font-bold">
+                  {set.name} <span className="font-normal text-neutral-500">({set.code?.toUpperCase()}) — {stats.total} cards</span>
+                </div>
+                <PrintButton />
+              </div>
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="border-b-2 border-black text-left">
+                    <th className="w-8 py-1"></th>
+                    <th className="w-14 py-1">#</th>
+                    <th className="py-1">Name</th>
+                    <th className="py-1">Rarity</th>
+                    <th className="w-16 py-1 text-right">Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cards.map((c) => (
+                    <tr key={c.id} className="border-b border-neutral-300">
+                      <td className="py-0.5 text-center">{c.owned ? '☑' : c.for_play ? '◐' : '☐'}</td>
+                      <td className="py-0.5">{c.collector_number}</td>
+                      <td className="py-0.5">{c.name}</td>
+                      <td className="py-0.5">{c.rarity_raw}</td>
+                      <td className="py-0.5 text-right">{c.usd != null ? `$${c.usd.toFixed(2)}` : ''}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

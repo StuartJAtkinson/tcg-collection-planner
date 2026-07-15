@@ -5,3 +5,58 @@
     display: none !important;
   }
 }
+
+/* Holographic foil effect for cards owned in a foil finish. Pure CSS, no WebGL shader needed:
+   a rainbow sheen layer (color-dodge blend so it only lights the art, not darkens) plus a
+   sweeping specular highlight that tracks the pointer via --mx/--my custom properties (set by
+   a tiny client hook), falling back to a gentle idle shimmer when the pointer isn't over it. */
+.foil {
+  position: relative;
+  isolation: isolate;
+}
+.foil::before,
+.foil::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  z-index: 2;
+}
+/* rainbow sheen */
+.foil::before {
+  background: linear-gradient(
+    115deg,
+    transparent 0%,
+    rgba(255, 119, 115, 0.5) 12%,
+    rgba(255, 237, 95, 0.5) 25%,
+    rgba(168, 255, 95, 0.5) 38%,
+    rgba(95, 255, 246, 0.5) 50%,
+    rgba(115, 131, 255, 0.5) 63%,
+    rgba(255, 102, 247, 0.5) 76%,
+    transparent 100%
+  );
+  background-size: 300% 300%;
+  mix-blend-mode: color-dodge;
+  opacity: 0.55;
+  animation: foil-shift 6s linear infinite;
+}
+/* pointer-tracked specular highlight */
+.foil::after {
+  background: radial-gradient(
+    circle at var(--mx, 50%) var(--my, 30%),
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba(255, 255, 255, 0.12) 25%,
+    transparent 55%
+  );
+  mix-blend-mode: soft-light;
+}
+@keyframes foil-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@media print {
+  .foil::before,
+  .foil::after { display: none; }
+}
