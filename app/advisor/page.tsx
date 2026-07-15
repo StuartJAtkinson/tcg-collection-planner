@@ -66,12 +66,27 @@ export default async function AdvisorPage({
         completion elsewhere stays exact-print — this is the &quot;what should I finish next&quot; view.
       </p>
 
-      <form className="mb-6 flex items-center gap-2 text-sm">
-        <select name="game" defaultValue={game} className="rounded border border-neutral-700 bg-neutral-900 px-2 py-1">
-          <option value="mtg">Magic: The Gathering</option>
-          <option value="pokemon">Pokémon TCG</option>
-        </select>
-        <label className="flex items-center gap-1 text-neutral-400">
+      <div className="mb-6 flex flex-wrap items-center gap-2 text-sm">
+        {(
+          [
+            ['mtg', 'Magic: The Gathering'],
+            ['pokemon', 'Pokémon TCG'],
+          ] as const
+        ).map(([id, label]) => (
+          <Link
+            key={id}
+            href={`/advisor?game=${id}&min=${minSize}`}
+            className={`rounded-full border px-2.5 py-0.5 text-xs ${
+              game === id
+                ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300'
+                : 'border-neutral-700 text-neutral-300 hover:border-neutral-500'
+            }`}
+          >
+            {label}
+          </Link>
+        ))}
+        <form className="flex items-center gap-1 text-neutral-400">
+          <input type="hidden" name="game" value={game} />
           min set size
           <input
             type="number"
@@ -79,9 +94,9 @@ export default async function AdvisorPage({
             defaultValue={minSize}
             className="w-16 rounded border border-neutral-700 bg-neutral-900 px-2 py-1"
           />
-        </label>
-        <button className="rounded border border-neutral-700 px-3 py-1 hover:bg-neutral-800">Apply</button>
-      </form>
+          <button className="rounded border border-neutral-700 px-3 py-1 hover:bg-neutral-800">Apply</button>
+        </form>
+      </div>
 
       <div className="flex flex-col gap-2">
         {rows.map((s) => {

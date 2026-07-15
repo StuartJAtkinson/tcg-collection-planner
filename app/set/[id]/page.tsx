@@ -90,19 +90,28 @@ export default async function SetPage({
     return s ? `?${s}` : '';
   };
 
-  const select = (name: string, placeholder: string, current: string | undefined, opts: { value: string; n?: number }[]) => (
-    <select
-      name={name}
-      defaultValue={current ?? ''}
-      className="max-w-40 rounded border border-neutral-700 bg-neutral-900 px-2 py-1"
-    >
-      <option value="">{placeholder}</option>
-      {opts.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.value}{o.n ? ` (${o.n})` : ''}
-        </option>
-      ))}
-    </select>
+  // toggle-chip filter group, same look as the game page's kind tabs — clicking the active
+  // chip again clears it (natural "select none"), single-select within each group
+  const chips = (name: string, label: string, current: string | undefined, opts: { value: string; n?: number }[]) => (
+    <div className="flex min-w-0 items-center gap-1.5">
+      <span className="shrink-0 text-xs uppercase text-neutral-500">{label}</span>
+      <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+        {opts.map((o) => (
+          <Link
+            key={o.value}
+            href={qs({ [name]: current === o.value ? undefined : o.value })}
+            className={`shrink-0 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs ${
+              current === o.value
+                ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300'
+                : 'border-neutral-700 text-neutral-300 hover:border-neutral-500'
+            }`}
+          >
+            {o.value}
+            {o.n ? <span className="text-neutral-500"> {o.n}</span> : null}
+          </Link>
+        ))}
+      </div>
+    </div>
   );
 
   // primary finish owns the slot; a second finish (e.g. foil) gets its own small toggle.
@@ -217,26 +226,34 @@ export default async function SetPage({
             {label}
           </Link>
         ))}
-        <form method="get" className="ml-auto flex flex-wrap items-center gap-2">
+        <form method="get" className="ml-auto flex items-center gap-2">
           {view !== 'grid' && <input type="hidden" name="view" value={view} />}
+          {sp.rarity && <input type="hidden" name="rarity" value={sp.rarity} />}
+          {sp.kind && <input type="hidden" name="kind" value={sp.kind} />}
+          {sp.color && <input type="hidden" name="color" value={sp.color} />}
+          {sp.artist && <input type="hidden" name="artist" value={sp.artist} />}
           <input
             type="search"
             name="q"
             defaultValue={sp.q ?? ''}
             placeholder="name…"
-            className="w-32 rounded border border-neutral-700 bg-neutral-900 px-2 py-1"
+            className="w-40 rounded border border-neutral-700 bg-neutral-900 px-2 py-1"
           />
-          {select('rarity', 'All rarities', sp.rarity, rarities as any)}
-          {select('kind', 'All kinds', sp.kind, facetOpts.filter((f) => f.facet === 'kind') as any)}
-          {select('color', 'All colors', sp.color, facetOpts.filter((f) => f.facet === 'color') as any)}
-          {select('artist', 'All artists', sp.artist, (artists as any[]).map((a) => ({ value: a.artist })))}
-          <button className="rounded border border-neutral-700 px-3 py-1 hover:bg-neutral-800">Filter</button>
-          {(sp.q || sp.rarity || sp.kind || sp.color || sp.artist) && (
-            <Link href={qs({ q: undefined, rarity: undefined, kind: undefined, color: undefined, artist: undefined })} className="text-neutral-400 hover:text-white">
-              clear
-            </Link>
-          )}
         </form>
+        {(sp.q || sp.rarity || sp.kind || sp.color || sp.artist) && (
+          <Link href={qs({ q: undefined, rarity: undefined, kind: undefined, color: undefined, artist: undefined })} className="text-neutral-400 hover:text-white">
+            clear
+          </Link>
+        )}
+      </div>
+
+      {/* filters as toggle chips (matching the master-sets kind tabs), not dropdowns; the
+          artist row scrolls horizontally since a set can credit a hundred illustrators */}
+      <div className="no-print mb-4 flex flex-col gap-1.5 text-sm">
+        {chips('rarity', 'Rarity', sp.rarity, rarities as any)}
+        {chips('kind', 'Kind', sp.kind, facetOpts.filter((f) => f.facet === 'kind') as any)}
+        {chips('color', 'Colour', sp.color, facetOpts.filter((f) => f.facet === 'color') as any)}
+        {chips('artist', 'Artist', sp.artist, (artists as any[]).map((a) => ({ value: a.artist })))}
       </div>
 
       <div className="mb-3 text-sm text-neutral-400">{cards.length} cards shown</div>

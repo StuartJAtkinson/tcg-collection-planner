@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import Link from 'next/link';
 import { importRowToMockFace } from '../components/cardToMockFaces.ts';
+import DeselectableRadio from '../components/DeselectableRadio.tsx';
 import MockCard from '../components/MockCard.tsx';
 import { resolveImportRows } from '../../src/actions.ts';
 import { findCandidates } from '../../src/import/candidates.ts';
@@ -158,7 +159,7 @@ export default async function ResolvePage({
                           key={c.id}
                           className="w-56 shrink-0 cursor-pointer rounded-lg border border-transparent p-1 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-500/10"
                         >
-                          <input type="radio" name={`choice_${i}`} value={c.id} className="sr-only" />
+                          <DeselectableRadio name={`choice_${i}`} value={c.id} className="sr-only" />
                           {/* fixed height matching MockCard's rendered frame exactly (313.6px
                               = 224px * 7/5, its aspect-[5/7] at w-56) rather than deriving it
                               from width + the image's own aspect ratio, which drifts from

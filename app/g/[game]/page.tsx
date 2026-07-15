@@ -86,24 +86,35 @@ export default async function GamePage({
     return `/g/${game}?${kindParam ? `kind=${encodeURIComponent(kindParam)}` : ''}${format ? `${kindParam ? '&' : ''}format=${encodeURIComponent(format)}` : ''}`;
   };
 
+  // format chips: single-select toggle — clicking the active one clears it ("select none")
+  const formatHref = (f: string) => {
+    const kindParam = [...selected].join(',');
+    const parts = [];
+    if (kindParam) parts.push(`kind=${encodeURIComponent(kindParam)}`);
+    if (format !== f) parts.push(`format=${encodeURIComponent(f)}`);
+    return `/g/${game}${parts.length ? `?${parts.join('&')}` : ''}`;
+  };
+
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">{gameRow.name}</h1>
-        <form method="get" className="no-print flex items-center gap-2 text-sm">
-          <input type="hidden" name="kind" value={[...selected].join(',')} />
-          <select
-            name="format"
-            defaultValue={format ?? ''}
-            className="rounded border border-neutral-700 bg-neutral-900 px-2 py-1"
-          >
-            <option value="">All formats</option>
-            {FORMATS[game]?.map((f) => (
-              <option key={f} value={f}>{properCase(f)}</option>
-            ))}
-          </select>
-          <button className="rounded border border-neutral-700 px-3 py-1 hover:bg-neutral-800">Apply</button>
-        </form>
+        <div className="no-print flex flex-wrap items-center gap-1.5 text-sm">
+          <span className="text-xs uppercase text-neutral-500">Format</span>
+          {FORMATS[game]?.map((f) => (
+            <Link
+              key={f}
+              href={formatHref(f)}
+              className={`rounded-full border px-2.5 py-0.5 text-xs ${
+                format === f
+                  ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300'
+                  : 'border-neutral-700 text-neutral-300 hover:border-neutral-500'
+              }`}
+            >
+              {properCase(f)}
+            </Link>
+          ))}
+        </div>
       </div>
 
       <div className="no-print mb-6 flex flex-wrap gap-2">
