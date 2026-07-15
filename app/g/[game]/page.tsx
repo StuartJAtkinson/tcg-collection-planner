@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { client } from '../../../src/db/index.ts';
 
@@ -33,7 +34,11 @@ export default async function GamePage({
   searchParams: Promise<{ kind?: string; format?: string }>;
 }) {
   const { game } = await params;
-  const { kind, format } = await searchParams;
+  const { kind: kindParam, format } = await searchParams;
+
+  // remembered default: URL param wins; else the last-applied kind (cookie); else seeded Core
+  const kindCookie = (await cookies()).get('pref_kind')?.value;
+  const kind = kindParam ?? kindCookie;
 
   const allGames = await client`select id, name from games order by id`;
   const gameRow = allGames.find((g) => g.id === game);
@@ -75,13 +80,13 @@ export default async function GamePage({
   }
   tabs = tabs.filter((t) => t.sets.length > 0);
 
-  // kind is a multi-select toggle set, comma-separated in the URL. A missing param means
-  // "first visit" and defaults to Expansions; the explicit sentinel kind=none means the user
-  // toggled everything off — show nothing, so a single kind can then be picked cleanly
-  // without the default's big grid rendering on top first.
+  // kind is a multi-select toggle set, comma-separated in the URL / remembered cookie. Absent
+  // = seeded default (Core & Reprints); explicit sentinel kind=none = user toggled everything
+  // off — show nothing, so a single kind can then be picked cleanly without a big default grid
+  // rendering on top first.
   const selected = new Set(
     kind === undefined
-      ? [tabs.find((t) => t.label === 'Expansions')?.label ?? tabs[0]?.label]
+      ? [tabs.find((t) => t.label === 'Core & Reprints')?.label ?? tabs[0]?.label]
       : kind === 'none'
         ? []
         : kind.split(',').filter(Boolean),
