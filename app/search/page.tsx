@@ -20,25 +20,31 @@ export default async function SearchPage({
   const gameCookie = (await cookies()).get('pref_game')?.value;
   const game = (sp.game ?? gameCookie ?? '').trim();
 
+  // blank text is allowed — it returns the whole cohort (whatever game/slicer scope is set),
+  // so Search doubles as a browse. Only skip the query when there's no scope at all (nothing
+  // typed and no game/slicer) to avoid an unbounded "everything" fetch.
   const like = '%' + q + '%';
-  const cards = q
+  const hasScope = !!(q || game || sp.kind || sp.color);
+  const cards = hasScope
     ? await client`
         select c.id, c.name, c.image_small, c.game_id, c.set_id,
-               s.code as set_code,
-               exists (select 1 from holdings h where h.card_id = c.id) as owned
-        from cards c join sets s on s.id = c.set_id
-        where (
+               s.code as set_code, (own.card_id is not null) as owned
+        from cards c
+        join sets s on s.id = c.set_id
+        left join (select distinct card_id from holdings) own on own.card_id = c.id
+        where true
+        ${q ? client`and (
           c.name ilike ${like}
           or coalesce(c.attrs->>'oracle_text', '') ilike ${like}
           or coalesce(c.attrs->>'flavor_text', '') ilike ${like}
           or coalesce(c.attrs->>'type_line', '') ilike ${like}
           or coalesce(c.attrs->'attacks', '[]'::jsonb)::text ilike ${like}
           or coalesce(c.attrs->'rules', '[]'::jsonb)::text ilike ${like}
-        )
+        )` : client``}
         ${game ? client`and c.game_id = ${game}` : client``}
         ${sp.kind ? client`and exists (select 1 from card_facets f where f.card_id = c.id and f.facet = 'kind' and f.value = ${sp.kind})` : client``}
         ${sp.color ? client`and exists (select 1 from card_facets f where f.card_id = c.id and f.facet = 'color' and f.value = ${sp.color})` : client``}
-        order by (exists (select 1 from holdings h where h.card_id = c.id)) desc, c.name, s.release_date desc
+        order by (own.card_id is not null) desc, c.name, s.release_date desc
         limit 120`
     : [];
 
@@ -92,7 +98,13 @@ export default async function SearchPage({
           clearHref={game ? `/search?game=${game}` : '/search'}
         />
         <div className="min-w-0 flex-1">
-          {q && <div className="mb-3 text-sm text-neutral-400">{cards.length} results{game ? ` in ${games.find((g) => g.id === game)?.name}` : ''}</div>}
+          {hasScope && (
+            <div className="mb-3 text-sm text-neutral-400">
+              {cards.length}
+              {cards.length === 120 ? '+' : ''} {q ? 'results' : 'cards'}
+              {game ? ` in ${games.find((g) => g.id === game)?.name}` : ''}
+            </div>
+          )}
           <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(150px,1fr))]">
             {cards.map((c) => (
               <Link key={c.id} href={`/set/${encodeURIComponent(c.set_id ?? '')}?q=${encodeURIComponent(c.name)}`} className={c.owned ? '' : 'opacity-90'}>
@@ -109,7 +121,7 @@ export default async function SearchPage({
                 <div className="text-xs uppercase text-neutral-500">{c.set_code}</div>
               </Link>
             ))}
-            {!q && <p className="text-sm text-neutral-500">Type a card name or rules text and press Apply.</p>}
+            {!hasScope && <p className="text-sm text-neutral-500">Pick a game or type a name / rules text to browse.</p>}
           </div>
         </div>
       </div>
