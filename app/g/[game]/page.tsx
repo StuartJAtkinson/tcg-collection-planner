@@ -69,9 +69,16 @@ export default async function GamePage({
   }
   tabs = tabs.filter((t) => t.sets.length > 0);
 
-  // kind is a multi-select toggle set, comma-separated in the URL; defaults to Expansions
+  // kind is a multi-select toggle set, comma-separated in the URL. A missing param means
+  // "first visit" and defaults to Expansions; the explicit sentinel kind=none means the user
+  // toggled everything off — show nothing, so a single kind can then be picked cleanly
+  // without the default's big grid rendering on top first.
   const selected = new Set(
-    kind ? kind.split(',').filter(Boolean) : [tabs.find((t) => t.label === 'Expansions')?.label ?? tabs[0]?.label],
+    kind === undefined
+      ? [tabs.find((t) => t.label === 'Expansions')?.label ?? tabs[0]?.label]
+      : kind === 'none'
+        ? []
+        : kind.split(',').filter(Boolean),
   );
   const shown = tabs
     .filter((t) => selected.has(t.label))
@@ -82,13 +89,13 @@ export default async function GamePage({
   const tabHref = (label: string) => {
     const next = new Set(selected);
     next.has(label) ? next.delete(label) : next.add(label);
-    const kindParam = [...next].join(',');
-    return `/g/${game}?${kindParam ? `kind=${encodeURIComponent(kindParam)}` : ''}${format ? `${kindParam ? '&' : ''}format=${encodeURIComponent(format)}` : ''}`;
+    const kindParam = [...next].join(',') || 'none';
+    return `/g/${game}?kind=${encodeURIComponent(kindParam)}${format ? `&format=${encodeURIComponent(format)}` : ''}`;
   };
 
   // format chips: single-select toggle — clicking the active one clears it ("select none")
   const formatHref = (f: string) => {
-    const kindParam = [...selected].join(',');
+    const kindParam = [...selected].join(',') || (kind !== undefined ? 'none' : '');
     const parts = [];
     if (kindParam) parts.push(`kind=${encodeURIComponent(kindParam)}`);
     if (format !== f) parts.push(`format=${encodeURIComponent(f)}`);
@@ -132,6 +139,10 @@ export default async function GamePage({
           </Link>
         ))}
       </div>
+
+      {shown.length === 0 && (
+        <p className="text-sm text-neutral-500">No set kinds selected — pick one above.</p>
+      )}
 
       {years.map((year) => (
         <section key={year} className="mb-8">
