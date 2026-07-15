@@ -6,7 +6,7 @@ import PrintButton from './print-button.tsx';
 
 export const dynamic = 'force-dynamic';
 
-type SP = { view?: string; rarity?: string; kind?: string; color?: string; artist?: string; q?: string };
+type SP = { view?: string; rarity?: string; kind?: string; color?: string; q?: string };
 type Card = {
   id: string; name: string; collector_number: string; rarity_raw: string | null;
   image_small: string | null; artist: string | null; finishes: string[];
@@ -64,7 +64,6 @@ export default async function SetPage({
     ) p on true
     where c.set_id = ${id}
     ${sp.rarity ? client`and c.rarity_raw = ${sp.rarity}` : client``}
-    ${sp.artist ? client`and c.artist = ${sp.artist}` : client``}
     ${sp.q ? client`and c.name ilike ${'%' + sp.q + '%'}` : client``}
     ${sp.kind ? client`and exists (select 1 from card_facets f where f.card_id = c.id and f.facet = 'kind' and f.value = ${sp.kind})` : client``}
     ${sp.color ? client`and exists (select 1 from card_facets f where f.card_id = c.id and f.facet = 'color' and f.value = ${sp.color})` : client``}
@@ -79,8 +78,6 @@ export default async function SetPage({
     select rarity_raw as value, count(*)::int as n
     from cards where set_id = ${id} and rarity_raw is not null
     group by 1 order by 2 desc`;
-  const artists = await client`
-    select distinct artist from cards where set_id = ${id} and artist is not null order by 1`;
 
   const pct = stats.total ? Math.round((100 * stats.owned) / stats.total) : 0;
   const qs = (over: Record<string, string | undefined>) => {
@@ -231,7 +228,6 @@ export default async function SetPage({
           {sp.rarity && <input type="hidden" name="rarity" value={sp.rarity} />}
           {sp.kind && <input type="hidden" name="kind" value={sp.kind} />}
           {sp.color && <input type="hidden" name="color" value={sp.color} />}
-          {sp.artist && <input type="hidden" name="artist" value={sp.artist} />}
           <input
             type="search"
             name="q"
@@ -240,20 +236,18 @@ export default async function SetPage({
             className="w-40 rounded border border-neutral-700 bg-neutral-900 px-2 py-1"
           />
         </form>
-        {(sp.q || sp.rarity || sp.kind || sp.color || sp.artist) && (
-          <Link href={qs({ q: undefined, rarity: undefined, kind: undefined, color: undefined, artist: undefined })} className="text-neutral-400 hover:text-white">
+        {(sp.q || sp.rarity || sp.kind || sp.color) && (
+          <Link href={qs({ q: undefined, rarity: undefined, kind: undefined, color: undefined })} className="text-neutral-400 hover:text-white">
             clear
           </Link>
         )}
       </div>
 
-      {/* filters as toggle chips (matching the master-sets kind tabs), not dropdowns; the
-          artist row scrolls horizontally since a set can credit a hundred illustrators */}
+      {/* filters as toggle chips (matching the master-sets kind tabs), not dropdowns */}
       <div className="no-print mb-4 flex flex-col gap-1.5 text-sm">
         {chips('rarity', 'Rarity', sp.rarity, rarities as any)}
         {chips('kind', 'Kind', sp.kind, facetOpts.filter((f) => f.facet === 'kind') as any)}
         {chips('color', 'Colour', sp.color, facetOpts.filter((f) => f.facet === 'color') as any)}
-        {chips('artist', 'Artist', sp.artist, (artists as any[]).map((a) => ({ value: a.artist })))}
       </div>
 
       <div className="mb-3 text-sm text-neutral-400">{cards.length} cards shown</div>
