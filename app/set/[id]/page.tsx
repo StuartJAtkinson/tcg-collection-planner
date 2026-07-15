@@ -6,7 +6,7 @@ import PrintButton from './print-button.tsx';
 
 export const dynamic = 'force-dynamic';
 
-type SP = { view?: string; rarity?: string; kind?: string; color?: string; q?: string };
+type SP = { view?: string; c?: string; r?: string; rarity?: string; kind?: string; color?: string; q?: string };
 type Card = {
   id: string; name: string; collector_number: string; rarity_raw: string | null;
   image_small: string | null; artist: string | null; finishes: string[];
@@ -15,6 +15,9 @@ type Card = {
 
 const chunk = <T,>(arr: T[], n: number): T[][] =>
   Array.from({ length: Math.ceil(arr.length / n) }, (_, i) => arr.slice(i * n, i * n + n));
+
+const clampDim = (raw: string | undefined, fallback: number) =>
+  Math.min(12, Math.max(1, parseInt(raw ?? '', 10) || fallback));
 
 export default async function SetPage({
   params,
@@ -25,7 +28,10 @@ export default async function SetPage({
 }) {
   const { id } = await params;
   const sp = await searchParams;
-  const view = sp.view ?? 'grid';
+  const view = sp.view ?? 'binder';
+  // binder pocket layout, cols x rows, each 1-12 — 3x3 is the classic 9-pocket default
+  const cols = clampDim(sp.c, 3);
+  const rows = clampDim(sp.r, 3);
 
   const [set] = await client`
     select s.*, to_char(s.release_date, 'YYYY-MM-DD') as released, g.name as game_name
@@ -174,10 +180,9 @@ export default async function SetPage({
   };
 
   const views = [
-    ['grid', 'Grid'],
-    ['9', '9-pocket'],
-    ['12', '12-pocket'],
+    ['binder', `Binder ${cols}×${rows}`],
     ['print', 'Print'],
+    ['grid', 'Grid'],
   ] as const;
 
   return (
@@ -213,7 +218,7 @@ export default async function SetPage({
         {views.map(([v, label]) => (
           <Link
             key={v}
-            href={qs({ view: v === 'grid' ? undefined : v })}
+            href={qs({ view: v === 'binder' ? undefined : v })}
             className={`rounded-full border px-3 py-1 ${
               view === v
                 ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300'
@@ -223,8 +228,23 @@ export default async function SetPage({
             {label}
           </Link>
         ))}
+        {view === 'binder' && (
+          <form method="get" className="flex items-center gap-1 text-xs text-neutral-400">
+            {sp.q && <input type="hidden" name="q" value={sp.q} />}
+            {sp.rarity && <input type="hidden" name="rarity" value={sp.rarity} />}
+            {sp.kind && <input type="hidden" name="kind" value={sp.kind} />}
+            {sp.color && <input type="hidden" name="color" value={sp.color} />}
+            <input type="number" name="c" min={1} max={12} defaultValue={cols} className="w-14 rounded border border-neutral-700 bg-neutral-900 px-1.5 py-0.5" />
+            cols ×
+            <input type="number" name="r" min={1} max={12} defaultValue={rows} className="w-14 rounded border border-neutral-700 bg-neutral-900 px-1.5 py-0.5" />
+            rows
+            <button className="rounded border border-neutral-700 px-2 py-0.5 hover:bg-neutral-800">Apply</button>
+          </form>
+        )}
         <form method="get" className="ml-auto flex items-center gap-2">
-          {view !== 'grid' && <input type="hidden" name="view" value={view} />}
+          {view !== 'binder' && <input type="hidden" name="view" value={view} />}
+          {sp.c && <input type="hidden" name="c" value={sp.c} />}
+          {sp.r && <input type="hidden" name="r" value={sp.r} />}
           {sp.rarity && <input type="hidden" name="rarity" value={sp.rarity} />}
           {sp.kind && <input type="hidden" name="kind" value={sp.kind} />}
           {sp.color && <input type="hidden" name="color" value={sp.color} />}
@@ -258,20 +278,55 @@ export default async function SetPage({
         </div>
       )}
 
-      {(view === '9' || view === '12') && (
-        <div className="mx-auto flex max-w-3xl flex-col gap-6">
-          {chunk(cards, view === '9' ? 9 : 12).map((page, i) => (
-            <div key={i} className="rounded-xl border border-neutral-800 bg-neutral-900 p-4">
-              <div className="mb-2 text-xs uppercase tracking-wide text-neutral-500">
-                Page {i + 1} of {Math.ceil(cards.length / (view === '9' ? 9 : 12))}
-              </div>
-              <div className={`grid gap-2 ${view === '9' ? 'grid-cols-3' : 'grid-cols-4'}`}>
-                {page.map(tile)}
+      {view === 'binder' &&
+        (() => {
+          // rendered as the physical book: pages chunked to cols x rows pockets, paired into
+          // two-page spreads, with the first spread being [blank cover | page 1] so the layout
+          // reads like an opened binder. Fixed pocket width keeps card size consistent across
+          // any cols x rows choice — a 2x3 spread is a small box and several fit per screen
+          // row (flex-wrap decides), a 12-wide spread is huge and scrolls horizontally.
+          const POCKET_W = 96; // px
+          const pages: (Card[] | 'cover')[] = ['cover', ...chunk(cards, cols * rows)];
+          const spreads = chunk(pages, 2);
+          const pageW = cols * POCKET_W + (cols - 1) * 4;
+          const pocketGrid = { display: 'grid', gap: 4, gridTemplateColumns: `repeat(${cols}, ${POCKET_W}px)` } as const;
+          return (
+            <div className="overflow-x-auto pb-2">
+              <div className="flex flex-wrap gap-x-10 gap-y-8">
+                {spreads.map((spread, si) => (
+                  <div key={si} className="flex items-stretch gap-1.5">
+                    {spread.map((page, pi) => {
+                      const pageNo = si * 2 + pi; // 0 is the cover
+                      return (
+                        <div key={pi} className="flex flex-col rounded-lg border border-neutral-800 bg-neutral-900 p-2">
+                          <div className="mb-1.5 text-xs uppercase tracking-wide text-neutral-500">
+                            {pageNo === 0 ? 'Cover' : `Page ${pageNo} of ${pages.length - 1}`}
+                          </div>
+                          {page === 'cover' ? (
+                            <div
+                              style={{ width: pageW }}
+                              className="flex flex-1 items-center justify-center rounded border border-neutral-800 bg-neutral-950 text-xs uppercase tracking-widest text-neutral-600"
+                            >
+                              {set.name}
+                            </div>
+                          ) : (
+                            <div style={pocketGrid}>
+                              {page.map(tile)}
+                              {/* empty pockets fill out the last page, like a real sleeve sheet */}
+                              {Array.from({ length: cols * rows - page.length }, (_, k) => (
+                                <div key={`e${k}`} className="aspect-[5/7] rounded border border-dashed border-neutral-800" />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
               </div>
             </div>
-          ))}
-        </div>
-      )}
+          );
+        })()}
 
       {view === 'print' && (
         <div className="mx-auto max-w-3xl rounded-xl bg-white p-6 text-black print:max-w-none print:rounded-none print:p-0">

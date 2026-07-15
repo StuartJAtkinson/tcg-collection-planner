@@ -23,8 +23,13 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <header className="no-print sticky top-0 z-10 border-b border-neutral-800 bg-neutral-900/80 backdrop-blur">
           <nav className="flex items-center gap-6 px-6 py-2">
             <Link href="/" className="text-lg font-bold tracking-tight">Card Collector</Link>
+            {/* the two primary sections: Collections (game-split master sets + ownership/
+                binder organisation) and Decks (all play decks, game dividers, not game-split) */}
+            <Link href="/" className="text-neutral-300 hover:text-white">
+              Collections
+            </Link>
             {games.map((g) => (
-              <Link key={g.id} href={`/g/${g.id}`} className="text-neutral-300 hover:text-white">
+              <Link key={g.id} href={`/g/${g.id}`} className="text-sm text-neutral-500 hover:text-neutral-300">
                 {g.name}
               </Link>
             ))}

@@ -12,17 +12,49 @@ import { client } from '../../src/db/index.ts';
 export const dynamic = 'force-dynamic';
 
 const HIDDEN_TYPES = ['token', 'memorabilia', 'minigame', 'vanguard'];
+const DECK_TYPES = ['commander', 'duel_deck', 'planechase', 'archenemy', 'starter', 'arsenal', 'premium_deck'];
+
+// "Collection Aim" — which kinds of set count as collection goals. Precon decks are buyable
+// products, not collections; promos/draft/boxes rarely hold unique cards (2-3 at most, like
+// promos) so they're asides, off by default. Crossovers are collectable and on by default.
+const AIM_BUCKETS: [string, string, string[]][] = [
+  ['core', 'Core & Reprints', ['core', 'masters', 'from_the_vault', 'spellbook', 'masterpiece']],
+  ['expansions', 'Expansions', ['expansion']],
+  ['crossovers', 'Crossovers', []], // via sets.crossover, not set_type
+  ['draft', 'Draft & Supplemental', ['draft_innovation', 'eternal', 'funny']],
+  ['boxes', 'Secret Lair & Boxes', ['box']],
+  ['promos', 'Promos', ['promo']],
+  ['precons', 'Precon decks', DECK_TYPES],
+];
+const DEFAULT_AIM = ['core', 'expansions', 'crossovers'];
 
 export default async function AdvisorPage({
   searchParams,
 }: {
-  searchParams: Promise<{ game?: string; min?: string }>;
+  searchParams: Promise<{ game?: string; min?: string; aim?: string }>;
 }) {
   const sp = await searchParams;
   const game = sp.game ?? 'mtg';
   // tiny promo "sets" complete themselves trivially; default to sets of 10+ cards
   const minSize = Math.max(1, parseInt(sp.min ?? '10', 10) || 10);
 
+  // same missing-vs-explicit-none URL convention as the master-sets kind tabs
+  const aim = new Set(
+    sp.aim === undefined ? DEFAULT_AIM : sp.aim === 'none' ? [] : sp.aim.split(',').filter(Boolean),
+  );
+  const allowedTypes = AIM_BUCKETS.filter(
+    ([key]) => aim.has(key) && key !== 'crossovers' && key !== 'precons',
+  ).flatMap(([, , types]) => types);
+
+  const aimHref = (key: string) => {
+    const next = new Set(aim);
+    next.has(key) ? next.delete(key) : next.add(key);
+    const aimParam = [...next].join(',') || 'none';
+    return `/advisor?game=${game}&min=${minSize}&aim=${encodeURIComponent(aimParam)}`;
+  };
+
+  // the aim clause only applies to mtg — pokemon has no set_type (series is its structure),
+  // so every non-hidden pokemon set is a collection goal
   const rows = await client`
     with owned_cards as (
       select distinct card_id from holdings
@@ -49,6 +81,17 @@ export default async function AdvisorPage({
     left join owned_oracles oo on oo.oracle_id = c.oracle_id
     left join latest_prices lp on lp.card_id = c.id
     where s.game_id = ${game} and (s.set_type is null or s.set_type != all(${HIDDEN_TYPES}))
+    ${
+      game === 'mtg'
+        ? client`and (
+            case
+              when s.set_type = any(${DECK_TYPES}) then ${aim.has('precons')}
+              when s.crossover then ${aim.has('crossovers')}
+              else s.set_type = any(${allowedTypes})
+            end
+          )`
+        : client``
+    }
     group by s.id
     having count(c.id) >= ${minSize}
        and count(*) filter (where oc.card_id is not null or oo.oracle_id is not null) > 0
@@ -75,7 +118,7 @@ export default async function AdvisorPage({
         ).map(([id, label]) => (
           <Link
             key={id}
-            href={`/advisor?game=${id}&min=${minSize}`}
+            href={`/advisor?game=${id}&min=${minSize}${sp.aim ? `&aim=${encodeURIComponent(sp.aim)}` : ''}`}
             className={`rounded-full border px-2.5 py-0.5 text-xs ${
               game === id
                 ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300'
@@ -87,6 +130,7 @@ export default async function AdvisorPage({
         ))}
         <form className="flex items-center gap-1 text-neutral-400">
           <input type="hidden" name="game" value={game} />
+          {sp.aim && <input type="hidden" name="aim" value={sp.aim} />}
           min set size
           <input
             type="number"
@@ -97,6 +141,27 @@ export default async function AdvisorPage({
           <button className="rounded border border-neutral-700 px-3 py-1 hover:bg-neutral-800">Apply</button>
         </form>
       </div>
+
+      {/* Collection Aim: which set kinds count as collection goals — multi-select toggles,
+          same convention as the master-sets kind tabs (click the last one off for none) */}
+      {game === 'mtg' && (
+        <div className="mb-6 flex flex-wrap items-center gap-1.5 text-sm">
+          <span className="text-xs uppercase text-neutral-500">Collection aim</span>
+          {AIM_BUCKETS.map(([key, label]) => (
+            <Link
+              key={key}
+              href={aimHref(key)}
+              className={`rounded-full border px-2.5 py-0.5 text-xs ${
+                aim.has(key)
+                  ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300'
+                  : 'border-neutral-700 text-neutral-300 hover:border-neutral-500'
+              }`}
+            >
+              {label}
+            </Link>
+          ))}
+        </div>
+      )}
 
       <div className="flex flex-col gap-2">
         {rows.map((s) => {
