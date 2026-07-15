@@ -2,6 +2,7 @@
 // web-based /resolve unmatched-row tool, so both use identical matching logic.
 
 export const ALIASES: Record<string, string[]> = {
+  portfolio: ['portfolio name', 'portfolio', 'folder', 'deck name', 'collection name'],
   game: ['game', 'tcg', 'category', 'sport'],
   name: ['card name', 'name', 'item name', 'card', 'title', 'product name'],
   set: ['set name', 'set', 'edition', 'series'],
@@ -92,6 +93,15 @@ export function pickFinish(finishes: string[], variantRaw: string | undefined): 
 export function normalizeGrade(gradeRaw: string | undefined, gradingCompany: string | undefined): string | null {
   if (!gradeRaw || gradeRaw.toLowerCase() === 'ungraded') return null;
   return gradingCompany ? `${gradingCompany} ${gradeRaw}` : gradeRaw;
+}
+
+// Collectr's Portfolio Name -> container: "Main" (or blank/unknown) is the general collection
+// pool; anything else is one of the user's decks. Returns the container slug id + the row
+// needed to lazily create it.
+export function portfolioToContainer(portfolio: string | undefined): { id: string; name: string; kind: string } {
+  const name = portfolio?.trim();
+  if (!name || norm(name) === 'main') return { id: 'main', name: 'Main', kind: 'collection' };
+  return { id: norm(name), name, kind: 'deck' };
 }
 
 export function bestFuzzySetMatch<T extends { name: string }>(setName: string, candidates: T[]) {

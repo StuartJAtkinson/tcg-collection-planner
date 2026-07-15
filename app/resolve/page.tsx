@@ -116,6 +116,7 @@ export default async function ResolvePage({
               <input type="hidden" name={`condition_${i}`} value={get(row, 'condition') ?? ''} />
               <input type="hidden" name={`grade_${i}`} value={get(row, 'grade') ?? ''} />
               <input type="hidden" name={`gradingCompany_${i}`} value={get(row, 'gradingCompany') ?? ''} />
+              <input type="hidden" name={`portfolio_${i}`} value={get(row, 'portfolio') ?? ''} />
 
               <div className="mb-3 flex items-start gap-4">
                 {/* left: what was scanned, generated as a mock card — the raw import text has

@@ -15,7 +15,20 @@
 // Usage: node src/import/collectr.ts path/to/export.csv
 import { readFileSync, writeFileSync } from 'node:fs';
 import { client } from '../db/index.ts';
-import { bestFuzzySetMatch, GAME_MAP, money, normalizeGrade, norm, parseCsv, pickFinish, resolveHeaders } from './csv.ts';
+import { bestFuzzySetMatch, GAME_MAP, money, normalizeGrade, norm, parseCsv, pickFinish, portfolioToContainer, resolveHeaders } from './csv.ts';
+
+// containers get created lazily as portfolios appear; cache what's been ensured already
+const ensuredContainers = new Set<string>();
+async function ensureContainer(c: { id: string; name: string; kind: string }): Promise<string> {
+  if (!ensuredContainers.has(c.id)) {
+    await client`
+      insert into containers (id, user_id, name, kind)
+      values (${c.id}, 'stuart', ${c.name}, ${c.kind})
+      on conflict (id) do nothing`;
+    ensuredContainers.add(c.id);
+  }
+  return c.id;
+}
 
 async function main() {
   const path = process.argv[2];
@@ -96,17 +109,21 @@ async function main() {
     const paid = paidRaw ? money(paidRaw) : null;
     const condition = get('condition') || null;
     const grade = normalizeGrade(get('grade'), get('gradingCompany'));
+    const containerId = await ensureContainer(portfolioToContainer(get('portfolio')));
 
     await client`
-      insert into holdings (user_id, card_id, finish, quantity, condition, grade, paid)
-      values ('stuart', ${card.id}, ${finish}, ${quantity}, ${condition}, ${grade}, ${paid})
-      on conflict (user_id, card_id, finish)
+      insert into holdings (user_id, card_id, finish, container_id, quantity, condition, grade, paid)
+      values ('stuart', ${card.id}, ${finish}, ${containerId}, ${quantity}, ${condition}, ${grade}, ${paid})
+      on conflict (user_id, card_id, finish, container_id)
       do update set quantity = holdings.quantity + excluded.quantity,
                      condition = coalesce(excluded.condition, holdings.condition),
                      grade = coalesce(excluded.grade, holdings.grade),
                      paid = coalesce(holdings.paid, excluded.paid)`;
     matched++;
   }
+
+  const containerCount = ensuredContainers.size;
+  console.log(`containers: ${containerCount} (Main + ${Math.max(0, containerCount - 1)} decks)`);
 
   console.log(`imported: ${matched} (of which via fuzzy set-name matching: ${fuzzySets})`);
   console.log(`skipped (blank row): ${skipped}`);

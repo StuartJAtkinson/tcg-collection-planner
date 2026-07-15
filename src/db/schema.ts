@@ -1,4 +1,5 @@
 import {
+  boolean,
   date,
   doublePrecision,
   index,
@@ -29,6 +30,9 @@ export const sets = pgTable(
     cardCount: integer('card_count'),
     iconUrl: text('icon_url'),
     legalities: jsonb('legalities'), // {standard: 'Legal', …} — pokemon from source, mtg aggregated at import
+    // non-Magic-IP crossover set (Universes Beyond etc.) — derived at import from Scryfall's
+    // triangle security stamp on the set's cards, since Scryfall has no set-level UB field
+    crossover: boolean('crossover').notNull().default(false),
   },
   (t) => [index('sets_game_idx').on(t.gameId)],
 );
@@ -89,13 +93,15 @@ export const prices = pgTable(
 
 // inventory overlay — single user today, user_id column from day 1 per the plan.
 // One slot per card: any owned finish satisfies completion, wherever the card physically
-// lives — a card in a deck or out for grading still counts. containerId is just "where is
-// it right now" (null = general collection pool); it never affects completion math.
+// lives — a card in a deck or out for grading still counts. Every holding lives in exactly
+// one container ("where is it physically"); the default 'main' container is the general
+// collection pool. Container kind never affects completion math, but drives the physical
+// counts ("x in collection, y in decks") and the Decks page.
 export const containers = pgTable('containers', {
-  id: integer('id').generatedAlwaysAsIdentity().primaryKey(),
+  id: text('id').primaryKey(), // slug, e.g. 'main', 'jeskaimonks' — text so imports are idempotent
   userId: text('user_id').notNull().default('stuart'),
   name: text('name').notNull(),
-  kind: text('kind').notNull().default('binder'), // binder | deck | graded | box
+  kind: text('kind').notNull().default('binder'), // collection | binder | deck | graded | box
   pocketLayout: smallint('pocket_layout'), // 9 or 12, binders only
 });
 
@@ -105,14 +111,15 @@ export const holdings = pgTable(
     userId: text('user_id').notNull().default('stuart'),
     cardId: text('card_id').notNull().references(() => cards.id),
     finish: text('finish').notNull().default('normal'),
+    containerId: text('container_id').notNull().default('main').references(() => containers.id),
     quantity: integer('quantity').notNull().default(1),
     condition: text('condition'),
     grade: text('grade'), // e.g. "PSA 10" — distinct from condition (raw NM/LP/…), set once slabbed
     paid: numeric('paid', { precision: 12, scale: 2 }),
-    containerId: integer('container_id').references(() => containers.id),
   },
   (t) => [
-    // one row per (card, finish): "own it" toggles this row, quantity absorbs duplicates
-    primaryKey({ columns: [t.userId, t.cardId, t.finish] }),
+    // one row per (card, finish, container): the same physical printing can sit in the main
+    // pool AND in a deck as separate copies; quantity absorbs duplicates within one place
+    primaryKey({ columns: [t.userId, t.cardId, t.finish, t.containerId] }),
   ],
 );

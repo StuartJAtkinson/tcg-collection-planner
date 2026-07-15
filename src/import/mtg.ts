@@ -92,6 +92,12 @@ async function main() {
     cardBatch = []; facetBatch = []; priceBatch = [];
   }
 
+  // crossover/Universes Beyond has no set-level flag on Scryfall, but UB *cards* are marked:
+  // the 2022-2024 era carries a triangle security stamp, and the 2025+ UB Standard sets
+  // (which dropped the triangle for a normal oval) carry promo_types: ['universesbeyond'].
+  // A set where most cards match either signal is a crossover set.
+  const stampCounts = new Map<string, { tri: number; total: number }>();
+
   // scryfall bulk files put one card object per line inside a JSON array
   const rl = readline.createInterface({ input: createReadStream(file, { encoding: 'utf8' }) });
   for await (const raw of rl) {
@@ -100,6 +106,11 @@ async function main() {
     const c = JSON.parse(line);
     if (!c.games?.includes('paper')) { skippedNonPaper++; continue; }
     if (!setIds.has(c.set_id)) { skippedNoSet++; continue; }
+
+    const sc = stampCounts.get(c.set_id) ?? { tri: 0, total: 0 };
+    sc.total++;
+    if (c.security_stamp === 'triangle' || c.promo_types?.includes('universesbeyond')) sc.tri++;
+    stampCounts.set(c.set_id, sc);
 
     const img = c.image_uris ?? c.card_faces?.[0]?.image_uris;
     cardBatch.push({
@@ -140,6 +151,16 @@ async function main() {
       group by set_id
     ) l
     where s.id = l.set_id`;
+
+  console.log('mtg: crossover flags');
+  const crossoverIds = [...stampCounts]
+    .filter(([, v]) => v.total > 0 && v.tri / v.total > 0.5)
+    .map(([id]) => id);
+  await client`update sets set crossover = false where game_id = 'mtg'`;
+  if (crossoverIds.length) {
+    await client`update sets set crossover = true where id = any(${crossoverIds})`;
+  }
+  console.log(`  ${crossoverIds.length} crossover (Universes Beyond) sets flagged`);
 
   await client.end();
 }

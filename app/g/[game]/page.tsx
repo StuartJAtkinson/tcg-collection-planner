@@ -4,12 +4,16 @@ import { client } from '../../../src/db/index.ts';
 
 export const dynamic = 'force-dynamic';
 
-// mtg set_type → nav bucket; types not listed (token, memorabilia, minigame, vanguard) stay hidden
+// mtg set_type → nav bucket; types not listed (token, memorabilia, minigame, vanguard) stay
+// hidden, and deck-shaped products (commander/duel_deck/precons) live on /decks instead of
+// here — they're fixed buyable decks, not collectible sets. Masters/reprint sets merge into
+// Core (they're "kind of core again": reprint products), and crossover (non-Magic-IP /
+// Universes Beyond) sets get their own bucket regardless of set_type via sets.crossover.
+const MTG_DECK_TYPES = ['commander', 'duel_deck', 'planechase', 'archenemy', 'starter', 'arsenal', 'premium_deck'];
 const MTG_BUCKETS: [string, string[]][] = [
-  ['Core', ['core']],
+  ['Core & Reprints', ['core', 'masters', 'from_the_vault', 'spellbook', 'masterpiece']],
   ['Expansions', ['expansion']],
-  ['Masters & Reprints', ['masters', 'from_the_vault', 'premium_deck', 'spellbook', 'masterpiece']],
-  ['Commander & Precons', ['commander', 'duel_deck', 'planechase', 'archenemy', 'starter', 'arsenal']],
+  ['Crossovers', []], // filled by the crossover flag, not set_type
   ['Draft & Supplemental', ['draft_innovation', 'eternal', 'funny']],
   ['Secret Lair & Boxes', ['box']],
   ['Promos', ['promo']],
@@ -35,7 +39,7 @@ export default async function GamePage({
   if (!gameRow) notFound();
 
   const sets = await client`
-    select s.id, s.code, s.name, s.series, s.set_type, s.icon_url,
+    select s.id, s.code, s.name, s.series, s.set_type, s.icon_url, s.crossover,
            to_char(s.release_date, 'YYYY-MM-DD') as released,
            date_part('year', s.release_date)::int as year,
            count(c.id)::int as total,
@@ -51,9 +55,13 @@ export default async function GamePage({
   // bucket tabs: mtg by curated set_type groups, pokemon by series (newest first)
   let tabs: { label: string; sets: typeof sets }[];
   if (game === 'mtg') {
+    const collectible = sets.filter((s) => !MTG_DECK_TYPES.includes(s.set_type));
     tabs = MTG_BUCKETS.map(([label, types]) => ({
       label,
-      sets: sets.filter((s) => types.includes(s.set_type)),
+      sets:
+        label === 'Crossovers'
+          ? collectible.filter((s) => s.crossover)
+          : collectible.filter((s) => !s.crossover && types.includes(s.set_type)),
     }));
   } else {
     const order = [...new Set(sets.map((s) => s.series ?? 'Other'))];
