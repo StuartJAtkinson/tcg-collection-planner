@@ -1,0 +1,133 @@
+// Nearest-complete-set advisor. For every set you've started, two completion measures:
+//   exact    — slots filled by the exact printing (normal completion, same as everywhere else)
+//   for-play — slots also count when ANY owned printing shares the slot's oracle identity
+//              (cards.oracle_id: true oracle for mtg, dex-number/name for pokemon) — "I have
+//              Dark Ritual, just not this set's copy"
+// Ranked by for-play coverage, so the top of the list answers "which master set am I closest
+// to finishing if I let my for-play copies fill slots?" — with the cost to buy only the slots
+// no printing covers. Display-only, like the For Play badge: real completion stays exact-print.
+import Link from 'next/link';
+import { client } from '../../src/db/index.ts';
+
+export const dynamic = 'force-dynamic';
+
+const HIDDEN_TYPES = ['token', 'memorabilia', 'minigame', 'vanguard'];
+
+export default async function AdvisorPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ game?: string; min?: string }>;
+}) {
+  const sp = await searchParams;
+  const game = sp.game ?? 'mtg';
+  // tiny promo "sets" complete themselves trivially; default to sets of 10+ cards
+  const minSize = Math.max(1, parseInt(sp.min ?? '10', 10) || 10);
+
+  const rows = await client`
+    with owned_cards as (
+      select distinct card_id from holdings
+    ),
+    owned_oracles as (
+      select distinct c.oracle_id
+      from holdings h join cards c on c.id = h.card_id
+      where c.oracle_id is not null
+    ),
+    latest_prices as (
+      select distinct on (card_id) card_id, usd
+      from prices
+      order by card_id, (finish = 'nonfoil') desc, as_of desc
+    )
+    select s.id, s.code, s.name, s.set_type, s.icon_url, s.crossover,
+           to_char(s.release_date, 'YYYY-MM-DD') as released,
+           count(c.id)::int as total,
+           count(*) filter (where oc.card_id is not null)::int as owned_exact,
+           count(*) filter (where oc.card_id is not null or oo.oracle_id is not null)::int as covered,
+           sum(lp.usd) filter (where oc.card_id is null and oo.oracle_id is null)::float as cost_missing
+    from sets s
+    join cards c on c.set_id = s.id
+    left join owned_cards oc on oc.card_id = c.id
+    left join owned_oracles oo on oo.oracle_id = c.oracle_id
+    left join latest_prices lp on lp.card_id = c.id
+    where s.game_id = ${game} and (s.set_type is null or s.set_type != all(${HIDDEN_TYPES}))
+    group by s.id
+    having count(c.id) >= ${minSize}
+       and count(*) filter (where oc.card_id is not null or oo.oracle_id is not null) > 0
+    order by count(*) filter (where oc.card_id is not null or oo.oracle_id is not null)::float / count(c.id) desc,
+             count(c.id) - count(*) filter (where oc.card_id is not null or oo.oracle_id is not null) asc
+    limit 40`;
+
+  return (
+    <div>
+      <h1 className="mb-1 text-2xl font-bold">Nearest-complete sets</h1>
+      <p className="mb-6 max-w-3xl text-sm text-neutral-400">
+        Sets you&apos;ve started, ranked by coverage when <span className="text-amber-400">for-play copies</span> (any
+        owned printing of the same card, per oracle identity) fill slots alongside{' '}
+        <span className="text-emerald-400">exact prints</span>. Cost is for the slots no printing covers. Real
+        completion elsewhere stays exact-print — this is the &quot;what should I finish next&quot; view.
+      </p>
+
+      <form className="mb-6 flex items-center gap-2 text-sm">
+        <select name="game" defaultValue={game} className="rounded border border-neutral-700 bg-neutral-900 px-2 py-1">
+          <option value="mtg">Magic: The Gathering</option>
+          <option value="pokemon">Pokémon TCG</option>
+        </select>
+        <label className="flex items-center gap-1 text-neutral-400">
+          min set size
+          <input
+            type="number"
+            name="min"
+            defaultValue={minSize}
+            className="w-16 rounded border border-neutral-700 bg-neutral-900 px-2 py-1"
+          />
+        </label>
+        <button className="rounded border border-neutral-700 px-3 py-1 hover:bg-neutral-800">Apply</button>
+      </form>
+
+      <div className="flex flex-col gap-2">
+        {rows.map((s) => {
+          const exactPct = (100 * s.owned_exact) / s.total;
+          const coveredPct = (100 * s.covered) / s.total;
+          const missing = s.total - s.covered;
+          return (
+            <Link
+              key={s.id}
+              href={`/set/${encodeURIComponent(s.id)}`}
+              className="flex items-center gap-4 rounded-lg border border-neutral-800 bg-neutral-900 px-4 py-2 hover:border-neutral-600"
+            >
+              {s.icon_url && (
+                <img src={s.icon_url} alt="" loading="lazy" className={`h-6 w-6 shrink-0 ${game === 'mtg' ? 'invert' : ''}`} />
+              )}
+              <div className="w-64 min-w-0 shrink-0">
+                <div className="truncate font-medium">
+                  {s.name}
+                  {s.crossover && (
+                    <span className="ml-1 rounded bg-purple-500/20 px-1 text-[10px] uppercase text-purple-300">crossover</span>
+                  )}
+                </div>
+                <div className="text-xs uppercase text-neutral-500">
+                  {s.code} · {s.set_type ?? ''} · {s.released}
+                </div>
+              </div>
+              {/* stacked bar: exact prints in emerald, extra for-play coverage in amber */}
+              <div className="relative h-2.5 flex-1 overflow-hidden rounded bg-neutral-800">
+                <div className="absolute inset-y-0 left-0 bg-amber-500/70" style={{ width: `${coveredPct}%` }} />
+                <div className="absolute inset-y-0 left-0 bg-emerald-500" style={{ width: `${exactPct}%` }} />
+              </div>
+              <div className="w-44 shrink-0 text-right text-sm">
+                <span className="font-semibold text-neutral-100">{Math.round(coveredPct)}%</span>
+                <span className="text-neutral-500"> covered · {Math.round(exactPct)}% exact</span>
+              </div>
+              <div className="w-40 shrink-0 text-right text-sm text-neutral-400">
+                {missing} missing
+                {s.cost_missing != null && (
+                  <span className="text-neutral-500"> · ${s.cost_missing.toFixed(0)}</span>
+                )}
+              </div>
+            </Link>
+          );
+        })}
+        {rows.length === 0 && <p className="text-neutral-500">No started sets of {minSize}+ cards for this game.</p>}
+      </div>
+    </div>
+  );
+}

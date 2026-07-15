@@ -31,6 +31,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             <Link href="/decks" className="text-neutral-300 hover:text-white">
               Decks
             </Link>
+            <Link href="/advisor" className="text-neutral-300 hover:text-white">
+              Advisor
+            </Link>
             <Link href="/preview" className={`text-sm text-neutral-500 hover:text-neutral-300 ${hasUnmatched ? '' : 'ml-auto'}`}>
               MockCard preview
             </Link>
