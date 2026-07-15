@@ -4,18 +4,17 @@ import Link from 'next/link';
 import { importRowToMockFace } from '../components/cardToMockFaces.ts';
 import DeselectableRadio from '../components/DeselectableRadio.tsx';
 import MockCard from '../components/MockCard.tsx';
+import { client } from '../../src/db/index.ts';
 import { resolveImportRows } from '../../src/actions.ts';
 import { findCandidates } from '../../src/import/candidates.ts';
-import { GAME_MAP, norm, parseCsv, resolveHeaders } from '../../src/import/csv.ts';
+import { GAME_MAP, norm, parseCsv, portfolioToContainer, resolveHeaders } from '../../src/import/csv.ts';
 
 export const dynamic = 'force-dynamic';
-
-const PAGE_SIZE = 10;
 
 export default async function ResolvePage({
   searchParams,
 }: {
-  searchParams: Promise<{ file?: string; page?: string }>;
+  searchParams: Promise<{ file?: string }>;
 }) {
   const sp = await searchParams;
   const repoRoot = process.cwd();
@@ -65,16 +64,11 @@ export default async function ResolvePage({
   const reasonIdx = header.length - 1; // 'reason' is always the last column, appended by the importer
   const get = (row: string[], f: string) => (f in idx ? row[idx[f]]?.trim() : undefined);
 
-  const page = Math.max(1, parseInt(sp.page ?? '1', 10) || 1);
-  const totalPages = Math.max(1, Math.ceil(dataRows.length / PAGE_SIZE));
-  const pageRows = dataRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
+  // No pagination — every unmatched row renders, grouped by its Collectr portfolio. Resolving
+  // a card routes it to that portfolio's container (the location fixed at import time), so a
+  // deck showing "3 unmatched" can be found by elimination once its matched cards are in place.
   const rowsWithCandidates = await Promise.all(
-    pageRows.map(async (row, i) => {
-      // absolute index into the full file, not just this page — duplicate-content rows (a
-      // real thing: the same physical card scanned twice) must resolve independently, so the
-      // action removes rows by position, never by matching row content
-      const absoluteIndex = (page - 1) * PAGE_SIZE + i;
+    dataRows.map(async (row, i) => {
       const name = get(row, 'name') ?? '';
       const setName = get(row, 'set');
       const gameField = get(row, 'game');
@@ -82,17 +76,34 @@ export default async function ResolvePage({
       const gameHint = gameField ? GAME_MAP[norm(gameField)] : undefined;
       const unsupported = reason.startsWith('unsupported game');
       const candidates = unsupported || !name ? [] : await findCandidates(name, setName, gameHint, 5);
-      return { i: absoluteIndex, row, reason, candidates };
+      return { i, row, reason, candidates, portfolio: get(row, 'portfolio') ?? '' };
     }),
   );
 
-  const pageHref = (p: number) => `/resolve?file=${encodeURIComponent(sp.file ?? onDisk[0])}&page=${p}`;
+  // group by portfolio; resolve each portfolio's target container (its actual kind if it
+  // already exists from import, else the import guess) so the location can be shown
+  const portfolios = [...new Set(rowsWithCandidates.map((r) => r.portfolio))];
+  const existing = await client`select id, kind, name from containers`;
+  const kindById = new Map(existing.map((c) => [c.id, c.kind as string]));
+  const groups = portfolios
+    .map((portfolio) => {
+      const target = portfolioToContainer(portfolio || undefined);
+      const kind = kindById.get(target.id) ?? target.kind;
+      return { portfolio, target: { ...target, kind }, rows: rowsWithCandidates.filter((r) => r.portfolio === portfolio) };
+    })
+    .sort((a, b) => b.rows.length - a.rows.length);
+
+  const kindStyle: Record<string, string> = {
+    deck: 'bg-sky-500/20 text-sky-300',
+    binder: 'bg-emerald-500/20 text-emerald-300',
+    unsorted: 'bg-neutral-700 text-neutral-300',
+  };
 
   return (
     <div>
       <h1 className="mb-1 text-2xl font-bold">Resolve unmatched imports</h1>
       <p className="mb-6 text-sm text-neutral-400">
-        {filePath} · {dataRows.length} rows remaining · page {page}/{totalPages}
+        {filePath} · {dataRows.length} rows across {groups.length} portfolios
         {onDisk.length > 1 && (
           <span className="ml-3">
             other files:{' '}
@@ -107,8 +118,21 @@ export default async function ResolvePage({
 
       <form action={resolveImportRows}>
         <input type="hidden" name="file" value={filePath} />
-        <div className="flex flex-col gap-6">
-          {rowsWithCandidates.map(({ i, row, reason, candidates }) => (
+        <div className="flex flex-col gap-10">
+          {groups.map((group) => (
+            <div key={group.portfolio || '(none)'}>
+              {/* portfolio header: name + the location its resolved cards will land in */}
+              <div className="sticky top-12 z-10 mb-3 flex items-center gap-2 border-b border-neutral-800 bg-neutral-950/90 py-1.5 backdrop-blur">
+                <span className="text-lg font-semibold">{group.portfolio || 'Main / unsorted'}</span>
+                <span className={`rounded-full px-2 py-0.5 text-xs uppercase ${kindStyle[group.target.kind] ?? kindStyle.unsorted}`}>
+                  → {group.target.kind}
+                  {group.target.kind !== 'unsorted' ? `: ${group.target.name}` : ''}
+                </span>
+                <span className="text-sm text-neutral-500">{group.rows.length} unmatched</span>
+              </div>
+
+              <div className="flex flex-col gap-6">
+          {group.rows.map(({ i, row, reason, candidates }) => (
             <div key={i} className="rounded-xl border border-neutral-800 bg-neutral-900 p-4">
               <input type="hidden" name={`raw_${i}`} value={JSON.stringify(row)} />
               <input type="hidden" name={`variant_${i}`} value={get(row, 'variant') ?? ''} />
@@ -190,6 +214,9 @@ export default async function ResolvePage({
               </div>
             </div>
           ))}
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* fixed to the right edge rather than a full-width sticky bar — that used to sit on
@@ -203,19 +230,6 @@ export default async function ResolvePage({
           </span>
         </div>
       </form>
-
-      <div className="mt-6 flex gap-2 text-sm">
-        {page > 1 && (
-          <Link href={pageHref(page - 1)} className="rounded border border-neutral-700 px-3 py-1 hover:bg-neutral-800">
-            Prev
-          </Link>
-        )}
-        {page < totalPages && (
-          <Link href={pageHref(page + 1)} className="rounded border border-neutral-700 px-3 py-1 hover:bg-neutral-800">
-            Next
-          </Link>
-        )}
-      </div>
     </div>
   );
 }

@@ -15,15 +15,15 @@ async function ensureContainer(c: { id: string; name: string; kind: string }): P
   return c.id;
 }
 
-// Portfolio interpretation: reclassify a container (deck / binder / unsorted). This is the
-// post-import step that decides which Collectr portfolios were really decks vs binders; the
-// import seeds a conservative guess (see portfolioToContainer) and this refines it.
+// Import Locations: classify each imported container as a binder or a deck; anything left
+// unselected is 'unsorted' (loose in the collection). The form submits a hidden `ids` list of
+// every container so we can default the unselected ones to unsorted rather than leaving them
+// as whatever the import guessed.
 export async function setContainerKind(formData: FormData) {
-  for (const [key, value] of formData.entries()) {
-    if (!key.startsWith('kind_')) continue;
-    const id = key.slice('kind_'.length);
-    const kind = String(value);
-    if (!['deck', 'binder', 'unsorted'].includes(kind)) continue;
+  const ids = String(formData.get('ids') ?? '').split(',').filter(Boolean);
+  for (const id of ids) {
+    const chosen = formData.get(`kind_${id}`)?.toString();
+    const kind = chosen === 'binder' || chosen === 'deck' ? chosen : 'unsorted';
     await client`update containers set kind = ${kind} where id = ${id} and user_id = ${USER}`;
   }
   revalidatePath('/binders');

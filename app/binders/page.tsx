@@ -1,6 +1,7 @@
 // Binders section. Three parts, no sub-tabs:
 //  1. Unsorted collection + real binders (the physical containers).
-//  2. Interpret portfolios — reclassify imported containers as deck / binder / unsorted.
+//  2. Import locations — classify each imported portfolio container as binder / deck (neither
+//     = unsorted). Same location a portfolio's resolved unmatched cards route to.
 //  3. Create Binders — like the advisor: a completion frequency analysis finds the "step jump"
 //     from scattered promos/decks to substantially-collected sets, and suggests a dedicated
 //     binder for every set past the threshold; the rest are destined for functional-grouping
@@ -9,10 +10,9 @@
 import Link from 'next/link';
 import { client } from '../../src/db/index.ts';
 import { createSetBinder, setContainerKind } from '../../src/actions.ts';
+import DeselectableRadio from '../components/DeselectableRadio.tsx';
 
 export const dynamic = 'force-dynamic';
-
-const KINDS = ['unsorted', 'binder', 'deck'] as const;
 
 export default async function BindersPage({ searchParams }: { searchParams: Promise<{ game?: string; pct?: string }> }) {
   const sp = await searchParams;
@@ -97,26 +97,32 @@ export default async function BindersPage({ searchParams }: { searchParams: Prom
         </div>
       </section>
 
-      {/* 2. interpret portfolios */}
+      {/* 2. import locations */}
       <section className="mb-10">
-        <h2 className="mb-3 border-b border-neutral-800 pb-1 text-lg font-semibold text-neutral-300">Interpret portfolios</h2>
+        <h2 className="mb-3 border-b border-neutral-800 pb-1 text-lg font-semibold text-neutral-300">Import locations</h2>
         <p className="mb-3 text-sm text-neutral-400">
-          Imported Collectr portfolios were guessed as decks or unsorted. Correct them here — mark real binders, decks,
-          or leave loose cards as unsorted.
+          Each imported Collectr portfolio is created as a <span className="text-emerald-300">Binder</span> or{' '}
+          <span className="text-emerald-300">Deck</span>. Leave a portfolio with neither selected and it stays loose in
+          the unsorted collection. Resolving unmatched cards routes them to the same location.
         </p>
         <form action={setContainerKind} className="max-w-3xl">
+          <input type="hidden" name="ids" value={containers.map((c) => c.id).join(',')} />
           <div className="mb-3 grid gap-1.5">
             {containers.map((c) => (
               <div key={c.id} className="flex items-center gap-3 rounded border border-neutral-800 bg-neutral-900 px-3 py-1.5 text-sm">
                 <span className="w-48 shrink-0 truncate">{c.name}</span>
                 <span className="w-24 shrink-0 text-xs text-neutral-500">{c.total_cards} cards</span>
                 <div className="flex gap-1.5">
-                  {KINDS.map((k) => (
+                  {(['binder', 'deck'] as const).map((k) => (
                     <label key={k} className="cursor-pointer rounded-full border border-neutral-700 px-2 py-0.5 text-xs text-neutral-300 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-500/10 has-[:checked]:text-emerald-300">
-                      <input type="radio" name={`kind_${c.id}`} value={k} defaultChecked={c.kind === k} className="sr-only" />
+                      {/* deselectable: click the active one to clear → unsorted */}
+                      <DeselectableRadio name={`kind_${c.id}`} value={k} defaultChecked={c.kind === k} className="sr-only" />
                       {k[0].toUpperCase() + k.slice(1)}
                     </label>
                   ))}
+                  {c.kind !== 'binder' && c.kind !== 'deck' && (
+                    <span className="self-center text-[10px] uppercase text-neutral-600">unsorted</span>
+                  )}
                 </div>
               </div>
             ))}

@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import {
   boolean,
   date,
@@ -65,6 +66,8 @@ export const cards = pgTable(
     index('cards_set_sort_idx').on(t.setId, t.sortKey),
     index('cards_name_idx').on(t.name),
     index('cards_oracle_idx').on(t.oracleId),
+    // functional index for the exact-name candidate lookup on /resolve (lower(c.name) = ?)
+    index('cards_lower_name_idx').on(sql`lower(${t.name})`),
   ],
 );
 
