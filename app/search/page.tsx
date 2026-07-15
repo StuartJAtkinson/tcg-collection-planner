@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; game?: string; kind?: string; color?: string }>;
+  searchParams: Promise<{ q?: string; game?: string; kind?: string; combo?: string; cmc?: string }>;
 }) {
   const sp = await searchParams;
   const q = (sp.q ?? '').trim();
@@ -24,7 +24,7 @@ export default async function SearchPage({
   // so Search doubles as a browse. Only skip the query when there's no scope at all (nothing
   // typed and no game/slicer) to avoid an unbounded "everything" fetch.
   const like = '%' + q + '%';
-  const hasScope = !!(q || game || sp.kind || sp.color);
+  const hasScope = !!(q || game || sp.kind || sp.combo || sp.cmc);
   const cards = hasScope
     ? await client`
         select c.id, c.name, c.image_small, c.game_id, c.set_id,
@@ -43,25 +43,33 @@ export default async function SearchPage({
         )` : client``}
         ${game ? client`and c.game_id = ${game}` : client``}
         ${sp.kind ? client`and exists (select 1 from card_facets f where f.card_id = c.id and f.facet = 'kind' and f.value = ${sp.kind})` : client``}
-        ${sp.color ? client`and exists (select 1 from card_facets f where f.card_id = c.id and f.facet = 'color' and f.value = ${sp.color})` : client``}
+        ${sp.combo ? client`and exists (select 1 from card_facets f where f.card_id = c.id and f.facet = 'color_combo' and f.value = ${sp.combo})` : client``}
+        ${sp.cmc ? client`and c.attrs->>'cmc' = ${sp.cmc}` : client``}
         order by (own.card_id is not null) desc, c.name, s.release_date desc
         limit 120`
     : [];
 
   const games = await client`select id, name from games order by id`;
 
-  // game-specific slicers only appear once a game scope is chosen
+  // game-specific slicers only appear once a game scope is chosen; colour is exact combos
   const gameFacets = game
     ? await client`
         select f.facet, f.value, count(*)::int as n
         from card_facets f join cards c on c.id = f.card_id
-        where c.game_id = ${game} and f.facet in ('kind', 'color')
-        group by 1, 2 order by 1, 3 desc`
+        where c.game_id = ${game} and f.facet in ('kind', 'color_combo')
+        group by 1, 2 order by 1, length(f.value), 3 desc`
+    : [];
+  const cmcs = game === 'mtg'
+    ? await client`
+        select c.attrs->>'cmc' as value, count(*)::int as n
+        from cards c where c.game_id = 'mtg' and c.attrs->>'cmc' is not null
+        group by 1 order by (c.attrs->>'cmc')::numeric`
     : [];
   const slicers: FilterGroup[] = game
     ? [
         { name: 'kind', label: 'Kind', current: sp.kind, options: gameFacets.filter((f) => f.facet === 'kind').map((f) => ({ value: f.value, label: f.value, n: f.n })) },
-        { name: 'color', label: 'Colour', current: sp.color, options: gameFacets.filter((f) => f.facet === 'color').map((f) => ({ value: f.value, label: f.value, n: f.n })) },
+        { name: 'combo', label: 'Colour combo', current: sp.combo, rawLabel: true, options: gameFacets.filter((f) => f.facet === 'color_combo').map((f) => ({ value: f.value, label: f.value, n: f.n })) },
+        ...(cmcs.length ? [{ name: 'cmc', label: 'Mana value', current: sp.cmc, rawLabel: true, options: (cmcs as any[]).map((c) => ({ value: c.value, label: c.value, n: c.n })) }] : []),
       ]
     : [];
 

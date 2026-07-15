@@ -7,7 +7,9 @@ import Link from 'next/link';
 // each with an "Any" reset option.
 
 export type FilterOpt = { value: string; label: string; n?: number };
-export type FilterGroup = { name: string; label: string; options: FilterOpt[]; current?: string };
+// rawLabel: don't proper-case (for codes like colour combos "WR" or mana values "3", which
+// proper-casing would mangle to "Wr")
+export type FilterGroup = { name: string; label: string; options: FilterOpt[]; current?: string; rawLabel?: boolean };
 
 const properCase = (s: string) =>
   s.replace(/\w[^\s/-]*/g, (w) => w[0].toUpperCase() + w.slice(1).toLowerCase());
@@ -24,7 +26,7 @@ function ChipGroup({ group }: { group: FilterGroup }) {
             className="cursor-pointer rounded-full border border-neutral-700 px-2.5 py-0.5 text-xs text-neutral-300 hover:border-neutral-500 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-500/10 has-[:checked]:text-emerald-300"
           >
             <input type="radio" name={group.name} value={o.value} defaultChecked={current === o.value} className="sr-only" />
-            {o.value === '' ? o.label : properCase(o.label)}
+            {o.value === '' ? o.label : group.rawLabel ? o.label : properCase(o.label)}
             {'n' in o && o.n ? <span className="text-neutral-500"> {o.n}</span> : null}
           </label>
         ))}
