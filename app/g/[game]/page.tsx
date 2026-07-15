@@ -52,7 +52,10 @@ export default async function GamePage({
     group by s.id
     order by s.release_date desc`;
 
-  // bucket tabs: mtg by curated set_type groups, pokemon by series (newest first)
+  // bucket tabs: mtg by curated set_type groups; pokemon by series (newest first) for the
+  // main sets, with promos pulled out of their eras into one trailing Promos bucket — same
+  // Main-vs-Promo treatment as mtg. Deck products (trainer kits/starter sets, set_type
+  // 'deck') are excluded here entirely and live on /decks, like mtg's precons.
   let tabs: { label: string; sets: typeof sets }[];
   if (game === 'mtg') {
     const collectible = sets.filter((s) => !MTG_DECK_TYPES.includes(s.set_type));
@@ -64,8 +67,10 @@ export default async function GamePage({
           : collectible.filter((s) => !s.crossover && types.includes(s.set_type)),
     }));
   } else {
-    const order = [...new Set(sets.map((s) => s.series ?? 'Other'))];
-    tabs = order.map((label) => ({ label, sets: sets.filter((s) => (s.series ?? 'Other') === label) }));
+    const main = sets.filter((s) => s.set_type === null);
+    const order = [...new Set(main.map((s) => s.series ?? 'Other'))];
+    tabs = order.map((label) => ({ label, sets: main.filter((s) => (s.series ?? 'Other') === label) }));
+    tabs.push({ label: 'Promos', sets: sets.filter((s) => s.set_type === 'promo') });
   }
   tabs = tabs.filter((t) => t.sets.length > 0);
 

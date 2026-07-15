@@ -9,7 +9,9 @@ import { client } from '../../src/db/index.ts';
 
 export const dynamic = 'force-dynamic';
 
-const MTG_DECK_TYPES = ['commander', 'duel_deck', 'planechase', 'archenemy', 'starter', 'arsenal', 'premium_deck'];
+// deck-shaped set types across games: mtg's precon products plus pokemon's 'deck'
+// (Trainer Kits / Starter Sets, derived at import)
+const DECK_SET_TYPES = ['commander', 'duel_deck', 'planechase', 'archenemy', 'starter', 'arsenal', 'premium_deck', 'deck'];
 
 export default async function DecksPage() {
   // a container has no game column; a deck's game is whichever game most of its cards
@@ -46,7 +48,7 @@ export default async function DecksPage() {
     join games g on g.id = s.game_id
     join cards c on c.set_id = s.id
     left join holdings h on h.card_id = c.id
-    where s.set_type = any(${MTG_DECK_TYPES})
+    where s.set_type = any(${DECK_SET_TYPES})
     group by s.id, g.name
     order by g.name, s.release_date desc`;
 

@@ -38,9 +38,18 @@ export default async function AdvisorPage({
   // tiny promo "sets" complete themselves trivially; default to sets of 10+ cards
   const minSize = Math.max(1, parseInt(sp.min ?? '10', 10) || 10);
 
+  // pokemon's aim vocabulary is simpler: main sets vs promos vs trainer-kit deck products
+  // (set_type derived at import); default is main sets only, same spirit as mtg's default
+  const POKEMON_AIM: [string, string][] = [
+    ['main', 'Main sets'],
+    ['promos', 'Promos'],
+    ['precons', 'Trainer kits'],
+  ];
+  const defaultAim = game === 'mtg' ? DEFAULT_AIM : ['main'];
+
   // same missing-vs-explicit-none URL convention as the master-sets kind tabs
   const aim = new Set(
-    sp.aim === undefined ? DEFAULT_AIM : sp.aim === 'none' ? [] : sp.aim.split(',').filter(Boolean),
+    sp.aim === undefined ? defaultAim : sp.aim === 'none' ? [] : sp.aim.split(',').filter(Boolean),
   );
   const allowedTypes = AIM_BUCKETS.filter(
     ([key]) => aim.has(key) && key !== 'crossovers' && key !== 'precons',
@@ -52,9 +61,6 @@ export default async function AdvisorPage({
     const aimParam = [...next].join(',') || 'none';
     return `/advisor?game=${game}&min=${minSize}&aim=${encodeURIComponent(aimParam)}`;
   };
-
-  // the aim clause only applies to mtg — pokemon has no set_type (series is its structure),
-  // so every non-hidden pokemon set is a collection goal
   const rows = await client`
     with owned_cards as (
       select distinct card_id from holdings
@@ -90,7 +96,13 @@ export default async function AdvisorPage({
               else s.set_type = any(${allowedTypes})
             end
           )`
-        : client``
+        : client`and (
+            case
+              when s.set_type = 'deck' then ${aim.has('precons')}
+              when s.set_type = 'promo' then ${aim.has('promos')}
+              else ${aim.has('main')}
+            end
+          )`
     }
     group by s.id
     having count(c.id) >= ${minSize}
@@ -118,7 +130,9 @@ export default async function AdvisorPage({
         ).map(([id, label]) => (
           <Link
             key={id}
-            href={`/advisor?game=${id}&min=${minSize}${sp.aim ? `&aim=${encodeURIComponent(sp.aim)}` : ''}`}
+            // switching game resets aim to that game's default — the two games' aim keys
+            // don't overlap, so carrying one across would silently filter everything out
+            href={`/advisor?game=${id}&min=${minSize}`}
             className={`rounded-full border px-2.5 py-0.5 text-xs ${
               game === id
                 ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300'
@@ -143,11 +157,12 @@ export default async function AdvisorPage({
       </div>
 
       {/* Collection Aim: which set kinds count as collection goals — multi-select toggles,
-          same convention as the master-sets kind tabs (click the last one off for none) */}
-      {game === 'mtg' && (
-        <div className="mb-6 flex flex-wrap items-center gap-1.5 text-sm">
-          <span className="text-xs uppercase text-neutral-500">Collection aim</span>
-          {AIM_BUCKETS.map(([key, label]) => (
+          same convention as the master-sets kind tabs (click the last one off for none).
+          Each game has its own vocabulary: mtg's curated buckets, pokemon's main/promo/kits. */}
+      <div className="mb-6 flex flex-wrap items-center gap-1.5 text-sm">
+        <span className="text-xs uppercase text-neutral-500">Collection aim</span>
+        {(game === 'mtg' ? AIM_BUCKETS.map(([key, label]) => [key, label] as const) : POKEMON_AIM).map(
+          ([key, label]) => (
             <Link
               key={key}
               href={aimHref(key)}
@@ -159,9 +174,9 @@ export default async function AdvisorPage({
             >
               {label}
             </Link>
-          ))}
-        </div>
-      )}
+          ),
+        )}
+      </div>
 
       <div className="flex flex-col gap-2">
         {rows.map((s) => {

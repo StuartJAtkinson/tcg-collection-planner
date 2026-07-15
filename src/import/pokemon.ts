@@ -40,21 +40,36 @@ async function main() {
 
   console.log('pokemon: sets');
   const setList: any[] = JSON.parse(readFileSync(path.join(root, 'sets', 'en.json'), 'utf8'));
+
+  // pokemon-tcg-data has no set-type field, so derive one from strong signals only:
+  //   deck  — Trainer Kits and Starter Sets are boxed half-deck products, not collectible
+  //           sets; they belong on /decks with the other preconstructed products
+  //   promo — Black Star Promos per era, POP/NP organized-play packs, McDonald's/Futsal
+  //           giveaways, Best of Game league prize reprints
+  // Genuinely-collectible oddballs in series "Other" (Southern Islands, Legendary
+  // Collection, Pokémon Rumble) stay null = main sets.
+  const setTypeFor = (s: any): string | null => {
+    const n = String(s.name).toLowerCase();
+    if (/trainer kit|starter set/.test(n)) return 'deck';
+    if (/promo|mcdonald|futsal|best of game/.test(n) || s.series === 'POP' || s.series === 'NP') return 'promo';
+    return null;
+  };
+
   const setRows = setList.map((s) => ({
     id: s.id, gameId: 'pokemon', code: s.ptcgoCode ?? s.id, name: s.name,
     releaseDate: s.releaseDate?.replaceAll('/', '-') ?? null, series: s.series ?? null,
-    setType: null, cardCount: s.total ?? s.printedTotal ?? null, iconUrl: s.images?.symbol ?? null,
+    setType: setTypeFor(s), cardCount: s.total ?? s.printedTotal ?? null, iconUrl: s.images?.symbol ?? null,
     legalities: s.legalities ?? null,
   }));
   await db.insert(sets).values(setRows).onConflictDoUpdate({
     target: sets.id,
     set: {
       name: sql`excluded.name`, releaseDate: sql`excluded.release_date`, series: sql`excluded.series`,
-      cardCount: sql`excluded.card_count`, iconUrl: sql`excluded.icon_url`,
+      setType: sql`excluded.set_type`, cardCount: sql`excluded.card_count`, iconUrl: sql`excluded.icon_url`,
       legalities: sql`excluded.legalities`,
     },
   });
-  console.log(`  ${setRows.length} sets`);
+  console.log(`  ${setRows.length} sets (${setRows.filter((r) => r.setType === 'promo').length} promo, ${setRows.filter((r) => r.setType === 'deck').length} deck)`);
 
   console.log('pokemon: cards');
   const cardDir = path.join(root, 'cards', 'en');
