@@ -54,7 +54,11 @@ export default function SearchResults({ initial, query }: { initial: SearchCard[
               <div className="text-xs uppercase text-neutral-500">{c.set_code}</div>
             </Link>
             {c.owned && (
-              <OwnershipStrip counts={{ funcTotal: c.func_total, totalFoil: c.any_foil, deckNonfoil: c.deck_nonfoil, deckFoil: c.deck_foil }} />
+              <OwnershipStrip
+                counts={{ funcTotal: c.func_total, totalFoil: c.any_foil, setNonfoil: c.set_nonfoil, setFoil: c.set_foil, deckNonfoil: c.deck_nonfoil, deckFoil: c.deck_foil }}
+                setIconUrl={c.set_icon_url}
+                game={c.game_id}
+              />
             )}
           </div>
         ))}
