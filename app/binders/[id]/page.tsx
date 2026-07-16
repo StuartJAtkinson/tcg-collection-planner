@@ -98,7 +98,7 @@ export default async function BinderPage({
                     ) : (
                       <div style={pocketGrid}>
                         {page.map((c, k) => (
-                          <div key={`${c.id}-${c.finish}-${k}`} className="relative overflow-hidden rounded">
+                          <Link key={`${c.id}-${c.finish}-${k}`} href={`/card/${encodeURIComponent(c.id)}`} className="relative block overflow-hidden rounded">
                             {c.image_small ? (
                               <img src={c.image_small} alt={c.name} loading="lazy" className="w-full" />
                             ) : (
@@ -111,7 +111,7 @@ export default async function BinderPage({
                                 ×{c.quantity}
                               </span>
                             )}
-                          </div>
+                          </Link>
                         ))}
                         {Array.from({ length: cols * rows - page.length }, (_, k) => (
                           <div key={`e${k}`} className="aspect-[5/7] rounded border border-dashed border-neutral-800" />

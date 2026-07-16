@@ -5,8 +5,10 @@
 import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { client } from '../../src/db/index.ts';
+import { searchCards } from '../../src/search.ts';
 import ComboSlicer from '../components/ComboSlicer.tsx';
 import FilterSidebar, { type FilterGroup } from '../components/FilterSidebar.tsx';
+import SearchResults from './SearchResults.tsx';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,31 +29,19 @@ export default async function SearchPage({
   // blank text is allowed — it returns the whole cohort (whatever game/slicer scope is set),
   // so Search doubles as a browse. Only skip the query when there's no scope at all (nothing
   // typed and no game/slicer) to avoid an unbounded "everything" fetch.
-  const like = '%' + q + '%';
   const hasScope = !!(q || game || sp.kind || sp.combo || sp.cmc);
   const cards = hasScope
-    ? await client`
-        select c.id, c.name, c.image_small, c.game_id, c.set_id,
-               s.code as set_code, (own.card_id is not null) as owned
-        from cards c
-        join sets s on s.id = c.set_id
-        left join (select distinct card_id from holdings) own on own.card_id = c.id
-        where true
-        ${q ? client`and (
-          c.name ilike ${like}
-          or coalesce(c.attrs->>'oracle_text', '') ilike ${like}
-          or coalesce(c.attrs->>'flavor_text', '') ilike ${like}
-          or coalesce(c.attrs->>'type_line', '') ilike ${like}
-          or coalesce(c.attrs->'attacks', '[]'::jsonb)::text ilike ${like}
-          or coalesce(c.attrs->'rules', '[]'::jsonb)::text ilike ${like}
-        )` : client``}
-        ${game ? client`and c.game_id = ${game}` : client``}
-        ${sp.kind ? client`and exists (select 1 from card_facets f where f.card_id = c.id and f.facet = 'kind' and f.value = ${sp.kind})` : client``}
-        ${combos.length ? client`and exists (select 1 from card_facets f where f.card_id = c.id and f.facet = 'color_combo' and f.value = any(${combos}))` : client``}
-        ${cmcs_sel.length ? client`and c.attrs->>'cmc' = any(${cmcs_sel})` : client``}
-        order by (own.card_id is not null) desc, c.name, s.release_date desc
-        limit 120`
+    ? await searchCards({ q, game, kind: sp.kind, combos, cmcs: cmcs_sel, offset: 0, limit: 60 })
     : [];
+
+  // query string the client component pages against (same scope, minus offset)
+  const resultQuery = new URLSearchParams([
+    ...(q ? [['q', q]] : []),
+    ...(game ? [['game', game]] : []),
+    ...(sp.kind ? [['kind', sp.kind]] : []),
+    ...combos.map((c) => ['combo', c] as [string, string]),
+    ...cmcs_sel.map((c) => ['cmc', c] as [string, string]),
+  ]).toString();
 
   const games = await client`select id, name from games order by id`;
 
@@ -114,29 +104,15 @@ export default async function SearchPage({
         <div className="min-w-0 flex-1">
           {hasScope && (
             <div className="mb-3 text-sm text-neutral-400">
-              {cards.length}
-              {cards.length === 120 ? '+' : ''} {q ? 'results' : 'cards'}
+              {q ? 'results' : 'cards'}
               {game ? ` in ${games.find((g) => g.id === game)?.name}` : ''}
             </div>
           )}
-          <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(150px,1fr))]">
-            {cards.map((c) => (
-              <Link key={c.id} href={`/set/${encodeURIComponent(c.set_id ?? '')}?q=${encodeURIComponent(c.name)}`} className={c.owned ? '' : 'opacity-90'}>
-                <div className={`relative overflow-hidden rounded-lg ${c.owned ? 'ring-2 ring-emerald-500' : ''}`}>
-                  {c.image_small ? (
-                    <img src={c.image_small} alt={c.name} loading="lazy" className="w-full" />
-                  ) : (
-                    <div className="flex aspect-[5/7] items-center justify-center bg-neutral-800 p-2 text-center text-xs text-neutral-400">
-                      {c.name}
-                    </div>
-                  )}
-                </div>
-                <div className="mt-1 truncate text-sm">{c.name}</div>
-                <div className="text-xs uppercase text-neutral-500">{c.set_code}</div>
-              </Link>
-            ))}
-            {!hasScope && <p className="text-sm text-neutral-500">Pick a game or type a name / rules text to browse.</p>}
-          </div>
+          {hasScope ? (
+            <SearchResults initial={cards} query={resultQuery} />
+          ) : (
+            <p className="text-sm text-neutral-500">Pick a game or type a name / rules text to browse.</p>
+          )}
         </div>
       </div>
     </div>

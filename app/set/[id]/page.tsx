@@ -3,7 +3,8 @@ import { notFound } from 'next/navigation';
 import { client } from '../../../src/db/index.ts';
 import ComboSlicer from '../../components/ComboSlicer.tsx';
 import FilterSidebar, { type FilterGroup } from '../../components/FilterSidebar.tsx';
-import FoilCard from '../../components/FoilCard.tsx';
+import VanillaCard from '../../components/VanillaCard.tsx';
+import OwnershipStrip from '../../components/OwnershipStrip.tsx';
 import PrintButton from './print-button.tsx';
 
 export const dynamic = 'force-dynamic';
@@ -129,64 +130,25 @@ export default async function SetPage({
   // = this exact printing owned somewhere, amber-dashed = "For Play" (owned under a different
   // printing, per oracle_id), grey = neither. Owned foils get the holographic sheen.
   // "For trade" = copies of this printing beyond one kept + what's committed to decks.
-  const tile = (c: Card) => {
-    const hasFoil = c.set_foil > 0;
-    const tradeNonfoil = Math.max(0, c.set_nonfoil - c.deck_nonfoil - 1);
-    const tradeFoil = Math.max(0, c.set_foil - c.deck_foil - 1);
-    // indicator rows: [label, nonfoil, foil] — Total is finish-agnostic (functional card)
-    const indicator: [string, string, string | null][] = [
-      ['Σ', String(c.func_total), null],
-      ['set', String(c.set_nonfoil), String(c.set_foil)],
-      ['deck', String(c.deck_nonfoil), String(c.deck_foil)],
-      ['trade', String(tradeNonfoil), String(tradeFoil)],
-    ];
-    return (
-      <div key={c.id} className={`flex gap-1 ${c.owned ? '' : 'opacity-90'}`}>
-        <div className="min-w-0 flex-1">
-          <FoilCard
-            foil={hasFoil}
-            className={`relative overflow-hidden rounded-lg ${
-              c.owned ? 'ring-2 ring-emerald-500' : c.for_play ? 'ring-2 ring-dashed ring-amber-500/70' : ''
-            }`}
-          >
-            {c.image_small ? (
-              <img src={c.image_small} alt={c.name} loading="lazy" className="w-full" />
-            ) : (
-              <div className="flex aspect-[5/7] items-center justify-center bg-neutral-800 p-2 text-center text-xs text-neutral-400">
-                {c.name}
-              </div>
-            )}
-            {!c.owned && <div className="absolute inset-0 z-[3] bg-neutral-950/40" />}
-            {c.for_play && (
-              <div className="no-print absolute bottom-1 left-1 right-1 z-[3] rounded bg-amber-500/90 px-1 py-0.5 text-center text-[9px] font-semibold uppercase text-neutral-950">
-                For Play
-              </div>
-            )}
-          </FoilCard>
-          <div className="mt-1 flex justify-between text-xs text-neutral-400">
-            <span>#{c.collector_number}</span>
-            {c.usd != null && <span>${c.usd.toFixed(2)}</span>}
-          </div>
-          <div className="truncate text-sm">{c.name}</div>
+  const tile = (c: Card) => (
+    <div key={c.id} className={`flex gap-1 ${c.owned ? '' : 'opacity-90'}`}>
+      <div className="min-w-0 flex-1">
+        <Link href={`/card/${encodeURIComponent(c.id)}`} className="block">
+          <VanillaCard card={{ name: c.name, imageSmall: c.image_small, owned: c.owned, forPlay: c.for_play, foil: c.set_foil > 0 }} />
+        </Link>
+        <div className="mt-1 flex justify-between text-xs text-neutral-400">
+          <span>#{c.collector_number}</span>
+          {c.usd != null && <span>${c.usd.toFixed(2)}</span>}
         </div>
-
-        {/* ownership indicator strip alongside the card, only when owned */}
-        {c.owned && (
-          <div className="no-print flex w-9 shrink-0 flex-col justify-start gap-px rounded bg-neutral-900/70 py-0.5 text-center text-[8px] leading-tight text-neutral-400">
-            {indicator.map(([label, nf, f]) => (
-              <div key={label} title={`${label}: nonfoil ${nf}${f != null ? ` · foil ${f}` : ''}`} className="px-0.5">
-                <div className="uppercase text-neutral-600">{label}</div>
-                <div className="text-neutral-200">
-                  {nf}
-                  {f != null && <span className="text-amber-400">/{f}</span>}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <div className="truncate text-sm">{c.name}</div>
       </div>
-    );
-  };
+
+      {/* ownership indicator strip alongside the card, only when owned */}
+      {c.owned && (
+        <OwnershipStrip counts={{ funcTotal: c.func_total, setNonfoil: c.set_nonfoil, setFoil: c.set_foil, deckNonfoil: c.deck_nonfoil, deckFoil: c.deck_foil }} />
+      )}
+    </div>
+  );
 
 
   return (

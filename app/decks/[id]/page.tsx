@@ -57,7 +57,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(150px,1fr))]">
         {cards.map((c) => (
           <div key={`${c.id}-${c.finish}`}>
-            <div className="relative overflow-hidden rounded-lg">
+            <Link href={`/card/${encodeURIComponent(c.id)}`} className="relative block overflow-hidden rounded-lg">
               {c.image_small ? (
                 <img src={c.image_small} alt={c.name} loading="lazy" className="w-full" />
               ) : (
@@ -75,7 +75,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
                   {c.finish.slice(0, 4)}
                 </span>
               )}
-            </div>
+            </Link>
             <div className="mt-1 flex justify-between text-xs text-neutral-400">
               <span className="uppercase">{c.set_code}</span>
               {c.usd != null && <span>${(c.usd * c.quantity).toFixed(2)}</span>}
