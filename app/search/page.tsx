@@ -5,6 +5,7 @@
 import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { client } from '../../src/db/index.ts';
+import ComboSlicer from '../components/ComboSlicer.tsx';
 import FilterSidebar, { type FilterGroup } from '../components/FilterSidebar.tsx';
 
 export const dynamic = 'force-dynamic';
@@ -12,10 +13,13 @@ export const dynamic = 'force-dynamic';
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; game?: string; kind?: string; combo?: string; cmc?: string }>;
+  searchParams: Promise<{ q?: string; game?: string; kind?: string; combo?: string | string[]; cmc?: string | string[] }>;
 }) {
   const sp = await searchParams;
   const q = (sp.q ?? '').trim();
+  const toArr = (v: string | string[] | undefined) => (v == null ? [] : Array.isArray(v) ? v : [v]);
+  const combos = toArr(sp.combo);
+  const cmcs_sel = toArr(sp.cmc);
   // remembered game scope: URL param wins, else last-used cookie, else all games
   const gameCookie = (await cookies()).get('pref_game')?.value;
   const game = (sp.game ?? gameCookie ?? '').trim();
@@ -43,8 +47,8 @@ export default async function SearchPage({
         )` : client``}
         ${game ? client`and c.game_id = ${game}` : client``}
         ${sp.kind ? client`and exists (select 1 from card_facets f where f.card_id = c.id and f.facet = 'kind' and f.value = ${sp.kind})` : client``}
-        ${sp.combo ? client`and exists (select 1 from card_facets f where f.card_id = c.id and f.facet = 'color_combo' and f.value = ${sp.combo})` : client``}
-        ${sp.cmc ? client`and c.attrs->>'cmc' = ${sp.cmc}` : client``}
+        ${combos.length ? client`and exists (select 1 from card_facets f where f.card_id = c.id and f.facet = 'color_combo' and f.value = any(${combos}))` : client``}
+        ${cmcs_sel.length ? client`and c.attrs->>'cmc' = any(${cmcs_sel})` : client``}
         order by (own.card_id is not null) desc, c.name, s.release_date desc
         limit 120`
     : [];
@@ -65,11 +69,12 @@ export default async function SearchPage({
         from cards c where c.game_id = 'mtg' and c.attrs->>'cmc' is not null
         group by 1 order by (c.attrs->>'cmc')::numeric`
     : [];
+  const comboOpts = gameFacets.filter((f) => f.facet === 'color_combo').map((f) => ({ value: f.value as string, n: f.n as number }));
   const slicers: FilterGroup[] = game
     ? [
         { name: 'kind', label: 'Kind', current: sp.kind, options: gameFacets.filter((f) => f.facet === 'kind').map((f) => ({ value: f.value, label: f.value, n: f.n })) },
-        { name: 'combo', label: 'Colour combo', current: sp.combo, manaSymbols: game === 'mtg', rawLabel: true, options: gameFacets.filter((f) => f.facet === 'color_combo').map((f) => ({ value: f.value, label: f.value, n: f.n })) },
-        ...(cmcs.length ? [{ name: 'cmc', label: 'Mana value', current: sp.cmc, rawLabel: true, options: (cmcs as any[]).map((c) => ({ value: c.value, label: c.value, n: c.n })) }] : []),
+        ...(game !== 'mtg' && comboOpts.length ? [{ name: 'combo', label: 'Colour combo', current: combos, multi: true, rawLabel: true, options: comboOpts.map((c) => ({ value: c.value, label: c.value, n: c.n })) }] : []),
+        ...(cmcs.length ? [{ name: 'cmc', label: 'Mana value', current: cmcs_sel, multi: true, rawLabel: true, options: (cmcs as any[]).map((c) => ({ value: c.value, label: c.value, n: c.n })) }] : []),
       ]
     : [];
 
@@ -102,6 +107,7 @@ export default async function SearchPage({
         <FilterSidebar
           search={{ name: 'q', value: q, placeholder: 'name or rules text…' }}
           slicers={slicers}
+          customSlicers={game === 'mtg' && comboOpts.length ? <ComboSlicer options={comboOpts} current={combos} /> : undefined}
           hidden={{ game: game || undefined }}
           clearHref={game ? `/search?game=${game}` : '/search'}
         />

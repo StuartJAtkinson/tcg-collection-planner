@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { client } from '../../../src/db/index.ts';
+import ComboSlicer from '../../components/ComboSlicer.tsx';
 import FilterSidebar, { type FilterGroup } from '../../components/FilterSidebar.tsx';
 import FoilCard from '../../components/FoilCard.tsx';
 import PrintButton from './print-button.tsx';
@@ -9,7 +10,8 @@ export const dynamic = 'force-dynamic';
 
 // Collections set checklist: Grid + Print only, read-only ownership (derived from binders/
 // decks). The physical binder-book view now lives on the Binders page, per binder container.
-type SP = { view?: string; rarity?: string; kind?: string; combo?: string; cmc?: string; q?: string };
+type SP = { view?: string; rarity?: string; kind?: string; combo?: string | string[]; cmc?: string | string[]; q?: string };
+const toArr = (v: string | string[] | undefined) => (v == null ? [] : Array.isArray(v) ? v : [v]);
 type Card = {
   id: string; name: string; collector_number: string; rarity_raw: string | null;
   image_small: string | null; artist: string | null; finishes: string[];
@@ -27,6 +29,8 @@ export default async function SetPage({
   const { id } = await params;
   const sp = await searchParams;
   const view = sp.view ?? 'grid';
+  const combos = toArr(sp.combo);
+  const cmcs_sel = toArr(sp.cmc);
 
   const [set] = await client`
     select s.*, to_char(s.release_date, 'YYYY-MM-DD') as released, g.name as game_name
@@ -87,8 +91,8 @@ export default async function SetPage({
     ${sp.rarity ? client`and c.rarity_raw = ${sp.rarity}` : client``}
     ${sp.q ? client`and c.name ilike ${'%' + sp.q + '%'}` : client``}
     ${sp.kind ? client`and exists (select 1 from card_facets f where f.card_id = c.id and f.facet = 'kind' and f.value = ${sp.kind})` : client``}
-    ${sp.combo ? client`and exists (select 1 from card_facets f where f.card_id = c.id and f.facet = 'color_combo' and f.value = ${sp.combo})` : client``}
-    ${sp.cmc ? client`and c.attrs->>'cmc' = ${sp.cmc}` : client``}
+    ${combos.length ? client`and exists (select 1 from card_facets f where f.card_id = c.id and f.facet = 'color_combo' and f.value = any(${combos}))` : client``}
+    ${cmcs_sel.length ? client`and c.attrs->>'cmc' = any(${cmcs_sel})` : client``}
     order by c.sort_key, c.collector_number`) as unknown as Card[];
 
   // colour is the exact colour COMBO (mono-R excludes R/W), sorted by WUBRG-length then count
@@ -109,11 +113,12 @@ export default async function SetPage({
 
   const pct = stats.total ? Math.round((100 * stats.owned) / stats.total) : 0;
 
+  const comboOpts = facetOpts.filter((f) => f.facet === 'color_combo').map((f) => ({ value: f.value as string, n: f.n as number }));
   const slicers: FilterGroup[] = [
     { name: 'rarity', label: 'Rarity', current: sp.rarity, options: (rarities as any[]).map((r) => ({ value: r.value, label: r.value, n: r.n })) },
     { name: 'kind', label: 'Kind', current: sp.kind, options: facetOpts.filter((f) => f.facet === 'kind').map((f) => ({ value: f.value, label: f.value, n: f.n })) },
-    { name: 'combo', label: 'Colour combo', current: sp.combo, manaSymbols: set.game_id === 'mtg', rawLabel: true, options: facetOpts.filter((f) => f.facet === 'color_combo').map((f) => ({ value: f.value, label: f.value, n: f.n })) },
-    ...(cmcs.length ? [{ name: 'cmc', label: 'Mana value', current: sp.cmc, rawLabel: true, options: (cmcs as any[]).map((c) => ({ value: c.value, label: c.value, n: c.n })) }] : []),
+    ...(set.game_id !== 'mtg' && comboOpts.length ? [{ name: 'combo', label: 'Colour combo', current: combos, multi: true, rawLabel: true, options: comboOpts.map((c) => ({ value: c.value, label: c.value, n: c.n })) }] : []),
+    ...(cmcs.length ? [{ name: 'cmc', label: 'Mana value', current: cmcs_sel, multi: true, rawLabel: true, options: (cmcs as any[]).map((c) => ({ value: c.value, label: c.value, n: c.n })) }] : []),
   ];
   const displayGroups: FilterGroup[] = [
     { name: 'view', label: 'Display', current: view === 'grid' ? '' : view, options: [{ value: 'print', label: 'Print' }] },
@@ -218,6 +223,7 @@ export default async function SetPage({
           display={displayGroups}
           search={{ name: 'q', value: sp.q, placeholder: 'card name…' }}
           slicers={slicers}
+          customSlicers={set.game_id === 'mtg' && comboOpts.length ? <ComboSlicer options={comboOpts} current={combos} /> : undefined}
           clearHref={`/set/${encodeURIComponent(id)}`}
         />
 

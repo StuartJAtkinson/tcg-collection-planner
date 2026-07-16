@@ -10,7 +10,12 @@ export type FilterOpt = { value: string; label: string; n?: number };
 // rawLabel: don't proper-case (for codes like mana values "3", which would mangle to "Wr").
 // manaSymbols: render each character of the value as a real MTG mana symbol (the same Mana
 // font the MockCard uses), so a colour combo "WR" shows white+red pips instead of text.
-export type FilterGroup = { name: string; label: string; options: FilterOpt[]; current?: string; rawLabel?: boolean; manaSymbols?: boolean };
+// multi: checkbox multiselect (any number) instead of single-select radios; `current` is a
+// list. No "Any" chip — nothing checked means no filter.
+export type FilterGroup = {
+  name: string; label: string; options: FilterOpt[];
+  current?: string | string[]; rawLabel?: boolean; manaSymbols?: boolean; multi?: boolean;
+};
 
 const properCase = (s: string) =>
   s.replace(/\w[^\s/-]*/g, (w) => w[0].toUpperCase() + w.slice(1).toLowerCase());
@@ -28,17 +33,24 @@ function OptLabel({ opt, group }: { opt: FilterOpt; group: FilterGroup }) {
 }
 
 function ChipGroup({ group }: { group: FilterGroup }) {
-  const current = group.current ?? '';
+  const current = new Set(Array.isArray(group.current) ? group.current : group.current ? [group.current] : []);
+  const opts = group.multi ? group.options : [{ value: '', label: 'Any' }, ...group.options];
   return (
     <div className="mb-3">
       <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">{group.label}</div>
       <div className="flex flex-wrap gap-1.5">
-        {[{ value: '', label: 'Any' }, ...group.options].map((o) => (
+        {opts.map((o) => (
           <label
             key={o.value}
             className="cursor-pointer rounded-full border border-neutral-700 px-2.5 py-0.5 text-xs text-neutral-300 hover:border-neutral-500 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-500/10 has-[:checked]:text-emerald-300"
           >
-            <input type="radio" name={group.name} value={o.value} defaultChecked={current === o.value} className="sr-only" />
+            <input
+              type={group.multi ? 'checkbox' : 'radio'}
+              name={group.name}
+              value={o.value}
+              defaultChecked={group.multi ? current.has(o.value) : current.size ? current.has(o.value) : o.value === ''}
+              className="sr-only"
+            />
             <OptLabel opt={o} group={group} />
             {'n' in o && o.n ? <span className="text-neutral-500"> {o.n}</span> : null}
           </label>
@@ -53,6 +65,7 @@ export default function FilterSidebar({
   display,
   search,
   slicers,
+  customSlicers,
   other,
   hidden,
   clearHref,
@@ -61,6 +74,7 @@ export default function FilterSidebar({
   display?: FilterGroup[];
   search?: { name: string; value?: string; placeholder?: string };
   slicers?: FilterGroup[];
+  customSlicers?: import('react').ReactNode; // interactive client slicers (e.g. ComboSlicer)
   other?: FilterGroup[];
   hidden?: Record<string, string | undefined>;
   clearHref?: string;
@@ -94,6 +108,7 @@ export default function FilterSidebar({
 
         {/* 3. Slicers */}
         {slicers?.map((g) => <ChipGroup key={g.name} group={g} />)}
+        {customSlicers}
 
         {/* 4. Other (collapsed) */}
         {other && other.length > 0 && (
