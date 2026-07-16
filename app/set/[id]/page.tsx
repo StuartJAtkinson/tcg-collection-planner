@@ -145,7 +145,7 @@ export default async function SetPage({
 
       {/* ownership indicator strip alongside the card, only when owned */}
       {c.owned && (
-        <OwnershipStrip counts={{ funcTotal: c.func_total, setNonfoil: c.set_nonfoil, setFoil: c.set_foil, deckNonfoil: c.deck_nonfoil, deckFoil: c.deck_foil }} />
+        <OwnershipStrip counts={{ funcTotal: c.func_total, setNonfoil: c.set_nonfoil, setFoil: c.set_foil, deckNonfoil: c.deck_nonfoil, deckFoil: c.deck_foil }} setIconUrl={set.icon_url} game={set.game_id} />
       )}
     </div>
   );

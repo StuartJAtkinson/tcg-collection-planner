@@ -161,7 +161,7 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
                 <div className="truncate text-xs text-neutral-500">{p.set_name}</div>
               </div>
               {p.owned && (
-                <OwnershipStrip counts={{ funcTotal: p.func_total, setNonfoil: p.set_nonfoil, setFoil: p.set_foil, deckNonfoil: p.deck_nonfoil, deckFoil: p.deck_foil }} />
+                <OwnershipStrip counts={{ funcTotal: p.func_total, setNonfoil: p.set_nonfoil, setFoil: p.set_foil, deckNonfoil: p.deck_nonfoil, deckFoil: p.deck_foil }} setIconUrl={p.set_icon_url} game={current.game_id} />
               )}
             </div>
           ))}
