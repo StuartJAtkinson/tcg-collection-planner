@@ -68,7 +68,7 @@ export default async function SearchPage({
   const slicers: FilterGroup[] = game
     ? [
         { name: 'kind', label: 'Kind', current: sp.kind, options: gameFacets.filter((f) => f.facet === 'kind').map((f) => ({ value: f.value, label: f.value, n: f.n })) },
-        { name: 'combo', label: 'Colour combo', current: sp.combo, rawLabel: true, options: gameFacets.filter((f) => f.facet === 'color_combo').map((f) => ({ value: f.value, label: f.value, n: f.n })) },
+        { name: 'combo', label: 'Colour combo', current: sp.combo, manaSymbols: game === 'mtg', rawLabel: true, options: gameFacets.filter((f) => f.facet === 'color_combo').map((f) => ({ value: f.value, label: f.value, n: f.n })) },
         ...(cmcs.length ? [{ name: 'cmc', label: 'Mana value', current: sp.cmc, rawLabel: true, options: (cmcs as any[]).map((c) => ({ value: c.value, label: c.value, n: c.n })) }] : []),
       ]
     : [];

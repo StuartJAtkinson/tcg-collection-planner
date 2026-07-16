@@ -7,12 +7,25 @@ import Link from 'next/link';
 // each with an "Any" reset option.
 
 export type FilterOpt = { value: string; label: string; n?: number };
-// rawLabel: don't proper-case (for codes like colour combos "WR" or mana values "3", which
-// proper-casing would mangle to "Wr")
-export type FilterGroup = { name: string; label: string; options: FilterOpt[]; current?: string; rawLabel?: boolean };
+// rawLabel: don't proper-case (for codes like mana values "3", which would mangle to "Wr").
+// manaSymbols: render each character of the value as a real MTG mana symbol (the same Mana
+// font the MockCard uses), so a colour combo "WR" shows white+red pips instead of text.
+export type FilterGroup = { name: string; label: string; options: FilterOpt[]; current?: string; rawLabel?: boolean; manaSymbols?: boolean };
 
 const properCase = (s: string) =>
   s.replace(/\w[^\s/-]*/g, (w) => w[0].toUpperCase() + w.slice(1).toLowerCase());
+
+function OptLabel({ opt, group }: { opt: FilterOpt; group: FilterGroup }) {
+  if (opt.value === '') return <>{opt.label}</>;
+  if (group.manaSymbols) {
+    return (
+      <span className="inline-flex items-center gap-0.5 align-middle">
+        {[...opt.value].map((ch, i) => <i key={i} className={`ms ms-cost ms-${ch.toLowerCase()} text-[13px]`} />)}
+      </span>
+    );
+  }
+  return <>{group.rawLabel ? opt.label : properCase(opt.label)}</>;
+}
 
 function ChipGroup({ group }: { group: FilterGroup }) {
   const current = group.current ?? '';
@@ -26,7 +39,7 @@ function ChipGroup({ group }: { group: FilterGroup }) {
             className="cursor-pointer rounded-full border border-neutral-700 px-2.5 py-0.5 text-xs text-neutral-300 hover:border-neutral-500 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-500/10 has-[:checked]:text-emerald-300"
           >
             <input type="radio" name={group.name} value={o.value} defaultChecked={current === o.value} className="sr-only" />
-            {o.value === '' ? o.label : group.rawLabel ? o.label : properCase(o.label)}
+            <OptLabel opt={o} group={group} />
             {'n' in o && o.n ? <span className="text-neutral-500"> {o.n}</span> : null}
           </label>
         ))}

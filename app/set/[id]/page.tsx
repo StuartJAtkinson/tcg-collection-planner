@@ -112,7 +112,7 @@ export default async function SetPage({
   const slicers: FilterGroup[] = [
     { name: 'rarity', label: 'Rarity', current: sp.rarity, options: (rarities as any[]).map((r) => ({ value: r.value, label: r.value, n: r.n })) },
     { name: 'kind', label: 'Kind', current: sp.kind, options: facetOpts.filter((f) => f.facet === 'kind').map((f) => ({ value: f.value, label: f.value, n: f.n })) },
-    { name: 'combo', label: 'Colour combo', current: sp.combo, rawLabel: true, options: facetOpts.filter((f) => f.facet === 'color_combo').map((f) => ({ value: f.value, label: f.value, n: f.n })) },
+    { name: 'combo', label: 'Colour combo', current: sp.combo, manaSymbols: set.game_id === 'mtg', rawLabel: true, options: facetOpts.filter((f) => f.facet === 'color_combo').map((f) => ({ value: f.value, label: f.value, n: f.n })) },
     ...(cmcs.length ? [{ name: 'cmc', label: 'Mana value', current: sp.cmc, rawLabel: true, options: (cmcs as any[]).map((c) => ({ value: c.value, label: c.value, n: c.n })) }] : []),
   ];
   const displayGroups: FilterGroup[] = [
