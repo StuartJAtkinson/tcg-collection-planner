@@ -13,7 +13,7 @@ const clampDim = (raw: string | undefined, fallback: number) =>
 const chunk = <T,>(arr: T[], n: number): T[][] =>
   Array.from({ length: Math.ceil(arr.length / n) }, (_, i) => arr.slice(i * n, i * n + n));
 
-type Slot = { id: string; name: string; image_small: string | null; quantity: number; finish: string };
+type Slot = { id: string; name: string; image_small: string | null; quantity: number; finish: string; binder_position: number | null };
 
 export default async function BinderPage({
   params,
@@ -24,19 +24,18 @@ export default async function BinderPage({
 }) {
   const { id } = await params;
   const sp = await searchParams;
-  const cols = clampDim(sp.c, 3);
-  const rows = clampDim(sp.r, 3);
-
-  const [binder] = await client`select id, name, kind from containers where id = ${id}`;
+  const [binder] = await client`select id, name, kind, pocket_cols, pocket_rows from containers where id = ${id}`;
   if (!binder) notFound();
+  const cols = clampDim(sp.c, Number(binder.pocket_cols) || 3);
+  const rows = clampDim(sp.r, Number(binder.pocket_rows) || 3);
 
   const cardsRaw = (await client`
-    select c.id, c.name, c.image_small, h.quantity, h.finish, c.sort_key, s.code as set_code
+    select c.id, c.name, c.image_small, h.quantity, h.finish, h.binder_position, c.sort_key, s.code as set_code
     from holdings h
     join cards c on c.id = h.card_id
     join sets s on s.id = c.set_id
     where h.container_id = ${id}
-    order by s.code, c.sort_key, c.collector_number`) as unknown as (Slot & { sort_key: number; set_code: string })[];
+    order by h.binder_position nulls last, s.code, c.sort_key, c.collector_number`) as unknown as (Slot & { sort_key: number; set_code: string })[];
 
   // cover art = logo of the set most represented in this binder
   const [cover] = await client`
@@ -48,7 +47,16 @@ export default async function BinderPage({
     limit 1`;
 
   const POCKET_W = 96;
-  const pages: (Slot[] | 'cover')[] = ['cover', ...chunk(cardsRaw, cols * rows)];
+  const positioned = cardsRaw.some((c) => c.binder_position !== null);
+  const cardSlots: (Slot | null)[] = positioned
+    ? Array.from({ length: Math.max(...cardsRaw.map((c) => c.binder_position ?? 0)) + 1 }, () => null)
+    : [...cardsRaw];
+  if (positioned) {
+    for (const card of cardsRaw) {
+      if (card.binder_position !== null) cardSlots[card.binder_position] = card;
+    }
+  }
+  const pages: ((Slot | null)[] | 'cover')[] = ['cover', ...chunk(cardSlots, cols * rows)];
   const spreads = chunk(pages, 2);
   const pageW = cols * POCKET_W + (cols - 1) * 4;
   const pocketGrid = { display: 'grid', gap: 4, gridTemplateColumns: `repeat(${cols}, ${POCKET_W}px)` } as const;
@@ -97,7 +105,7 @@ export default async function BinderPage({
                       </div>
                     ) : (
                       <div style={pocketGrid}>
-                        {page.map((c, k) => (
+                        {page.map((c, k) => c ? (
                           <Link key={`${c.id}-${c.finish}-${k}`} href={`/card/${encodeURIComponent(c.id)}`} className="relative block overflow-hidden rounded">
                             {c.image_small ? (
                               <img src={c.image_small} alt={c.name} loading="lazy" className="w-full" />
@@ -112,6 +120,8 @@ export default async function BinderPage({
                               </span>
                             )}
                           </Link>
+                        ) : (
+                          <div key={`gap-${k}`} className="aspect-[5/7] rounded border border-dashed border-neutral-800" />
                         ))}
                         {Array.from({ length: cols * rows - page.length }, (_, k) => (
                           <div key={`e${k}`} className="aspect-[5/7] rounded border border-dashed border-neutral-800" />

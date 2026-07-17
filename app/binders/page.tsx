@@ -133,10 +133,15 @@ export default async function BindersPage({ searchParams }: { searchParams: Prom
 
       {/* 3. create binders */}
       <section>
-        <h2 className="mb-1 border-b border-neutral-800 pb-1 text-lg font-semibold text-neutral-300">Create binders</h2>
+        <div className="mb-1 flex items-center justify-between border-b border-neutral-800 pb-1">
+          <h2 className="text-lg font-semibold text-neutral-300">Create binders</h2>
+          <Link href="/binders/build" className="rounded bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-500">
+            Build functional binder
+          </Link>
+        </div>
         <p className="mb-4 max-w-3xl text-sm text-neutral-400">
           Sets you&apos;ve collected past the threshold get a dedicated binder; everything else is destined for
-          functional-grouping binders (colour / rarity / type / mana value / alphabetical…, built next). Ownership
+          functional-grouping binders (colour / rarity / type / mana value / alphabetical…). Ownership
           counts copies held anywhere including decks, but not for-play copies of a different printing.
         </p>
 

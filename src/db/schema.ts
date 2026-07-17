@@ -107,6 +107,9 @@ export const containers = pgTable('containers', {
   name: text('name').notNull(),
   kind: text('kind').notNull().default('binder'), // collection | binder | deck | graded | box
   pocketLayout: smallint('pocket_layout'), // 9 or 12, binders only
+  pocketCols: smallint('pocket_cols'),
+  pocketRows: smallint('pocket_rows'),
+  sortConfig: jsonb('sort_config'),
 });
 
 export const holdings = pgTable(
@@ -120,6 +123,7 @@ export const holdings = pgTable(
     condition: text('condition'),
     grade: text('grade'), // e.g. "PSA 10" — distinct from condition (raw NM/LP/…), set once slabbed
     paid: numeric('paid', { precision: 12, scale: 2 }),
+    binderPosition: integer('binder_position'),
   },
   (t) => [
     // one row per (card, finish, container): the same physical printing can sit in the main

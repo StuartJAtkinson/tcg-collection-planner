@@ -2,6 +2,7 @@
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 import { client } from './db/index.ts';
 import { money, normalizeGrade, parseCsv, pickFinish, portfolioToContainer } from './import/csv.ts';
 
@@ -45,6 +46,64 @@ export async function createSetBinder(formData: FormData) {
     where h.card_id = c.id and c.set_id = ${setId}
       and h.user_id = ${USER} and h.container_id = 'unsorted'`;
   revalidatePath('/binders');
+}
+
+type BinderRule = {
+  field: 'color' | 'rarity' | 'kind' | 'manaValue' | 'name' | 'set' | 'collectorNumber';
+  pageBreak: boolean;
+};
+
+// Functional binder builder: the browser calculates and previews the exact order, including
+// page-break gaps. The action treats that order as a request, not authority: only holdings
+// currently in this user's unsorted pool can move, and every submitted card/finish pair is
+// checked again inside the transaction before it receives a persisted binder position.
+export async function createFunctionalBinder(formData: FormData) {
+  const name = String(formData.get('name') ?? '').trim().slice(0, 100);
+  if (!name) return;
+  const cols = Math.min(12, Math.max(1, Number(formData.get('cols')) || 3));
+  const rows = Math.min(12, Math.max(1, Number(formData.get('rows')) || 3));
+  const allowedFields = new Set(['color', 'rarity', 'kind', 'manaValue', 'name', 'set', 'collectorNumber']);
+
+  let rules: BinderRule[] = [];
+  let ordered: string[] = [];
+  try {
+    const parsedRules = JSON.parse(String(formData.get('rules') ?? '[]'));
+    const parsedOrder = JSON.parse(String(formData.get('ordered') ?? '[]'));
+    if (Array.isArray(parsedRules)) {
+      rules = parsedRules
+        .filter((r): r is BinderRule => r && allowedFields.has(r.field))
+        .slice(0, allowedFields.size)
+        .map((r) => ({ field: r.field, pageBreak: Boolean(r.pageBreak) }));
+    }
+    if (Array.isArray(parsedOrder)) ordered = parsedOrder.filter((v): v is string => typeof v === 'string');
+  } catch {
+    return;
+  }
+  if (!ordered.length) return;
+
+  const slug = name.toLowerCase().normalize('NFKD').replace(/[^\w]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'binder';
+  const binderId = `${slug}-${Date.now().toString(36)}`;
+
+  await client.begin(async (tx) => {
+    await tx`
+      insert into containers (id, user_id, name, kind, pocket_layout, pocket_cols, pocket_rows, sort_config)
+      values (${binderId}, ${USER}, ${name}, 'binder', ${cols * rows}, ${cols}, ${rows}, ${tx.json(rules)})`;
+
+    for (const item of ordered) {
+      const [positionRaw, cardId, finish] = item.split('\t');
+      const position = Number(positionRaw);
+      if (!Number.isSafeInteger(position) || position < 0 || !cardId || !finish) continue;
+      await tx`
+        update holdings
+        set container_id = ${binderId}, binder_position = ${position}
+        where user_id = ${USER} and container_id = 'unsorted'
+          and card_id = ${cardId} and finish = ${finish}`;
+    }
+  });
+
+  revalidatePath('/binders');
+  revalidatePath(`/binders/${binderId}`);
+  redirect(`/binders/${binderId}`);
 }
 
 // applies picks made on /resolve: each `choice_<i>` field is a chosen card id (unselected rows
