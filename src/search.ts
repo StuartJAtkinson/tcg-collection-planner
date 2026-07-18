@@ -3,8 +3,26 @@ import { client } from './db/index.ts';
 export type SearchParams = {
   q?: string; game?: string; kind?: string;
   combos?: string[]; cmcs?: string[];
-  offset?: number; limit?: number;
+  sort?: string; offset?: number; limit?: number;
 };
+
+// SortBar fields → representative-row columns exposed by the inner query below. Same field
+// names the shared SortBar emits; whitelist keeps the composed ORDER BY injection-safe.
+const SEARCH_SORT: Record<string, string> = {
+  name: 'sort_name', set: 'release_date', number: 'sort_key',
+  rarity: 'rarity_tier', mv: 'cmc_num', color: 'color_combo', price: 'usd',
+};
+function searchOrder(raw?: string) {
+  const terms = (raw ?? '').split(',').map((t) => t.split('.')).filter(([f]) => f in SEARCH_SORT);
+  if (!terms.length) return client`(func_total > 0) desc, sort_name`; // default: owned first, then A–Z
+  return terms.reduce(
+    (acc, [f, d], i) => {
+      const col = client`${client.unsafe(SEARCH_SORT[f])} ${client.unsafe(d === 'd' ? 'desc nulls last' : 'asc nulls last')}`;
+      return i === 0 ? col : client`${acc}, ${col}`;
+    },
+    client``,
+  );
+}
 
 export type SearchCard = {
   id: string; name: string; image_small: string | null; set_code: string;
@@ -56,11 +74,18 @@ export async function searchCards(p: SearchParams): Promise<SearchCard[]> {
       select distinct on (coalesce(c.oracle_id, c.id))
              c.id, c.name, c.image_small, s.code as set_code, c.game_id, s.icon_url as set_icon_url,
              coalesce(hd.set_nonfoil, 0) as set_nonfoil, coalesce(hd.set_foil, 0) as set_foil,
-             g.func_total, g.deck_nonfoil, g.deck_foil, g.any_foil, c.name as sort_name
+             g.func_total, g.deck_nonfoil, g.deck_foil, g.any_foil, c.name as sort_name,
+             c.sort_key, c.rarity_tier, s.release_date, (c.attrs->>'cmc')::numeric as cmc_num,
+             cc.value as color_combo, p.usd
       from cards c
       join sets s on s.id = c.set_id
       join grp g on g.gid = coalesce(c.oracle_id, c.id)
       left join hold hd on hd.card_id = c.id
+      left join card_facets cc on cc.card_id = c.id and cc.facet = 'color_combo'
+      left join lateral (
+        select usd from prices p where p.card_id = c.id
+        order by (p.finish = 'nonfoil') desc, p.as_of desc limit 1
+      ) p on true
       where true
       ${q ? client`and (
         c.name ilike ${like}
@@ -76,6 +101,6 @@ export async function searchCards(p: SearchParams): Promise<SearchCard[]> {
       ${cmcs.length ? client`and c.attrs->>'cmc' = any(${cmcs})` : client``}
       order by coalesce(c.oracle_id, c.id), (hd.card_id is not null) desc, s.release_date desc nulls last
     ) reps
-    order by (func_total > 0) desc, sort_name
+    order by ${searchOrder(p.sort)}
     limit ${limit} offset ${offset}`) as unknown as SearchCard[];
 }

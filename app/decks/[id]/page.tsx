@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import { client } from '../../../src/db/index.ts';
 import { orderFragment } from '../../../src/sort.ts';
 import SortBar from '../../components/SortBar.tsx';
+import CardTile from '../../components/CardTile.tsx';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,32 +69,12 @@ export default async function DeckPage({
 
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(150px,1fr))]">
         {cards.map((c) => (
-          <div key={`${c.id}-${c.finish}`}>
-            <Link href={`/card/${encodeURIComponent(c.id)}`} className="relative block overflow-hidden rounded-lg">
-              {c.image_small ? (
-                <img src={c.image_small} alt={c.name} loading="lazy" className="w-full" />
-              ) : (
-                <div className="flex aspect-[5/7] items-center justify-center bg-neutral-800 p-2 text-center text-xs text-neutral-400">
-                  {c.name}
-                </div>
-              )}
-              {c.quantity > 1 && (
-                <span className="absolute right-1 top-1 rounded-full bg-neutral-950/90 px-1.5 py-0.5 text-xs font-bold">
-                  ×{c.quantity}
-                </span>
-              )}
-              {c.finish !== 'normal' && c.finish !== 'nonfoil' && (
-                <span className="absolute left-1 top-1 rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-neutral-950">
-                  {c.finish.slice(0, 4)}
-                </span>
-              )}
-            </Link>
-            <div className="mt-1 flex justify-between text-xs text-neutral-400">
-              <span className="uppercase">{c.set_code}</span>
-              {c.usd != null && <span>${(c.usd * c.quantity).toFixed(2)}</span>}
-            </div>
-            <div className="truncate text-sm">{c.name}</div>
-          </div>
+          <CardTile
+            key={`${c.id}-${c.finish}`}
+            card={{ id: c.id, name: c.name, imageSmall: c.image_small, owned: true, quantity: c.quantity, finish: c.finish }}
+            metaLeft={<span className="uppercase">{c.set_code}</span>}
+            metaRight={c.usd != null ? `$${(c.usd * c.quantity).toFixed(2)}` : undefined}
+          />
         ))}
         {cards.length === 0 && <p className="text-neutral-500">This deck is empty.</p>}
       </div>

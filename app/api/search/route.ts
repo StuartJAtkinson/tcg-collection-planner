@@ -11,6 +11,7 @@ export async function GET(req: NextRequest) {
     kind: s.get('kind') ?? '',
     combos: s.getAll('combo'),
     cmcs: s.getAll('cmc'),
+    sort: s.get('sort') ?? '',
     offset: parseInt(s.get('offset') ?? '0', 10) || 0,
     limit: 60,
   });

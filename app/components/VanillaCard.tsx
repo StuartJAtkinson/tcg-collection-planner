@@ -10,12 +10,16 @@ export type VanillaCardData = {
   owned?: boolean;
   forPlay?: boolean;
   foil?: boolean;
+  quantity?: number; // ×N badge (top-right) when > 1 — decks/binder pockets
+  finish?: string | null; // finish badge (top-left) when not a plain nonfoil
 };
+
+const isFoilFinish = (f?: string | null) => !!f && f !== 'normal' && f !== 'nonfoil';
 
 export default function VanillaCard({ card }: { card: VanillaCardData }) {
   return (
     <FoilCard
-      foil={!!card.foil}
+      foil={!!card.foil || isFoilFinish(card.finish)}
       className={`relative overflow-hidden rounded-lg ${
         card.owned ? 'ring-2 ring-emerald-500' : card.forPlay ? 'ring-2 ring-dashed ring-amber-500/70' : ''
       }`}
@@ -28,7 +32,17 @@ export default function VanillaCard({ card }: { card: VanillaCardData }) {
           {card.name}
         </div>
       )}
-      {!card.owned && <div className="absolute inset-0 z-[3] bg-neutral-950/40" />}
+      {!card.owned && !card.quantity && <div className="absolute inset-0 z-[3] bg-neutral-950/40" />}
+      {isFoilFinish(card.finish) && (
+        <span className="absolute left-1 top-1 z-[3] rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-neutral-950">
+          {card.finish!.slice(0, 4)}
+        </span>
+      )}
+      {(card.quantity ?? 0) > 1 && (
+        <span className="absolute right-1 top-1 z-[3] rounded-full bg-neutral-950/90 px-1.5 py-0.5 text-xs font-bold">
+          ×{card.quantity}
+        </span>
+      )}
       {card.forPlay && (
         <div className="no-print absolute bottom-1 left-1 right-1 z-[3] rounded bg-amber-500/90 px-1 py-0.5 text-center text-[9px] font-semibold uppercase text-neutral-950">
           For Play

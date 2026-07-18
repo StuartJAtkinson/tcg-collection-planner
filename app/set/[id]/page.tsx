@@ -3,8 +3,7 @@ import { notFound } from 'next/navigation';
 import { client } from '../../../src/db/index.ts';
 import ComboSlicer from '../../components/ComboSlicer.tsx';
 import FilterSidebar, { type FilterGroup } from '../../components/FilterSidebar.tsx';
-import VanillaCard from '../../components/VanillaCard.tsx';
-import OwnershipStrip from '../../components/OwnershipStrip.tsx';
+import CardTile from '../../components/CardTile.tsx';
 import SortBar from '../../components/SortBar.tsx';
 import { orderFragment } from '../../../src/sort.ts';
 import PrintButton from './print-button.tsx';
@@ -135,23 +134,15 @@ export default async function SetPage({
   // printing, per oracle_id), grey = neither. Owned foils get the holographic sheen.
   // "For trade" = copies of this printing beyond one kept + what's committed to decks.
   const tile = (c: Card) => (
-    <div key={c.id} className={`flex gap-1 ${c.owned ? '' : 'opacity-90'}`}>
-      <div className="min-w-0 flex-1">
-        <Link href={`/card/${encodeURIComponent(c.id)}`} className="block">
-          <VanillaCard card={{ name: c.name, imageSmall: c.image_small, owned: c.owned, forPlay: c.for_play, foil: c.set_foil > 0 }} />
-        </Link>
-        <div className="mt-1 flex justify-between text-xs text-neutral-400">
-          <span>#{c.collector_number}</span>
-          {c.usd != null && <span>${c.usd.toFixed(2)}</span>}
-        </div>
-        <div className="truncate text-sm">{c.name}</div>
-      </div>
-
-      {/* ownership indicator strip alongside the card, only when owned */}
-      {c.owned && (
-        <OwnershipStrip counts={{ funcTotal: c.func_total, setNonfoil: c.set_nonfoil, setFoil: c.set_foil, deckNonfoil: c.deck_nonfoil, deckFoil: c.deck_foil }} setIconUrl={set.icon_url} game={set.game_id} />
-      )}
-    </div>
+    <CardTile
+      key={c.id}
+      card={{ id: c.id, name: c.name, imageSmall: c.image_small, owned: c.owned, forPlay: c.for_play, foil: c.set_foil > 0 }}
+      metaLeft={`#${c.collector_number}`}
+      metaRight={c.usd != null ? `$${c.usd.toFixed(2)}` : undefined}
+      ownership={c.owned ? { funcTotal: c.func_total, setNonfoil: c.set_nonfoil, setFoil: c.set_foil, deckNonfoil: c.deck_nonfoil, deckFoil: c.deck_foil } : undefined}
+      setIconUrl={set.icon_url}
+      game={set.game_id}
+    />
   );
 
 

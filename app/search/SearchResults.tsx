@@ -1,9 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
-import VanillaCard from '../components/VanillaCard.tsx';
-import OwnershipStrip from '../components/OwnershipStrip.tsx';
+import CardTile from '../components/CardTile.tsx';
 import type { SearchCard } from '../../src/search.ts';
 
 const PAGE = 60;
@@ -47,20 +45,14 @@ export default function SearchResults({ initial, query }: { initial: SearchCard[
     <>
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(150px,1fr))]">
         {cards.map((c) => (
-          <div key={c.id} className={`flex gap-1 ${c.owned ? '' : 'opacity-90'}`}>
-            <Link href={`/card/${encodeURIComponent(c.id)}`} className="min-w-0 flex-1">
-              <VanillaCard card={{ name: c.name, imageSmall: c.image_small, owned: c.owned, foil: c.any_foil }} />
-              <div className="mt-1 truncate text-sm">{c.name}</div>
-              <div className="text-xs uppercase text-neutral-500">{c.set_code}</div>
-            </Link>
-            {c.owned && (
-              <OwnershipStrip
-                counts={{ funcTotal: c.func_total, totalFoil: c.any_foil, setNonfoil: c.set_nonfoil, setFoil: c.set_foil, deckNonfoil: c.deck_nonfoil, deckFoil: c.deck_foil }}
-                setIconUrl={c.set_icon_url}
-                game={c.game_id}
-              />
-            )}
-          </div>
+          <CardTile
+            key={c.id}
+            card={{ id: c.id, name: c.name, imageSmall: c.image_small, owned: c.owned, foil: c.any_foil }}
+            metaLeft={<span className="uppercase">{c.set_code}</span>}
+            ownership={c.owned ? { funcTotal: c.func_total, totalFoil: c.any_foil, setNonfoil: c.set_nonfoil, setFoil: c.set_foil, deckNonfoil: c.deck_nonfoil, deckFoil: c.deck_foil } : undefined}
+            setIconUrl={c.set_icon_url}
+            game={c.game_id}
+          />
         ))}
       </div>
       <div ref={sentinel} className="h-8" />

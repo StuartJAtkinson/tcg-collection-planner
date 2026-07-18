@@ -7,6 +7,7 @@ import { notFound } from 'next/navigation';
 import { client } from '../../../src/db/index.ts';
 import { orderFragment } from '../../../src/sort.ts';
 import SortBar from '../../components/SortBar.tsx';
+import VanillaCard from '../../components/VanillaCard.tsx';
 
 export const dynamic = 'force-dynamic';
 
@@ -113,19 +114,8 @@ export default async function BinderPage({
                     ) : (
                       <div style={pocketGrid}>
                         {page.map((c, k) => c ? (
-                          <Link key={`${c.id}-${c.finish}-${k}`} href={`/card/${encodeURIComponent(c.id)}`} className="relative block overflow-hidden rounded">
-                            {c.image_small ? (
-                              <img src={c.image_small} alt={c.name} loading="lazy" className="w-full" />
-                            ) : (
-                              <div className="flex aspect-[5/7] items-center justify-center bg-neutral-800 p-1 text-center text-[8px] text-neutral-400">
-                                {c.name}
-                              </div>
-                            )}
-                            {c.quantity > 1 && (
-                              <span className="absolute right-0.5 top-0.5 rounded-full bg-neutral-950/90 px-1 text-[9px] font-bold">
-                                ×{c.quantity}
-                              </span>
-                            )}
+                          <Link key={`${c.id}-${c.finish}-${k}`} href={`/card/${encodeURIComponent(c.id)}`} className="block">
+                            <VanillaCard card={{ name: c.name, imageSmall: c.image_small, owned: true, quantity: c.quantity, finish: c.finish }} />
                           </Link>
                         ) : (
                           <div key={`gap-${k}`} className="aspect-[5/7] rounded border border-dashed border-neutral-800" />

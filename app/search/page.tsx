@@ -8,6 +8,7 @@ import { client } from '../../src/db/index.ts';
 import { searchCards } from '../../src/search.ts';
 import ComboSlicer from '../components/ComboSlicer.tsx';
 import FilterSidebar, { type FilterGroup } from '../components/FilterSidebar.tsx';
+import SortBar from '../components/SortBar.tsx';
 import SearchResults from './SearchResults.tsx';
 
 export const dynamic = 'force-dynamic';
@@ -15,7 +16,7 @@ export const dynamic = 'force-dynamic';
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; game?: string; kind?: string; combo?: string | string[]; cmc?: string | string[] }>;
+  searchParams: Promise<{ q?: string; game?: string; kind?: string; combo?: string | string[]; cmc?: string | string[]; sort?: string }>;
 }) {
   const sp = await searchParams;
   const q = (sp.q ?? '').trim();
@@ -31,7 +32,7 @@ export default async function SearchPage({
   // typed and no game/slicer) to avoid an unbounded "everything" fetch.
   const hasScope = !!(q || game || sp.kind || sp.combo || sp.cmc);
   const cards = hasScope
-    ? await searchCards({ q, game, kind: sp.kind, combos, cmcs: cmcs_sel, offset: 0, limit: 60 })
+    ? await searchCards({ q, game, kind: sp.kind, combos, cmcs: cmcs_sel, sort: sp.sort, offset: 0, limit: 60 })
     : [];
 
   // query string the client component pages against (same scope, minus offset)
@@ -41,6 +42,7 @@ export default async function SearchPage({
     ...(sp.kind ? [['kind', sp.kind]] : []),
     ...combos.map((c) => ['combo', c] as [string, string]),
     ...cmcs_sel.map((c) => ['cmc', c] as [string, string]),
+    ...(sp.sort ? [['sort', sp.sort]] : []),
   ]).toString();
 
   const games = await client`select id, name from games order by id`;
@@ -103,9 +105,12 @@ export default async function SearchPage({
         />
         <div className="min-w-0 flex-1">
           {hasScope && (
-            <div className="mb-3 text-sm text-neutral-400">
-              {q ? 'results' : 'cards'}
-              {game ? ` in ${games.find((g) => g.id === game)?.name}` : ''}
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div className="text-sm text-neutral-400">
+                {q ? 'results' : 'cards'}
+                {game ? ` in ${games.find((g) => g.id === game)?.name}` : ''}
+              </div>
+              <SortBar price />
             </div>
           )}
           {hasScope ? (
