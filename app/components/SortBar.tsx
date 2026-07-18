@@ -22,11 +22,12 @@ const parse = (raw: string | null): Term[] =>
       return { f, d: d === 'd' ? 'd' : 'a' } as Term;
     });
 
-export default function SortBar() {
+export default function SortBar({ price = false }: { price?: boolean }) {
   const sp = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
   const terms = parse(sp.get('sort'));
+  const fields = price ? [...FIELDS, ['price', 'Price'] as [string, string]] : FIELDS;
 
   const apply = (next: Term[]) => {
     const params = new URLSearchParams(sp.toString());
@@ -42,7 +43,7 @@ export default function SortBar() {
   return (
     <div className="flex flex-wrap items-center gap-1.5 text-xs">
       <span className="text-neutral-500">Sort:</span>
-      {FIELDS.map(([f, label]) => {
+      {fields.map(([f, label]) => {
         const i = terms.findIndex((t) => t.f === f);
         const on = i >= 0;
         return (

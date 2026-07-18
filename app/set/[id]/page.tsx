@@ -5,13 +5,15 @@ import ComboSlicer from '../../components/ComboSlicer.tsx';
 import FilterSidebar, { type FilterGroup } from '../../components/FilterSidebar.tsx';
 import VanillaCard from '../../components/VanillaCard.tsx';
 import OwnershipStrip from '../../components/OwnershipStrip.tsx';
+import SortBar from '../../components/SortBar.tsx';
+import { orderFragment } from '../../../src/sort.ts';
 import PrintButton from './print-button.tsx';
 
 export const dynamic = 'force-dynamic';
 
 // Collections set checklist: Grid + Print only, read-only ownership (derived from binders/
 // decks). The physical binder-book view now lives on the Binders page, per binder container.
-type SP = { view?: string; rarity?: string; kind?: string; combo?: string | string[]; cmc?: string | string[]; q?: string };
+type SP = { view?: string; rarity?: string; kind?: string; combo?: string | string[]; cmc?: string | string[]; q?: string; sort?: string };
 const toArr = (v: string | string[] | undefined) => (v == null ? [] : Array.isArray(v) ? v : [v]);
 type Card = {
   id: string; name: string; collector_number: string; rarity_raw: string | null;
@@ -32,6 +34,7 @@ export default async function SetPage({
   const view = sp.view ?? 'grid';
   const combos = toArr(sp.combo);
   const cmcs_sel = toArr(sp.cmc);
+  const order = orderFragment(sp.sort);
 
   const [set] = await client`
     select s.*, to_char(s.release_date, 'YYYY-MM-DD') as released, g.name as game_name
@@ -84,6 +87,7 @@ export default async function SetPage({
     from cards c
     left join hold hd on hd.card_id = c.id
     left join oracle_total ot on ot.oracle_id = c.oracle_id
+    left join card_facets cc on cc.card_id = c.id and cc.facet = 'color_combo'
     left join lateral (
       select usd from prices p where p.card_id = c.id
       order by (p.finish = 'nonfoil') desc, p.as_of desc limit 1
@@ -94,7 +98,7 @@ export default async function SetPage({
     ${sp.kind ? client`and exists (select 1 from card_facets f where f.card_id = c.id and f.facet = 'kind' and f.value = ${sp.kind})` : client``}
     ${combos.length ? client`and exists (select 1 from card_facets f where f.card_id = c.id and f.facet = 'color_combo' and f.value = any(${combos}))` : client``}
     ${cmcs_sel.length ? client`and c.attrs->>'cmc' = any(${cmcs_sel})` : client``}
-    order by c.sort_key, c.collector_number`) as unknown as Card[];
+    order by ${order ?? client`c.sort_key, c.collector_number`}`) as unknown as Card[];
 
   // colour is the exact colour COMBO (mono-R excludes R/W), sorted by WUBRG-length then count
   const facetOpts = await client`
@@ -190,7 +194,10 @@ export default async function SetPage({
         />
 
         <div className="min-w-0 flex-1">
-          <div className="mb-3 text-sm text-neutral-400">{cards.length} cards shown</div>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="text-sm text-neutral-400">{cards.length} cards shown</div>
+            <SortBar price />
+          </div>
 
           {view === 'grid' && (
             <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(168px,1fr))]">

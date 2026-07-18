@@ -9,6 +9,7 @@ export const SORT_FIELDS = {
   rarity: client`c.rarity_tier`,
   mv: client`(c.attrs->>'cmc')::numeric`,
   color: client`cc.value`,
+  price: client`p.usd`, // only the set page exposes this chip + has the `p` price lateral
 } as const;
 
 // "name.a,rarity.d" → ORDER BY fragment, in precedence order. null when nothing valid,
