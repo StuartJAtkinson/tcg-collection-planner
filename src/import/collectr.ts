@@ -122,8 +122,17 @@ async function main() {
     matched++;
   }
 
+  // presume each imported portfolio's kind by size: a big pile (>100 cards) is almost always a
+  // set/collection binder, a small pile a play deck. Main stays unsorted. These are just the
+  // starting guesses — reviewable/overridable on the Import page (Import locations).
+  await client`
+    update containers ct
+    set kind = case when cnt.n > 100 then 'binder' else 'deck' end
+    from (select container_id, sum(quantity)::int as n from holdings group by container_id) cnt
+    where cnt.container_id = ct.id and ct.id <> 'unsorted' and ct.kind <> 'unsorted'`;
+
   const containerCount = ensuredContainers.size;
-  console.log(`containers: ${containerCount} (Main + ${Math.max(0, containerCount - 1)} decks)`);
+  console.log(`containers: ${containerCount} (Main + ${Math.max(0, containerCount - 1)} portfolios, presumed binder/deck by >100 cards)`);
 
   console.log(`imported: ${matched} (of which via fuzzy set-name matching: ${fuzzySets})`);
   console.log(`skipped (blank row): ${skipped}`);

@@ -5,8 +5,9 @@ import OwnershipStrip, { type OwnershipCounts } from './OwnershipStrip.tsx';
 
 // The one standard full-size card tile, used by the set checklist, Search and deck views:
 // the card image (with its ring/foil/qty/finish dressing) + name + an optional meta row,
-// linking to the single-card page, with the at-a-glance ownership strip alongside when owned.
-// Compact grids (binder pockets) use <VanillaCard> directly instead — no label, tight layout.
+// linking to the single-card page, with the at-a-glance ownership strip alongside. The strip
+// is always rendered (an empty fixed-width bar when unowned) so every tile is the same width
+// and the images line up across a grid. Compact grids (binder pockets) use <VanillaCard>.
 export default function CardTile({
   card,
   href,
@@ -36,7 +37,7 @@ export default function CardTile({
           </div>
         )}
       </Link>
-      {ownership && <OwnershipStrip counts={ownership} setIconUrl={setIconUrl} game={game} />}
+      <OwnershipStrip counts={ownership ?? { funcTotal: 0 }} setIconUrl={setIconUrl} game={game} />
     </div>
   );
 }

@@ -6,6 +6,7 @@
 // sit alongside as selections. Cards in decks still count as collected everywhere.
 import Link from 'next/link';
 import { client } from '../../src/db/index.ts';
+import DeleteContainer from '../components/DeleteContainer.tsx';
 
 export const dynamic = 'force-dynamic';
 
@@ -79,16 +80,15 @@ export default async function DecksPage() {
                 {myDecks
                   .filter((d) => d.game_name === gameName)
                   .map((d) => (
-                    <Link
-                      key={d.id}
-                      href={`/decks/${encodeURIComponent(d.id)}`}
-                      className="rounded-lg border border-neutral-800 bg-neutral-900 p-3 hover:border-neutral-600"
-                    >
-                      <div className="truncate font-medium">{d.name}</div>
-                      <div className="mt-1 text-xs text-neutral-400">
-                        {d.total_cards} cards · {d.distinct_cards} distinct
-                      </div>
-                    </Link>
+                    <div key={d.id} className="relative rounded-lg border border-neutral-800 bg-neutral-900 hover:border-neutral-600">
+                      <div className="absolute right-1 top-1 z-10"><DeleteContainer id={d.id} name={d.name} /></div>
+                      <Link href={`/decks/${encodeURIComponent(d.id)}`} className="block p-3">
+                        <div className="truncate pr-6 font-medium">{d.name}</div>
+                        <div className="mt-1 text-xs text-neutral-400">
+                          {d.total_cards} cards · {d.distinct_cards} distinct
+                        </div>
+                      </Link>
+                    </div>
                   ))}
               </div>
             </div>

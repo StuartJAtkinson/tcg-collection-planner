@@ -31,6 +31,30 @@ export async function setContainerKind(formData: FormData) {
   revalidatePath('/decks');
 }
 
+// Delete a binder/deck container. mode 'keep' moves its holdings back to the unsorted pool
+// (merging quantities where a copy already sits there); mode 'delete' removes the holdings
+// outright. Either way the container is dropped. 'unsorted' can never be deleted.
+export async function deleteContainer(formData: FormData) {
+  const id = String(formData.get('id') ?? '');
+  const mode = String(formData.get('mode') ?? 'keep');
+  if (!id || id === 'unsorted') return;
+  await client.begin(async (tx) => {
+    if (mode === 'keep') {
+      // move to unsorted, summing into any existing unsorted row for the same card+finish
+      await tx`
+        insert into holdings (user_id, card_id, finish, container_id, quantity, condition, grade, paid)
+        select user_id, card_id, finish, 'unsorted', quantity, condition, grade, paid
+        from holdings where container_id = ${id}
+        on conflict (user_id, card_id, finish, container_id)
+        do update set quantity = holdings.quantity + excluded.quantity`;
+    }
+    await tx`delete from holdings where container_id = ${id}`;
+    await tx`delete from containers where id = ${id} and user_id = ${USER}`;
+  });
+  revalidatePath('/binders');
+  revalidatePath('/decks');
+}
+
 // Create Binders: materialize a suggested set-binder. Moves every owned holding of the set
 // that is currently sitting in the unsorted pool into a new binder container. Cards already
 // filed in decks or other binders are left where they are — this only files the loose ones.

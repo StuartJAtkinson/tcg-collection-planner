@@ -39,7 +39,9 @@ export default function OwnershipStrip({
     deckTotal > 0 && { key: 'deck', icon: '🃏', label: 'in decks', n: deckTotal, foil: (counts.deckFoil ?? 0) > 0 },
   ].filter(Boolean) as any;
 
-  if (!rows.length) return null;
+  // always render the fixed-width bar (even with no rows) so every CardTile is the same width
+  // and the image column lines up across owned and unowned cards
+  if (!rows.length) return <div className="no-print w-9 shrink-0 self-stretch" aria-hidden />;
   return (
     <div className="no-print flex w-9 shrink-0 flex-col items-center justify-between self-stretch rounded bg-neutral-900/70 py-1.5 text-center">
       {rows.map((r) => (

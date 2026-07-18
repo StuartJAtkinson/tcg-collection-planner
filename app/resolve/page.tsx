@@ -3,6 +3,7 @@ import path from 'node:path';
 import Link from 'next/link';
 import { importRowToMockFace } from '../components/cardToMockFaces.ts';
 import DeselectableRadio from '../components/DeselectableRadio.tsx';
+import ImportLocations from '../components/ImportLocations.tsx';
 import MockCard from '../components/MockCard.tsx';
 import { client } from '../../src/db/index.ts';
 import { resolveImportRows } from '../../src/actions.ts';
@@ -29,10 +30,11 @@ export default async function ResolvePage({
   if (!filePath) {
     return (
       <div>
-        <h1 className="mb-4 text-2xl font-bold">Resolve unmatched imports</h1>
+        <h1 className="mb-4 text-2xl font-bold">Import</h1>
+        <ImportLocations />
         <p className="text-neutral-400">
-          No <code>*-unmatched.csv</code> found in the project root. Run{' '}
-          <code>npm run import:collectr -- your-export.csv</code> first, or pass{' '}
+          No <code>*-unmatched.csv</code> to resolve. Run{' '}
+          <code>npm run import:collectr -- your-export.csv</code> to import a Collectr export, or pass{' '}
           <code>?file=path/to/file.csv</code>.
         </p>
       </div>
@@ -52,7 +54,8 @@ export default async function ResolvePage({
   if (!dataRows.length) {
     return (
       <div>
-        <h1 className="mb-2 text-2xl font-bold">Resolve unmatched imports</h1>
+        <h1 className="mb-2 text-2xl font-bold">Import</h1>
+        <ImportLocations />
         <p className="text-emerald-400">
           {path.basename(filePath)} is empty — everything in it has been resolved.
         </p>
@@ -101,7 +104,9 @@ export default async function ResolvePage({
 
   return (
     <div>
-      <h1 className="mb-1 text-2xl font-bold">Resolve unmatched imports</h1>
+      <h1 className="mb-1 text-2xl font-bold">Import</h1>
+      <ImportLocations />
+      <h2 className="mb-1 text-lg font-semibold text-neutral-300">Resolve unmatched cards</h2>
       <p className="mb-6 text-sm text-neutral-400">
         {filePath} · {dataRows.length} rows across {groups.length} portfolios
         {onDisk.length > 1 && (
