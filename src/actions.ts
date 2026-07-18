@@ -97,6 +97,59 @@ export async function discardImport(formData: FormData) {
   redirect('/resolve');
 }
 
+// revalidate every surface a holding change can touch: both list pages and the specific
+// container detail pages involved.
+function revalidateContainers(...ids: string[]) {
+  revalidatePath('/binders');
+  revalidatePath('/decks');
+  for (const id of ids) {
+    revalidatePath(`/binders/${id}`);
+    revalidatePath(`/decks/${id}`);
+  }
+}
+
+// Move a single holding (one card+finish) from one container to another, merging quantities
+// into any copy already sitting in the destination.
+export async function moveHolding(formData: FormData) {
+  const cardId = String(formData.get('card_id') ?? '');
+  const finish = String(formData.get('finish') ?? '');
+  const from = String(formData.get('from') ?? '');
+  const to = String(formData.get('to') ?? '');
+  if (!cardId || !finish || !from || !to || from === to) return;
+  await client.begin(async (tx) => {
+    await tx`
+      insert into holdings (user_id, card_id, finish, container_id, quantity, condition, grade, paid)
+      select user_id, card_id, finish, ${to}, quantity, condition, grade, paid
+      from holdings where user_id = ${USER} and card_id = ${cardId} and finish = ${finish} and container_id = ${from}
+      on conflict (user_id, card_id, finish, container_id)
+      do update set quantity = holdings.quantity + excluded.quantity`;
+    await tx`delete from holdings where user_id = ${USER} and card_id = ${cardId} and finish = ${finish} and container_id = ${from}`;
+  });
+  revalidateContainers(from, to);
+}
+
+// Edit a single holding's quantity / condition / paid. Quantity ≤ 0 removes the row entirely
+// (the way to take a card out of a container without moving it somewhere).
+export async function updateHolding(formData: FormData) {
+  const cardId = String(formData.get('card_id') ?? '');
+  const finish = String(formData.get('finish') ?? '');
+  const containerId = String(formData.get('container_id') ?? '');
+  if (!cardId || !finish || !containerId) return;
+  const quantity = parseInt(String(formData.get('quantity') ?? ''), 10);
+  const condition = String(formData.get('condition') ?? '').trim() || null;
+  const paidRaw = String(formData.get('paid') ?? '').trim();
+  const paid = paidRaw ? money(paidRaw) : null;
+
+  if (!Number.isFinite(quantity) || quantity <= 0) {
+    await client`delete from holdings where user_id = ${USER} and card_id = ${cardId} and finish = ${finish} and container_id = ${containerId}`;
+  } else {
+    await client`
+      update holdings set quantity = ${quantity}, condition = ${condition}, paid = ${paid}
+      where user_id = ${USER} and card_id = ${cardId} and finish = ${finish} and container_id = ${containerId}`;
+  }
+  revalidateContainers(containerId);
+}
+
 // Rename a binder/deck from its detail page. The unsorted pool keeps its fixed name.
 export async function renameContainer(formData: FormData) {
   const id = String(formData.get('id') ?? '');

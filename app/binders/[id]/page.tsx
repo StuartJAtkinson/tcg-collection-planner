@@ -9,6 +9,7 @@ import { orderFragment } from '../../../src/sort.ts';
 import SortBar from '../../components/SortBar.tsx';
 import VanillaCard from '../../components/VanillaCard.tsx';
 import RenameContainer from '../../components/RenameContainer.tsx';
+import HoldingEditor from '../../components/HoldingEditor.tsx';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +18,7 @@ const clampDim = (raw: string | undefined, fallback: number) =>
 const chunk = <T,>(arr: T[], n: number): T[][] =>
   Array.from({ length: Math.ceil(arr.length / n) }, (_, i) => arr.slice(i * n, i * n + n));
 
-type Slot = { id: string; name: string; image_small: string | null; quantity: number; finish: string; binder_position: number | null };
+type Slot = { id: string; name: string; image_small: string | null; quantity: number; finish: string; binder_position: number | null; condition: string | null; paid: string | null };
 
 export default async function BinderPage({
   params,
@@ -34,8 +35,11 @@ export default async function BinderPage({
   const rows = clampDim(sp.r, Number(binder.pocket_rows) || 3);
   const order = orderFragment(sp.sort);
 
+  const containers = (await client`select id, name, kind from containers order by kind, name`) as unknown as
+    { id: string; name: string; kind: string }[];
+
   const cardsRaw = (await client`
-    select c.id, c.name, c.image_small, h.quantity, h.finish, h.binder_position, c.sort_key, s.code as set_code
+    select c.id, c.name, c.image_small, h.quantity, h.finish, h.binder_position, h.condition, h.paid::text as paid, c.sort_key, s.code as set_code
     from holdings h
     join cards c on c.id = h.card_id
     join sets s on s.id = c.set_id
@@ -118,9 +122,18 @@ export default async function BinderPage({
                     ) : (
                       <div style={pocketGrid}>
                         {page.map((c, k) => c ? (
-                          <Link key={`${c.id}-${c.finish}-${k}`} href={`/card/${encodeURIComponent(c.id)}`} className="block">
-                            <VanillaCard card={{ name: c.name, imageSmall: c.image_small, owned: true, quantity: c.quantity, finish: c.finish }} />
-                          </Link>
+                          <div key={`${c.id}-${c.finish}-${k}`} className="relative">
+                            <div className="absolute right-0.5 top-0.5 z-10">
+                              <HoldingEditor
+                                cardId={c.id} finish={c.finish} containerId={id}
+                                quantity={c.quantity} condition={c.condition} paid={c.paid}
+                                containers={containers}
+                              />
+                            </div>
+                            <Link href={`/card/${encodeURIComponent(c.id)}`} className="block">
+                              <VanillaCard card={{ name: c.name, imageSmall: c.image_small, owned: true, quantity: c.quantity, finish: c.finish }} />
+                            </Link>
+                          </div>
                         ) : (
                           <div key={`gap-${k}`} className="aspect-[5/7] rounded border border-dashed border-neutral-800" />
                         ))}
