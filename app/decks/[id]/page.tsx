@@ -3,11 +3,20 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { client } from '../../../src/db/index.ts';
+import { orderFragment } from '../../../src/sort.ts';
+import SortBar from '../../components/SortBar.tsx';
 
 export const dynamic = 'force-dynamic';
 
-export default async function DeckPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function DeckPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ sort?: string }>;
+}) {
   const { id } = await params;
+  const order = orderFragment((await searchParams).sort);
 
   const [deck] = await client`select id, name, kind from containers where id = ${id}`;
   if (!deck) notFound();
@@ -20,12 +29,13 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
     from holdings h
     join cards c on c.id = h.card_id
     join sets s on s.id = c.set_id
+    left join card_facets cc on cc.card_id = c.id and cc.facet = 'color_combo'
     left join lateral (
       select usd from prices p where p.card_id = c.id
       order by (p.finish = 'nonfoil') desc, p.as_of desc limit 1
     ) lp on true
     where h.container_id = ${id}
-    order by c.name, s.code`;
+    order by ${order ?? client`c.name, s.code`}`;
 
   const totalCards = cards.reduce((n, c) => n + c.quantity, 0);
   const totalValue = cards.reduce((n, c) => n + (c.usd ?? 0) * c.quantity, 0);
@@ -53,6 +63,8 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
           )}
         </div>
       </div>
+
+      <div className="mb-3"><SortBar /></div>
 
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(150px,1fr))]">
         {cards.map((c) => (

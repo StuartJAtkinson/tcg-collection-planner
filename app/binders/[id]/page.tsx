@@ -5,6 +5,8 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { client } from '../../../src/db/index.ts';
+import { orderFragment } from '../../../src/sort.ts';
+import SortBar from '../../components/SortBar.tsx';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +22,7 @@ export default async function BinderPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ c?: string; r?: string }>;
+  searchParams: Promise<{ c?: string; r?: string; sort?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
@@ -28,14 +30,16 @@ export default async function BinderPage({
   if (!binder) notFound();
   const cols = clampDim(sp.c, Number(binder.pocket_cols) || 3);
   const rows = clampDim(sp.r, Number(binder.pocket_rows) || 3);
+  const order = orderFragment(sp.sort);
 
   const cardsRaw = (await client`
     select c.id, c.name, c.image_small, h.quantity, h.finish, h.binder_position, c.sort_key, s.code as set_code
     from holdings h
     join cards c on c.id = h.card_id
     join sets s on s.id = c.set_id
+    left join card_facets cc on cc.card_id = c.id and cc.facet = 'color_combo'
     where h.container_id = ${id}
-    order by h.binder_position nulls last, s.code, c.sort_key, c.collector_number`) as unknown as (Slot & { sort_key: number; set_code: string })[];
+    order by ${order ?? client`h.binder_position nulls last, s.code, c.sort_key, c.collector_number`}`) as unknown as (Slot & { sort_key: number; set_code: string })[];
 
   // cover art = logo of the set most represented in this binder
   const [cover] = await client`
@@ -47,7 +51,7 @@ export default async function BinderPage({
     limit 1`;
 
   const POCKET_W = 96;
-  const positioned = cardsRaw.some((c) => c.binder_position !== null);
+  const positioned = !order && cardsRaw.some((c) => c.binder_position !== null);
   const cardSlots: (Slot | null)[] = positioned
     ? Array.from({ length: Math.max(...cardsRaw.map((c) => c.binder_position ?? 0)) + 1 }, () => null)
     : [...cardsRaw];
@@ -79,7 +83,10 @@ export default async function BinderPage({
           <button className="rounded border border-neutral-700 px-2 py-0.5 hover:bg-neutral-800">Apply</button>
         </form>
       </div>
-      <div className="mb-4 text-sm text-neutral-400">{totalCards} cards · {cardsRaw.length} slots</div>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="text-sm text-neutral-400">{totalCards} cards · {cardsRaw.length} slots</div>
+        <SortBar />
+      </div>
 
       <div className="overflow-x-auto pb-2">
         <div className="flex flex-wrap gap-x-10 gap-y-8">
