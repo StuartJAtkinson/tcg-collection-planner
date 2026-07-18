@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { client } from '../../../src/db/index.ts';
+import { ENABLED_GAMES } from '../../../src/games.ts';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,7 +41,7 @@ export default async function GamePage({
   const kindCookie = (await cookies()).get('pref_kind')?.value;
   const kind = kindParam ?? kindCookie;
 
-  const allGames = await client`select id, name from games order by id`;
+  const allGames = (await client`select id, name from games order by id`).filter((g) => ENABLED_GAMES.includes(g.id));
   const gameRow = allGames.find((g) => g.id === game);
   if (!gameRow) notFound();
 

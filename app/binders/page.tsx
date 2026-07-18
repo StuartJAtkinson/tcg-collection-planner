@@ -10,7 +10,9 @@
 import Link from 'next/link';
 import { client } from '../../src/db/index.ts';
 import { createSetBinder } from '../../src/actions.ts';
+import { ENABLED_GAMES } from '../../src/games.ts';
 import DeleteContainer from '../components/DeleteContainer.tsx';
+import NewContainer from '../components/NewContainer.tsx';
 
 export const dynamic = 'force-dynamic';
 
@@ -76,7 +78,10 @@ export default async function BindersPage({ searchParams }: { searchParams: Prom
 
   return (
     <div>
-      <h1 className="mb-1 text-2xl font-bold">Binders</h1>
+      <div className="mb-1 flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold">Binders</h1>
+        <NewContainer kind="binder" />
+      </div>
 
       {/* 1. physical binders */}
       <section className="mb-10">
@@ -116,7 +121,7 @@ export default async function BindersPage({ searchParams }: { searchParams: Prom
         </p>
 
         <form className="mb-4 flex items-center gap-2 text-sm">
-          {(['mtg', 'pokemon'] as const).map((g) => (
+          {ENABLED_GAMES.map((g) => (
             <Link key={g} href={`/binders?game=${g}&pct=${threshold}`}
               className={`rounded-full border px-2.5 py-0.5 text-xs ${game === g ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300' : 'border-neutral-700 text-neutral-300 hover:border-neutral-500'}`}>
               {g === 'mtg' ? 'Magic' : 'Pokémon'}

@@ -6,7 +6,9 @@
 // sit alongside as selections. Cards in decks still count as collected everywhere.
 import Link from 'next/link';
 import { client } from '../../src/db/index.ts';
+import { ENABLED_GAMES } from '../../src/games.ts';
 import DeleteContainer from '../components/DeleteContainer.tsx';
+import NewContainer from '../components/NewContainer.tsx';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,7 +51,7 @@ export default async function DecksPage() {
     join games g on g.id = s.game_id
     join cards c on c.set_id = s.id
     left join holdings h on h.card_id = c.id
-    where s.set_type = any(${DECK_SET_TYPES})
+    where s.set_type = any(${DECK_SET_TYPES}) and s.game_id = any(${ENABLED_GAMES})
     group by s.id, g.name
     order by g.name, s.release_date desc`;
 
@@ -58,7 +60,10 @@ export default async function DecksPage() {
 
   return (
     <div>
-      <h1 className="mb-1 text-2xl font-bold">Decks</h1>
+      <div className="mb-1 flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold">Decks</h1>
+        <NewContainer kind="deck" />
+      </div>
       <p className="mb-6 text-sm text-neutral-400">
         Preconstructed products are the fixed, buyable deck lists — the &quot;master sets&quot; of decks.
         Your own decks are selections from the collection (many begin life as a precon).

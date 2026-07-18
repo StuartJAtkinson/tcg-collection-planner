@@ -112,6 +112,17 @@ export const containers = pgTable('containers', {
   sortConfig: jsonb('sort_config'),
 });
 
+// The "lowest level of unsorted": rows a Collectr import couldn't confidently place. Persisted
+// (not a transient file) so re-entering the Import page always shows what's still unresolved.
+// `fields` holds the parsed Collectr columns (name/set/number/variant/portfolio/…) needed to
+// re-search the catalogue and, once a human picks the right card, write the holding.
+export const importUnmatched = pgTable('import_unmatched', {
+  id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+  userId: text('user_id').notNull().default('stuart'),
+  fields: jsonb('fields').notNull(),
+  reason: text('reason'),
+});
+
 export const holdings = pgTable(
   'holdings',
   {

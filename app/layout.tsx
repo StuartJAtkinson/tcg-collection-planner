@@ -1,28 +1,17 @@
 import './globals.css';
-import { readdirSync, readFileSync } from 'node:fs';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import SettingsMenu from './components/SettingsMenu.tsx';
+import { client } from '../src/db/index.ts';
 
 export const metadata = {
   title: 'Card Collector',
   description: 'Catalogue-first TCG collection tracker',
 };
 
-// total unresolved rows across every *-unmatched.csv (minus their header line)
-function unresolvedCount(): number {
-  let n = 0;
-  for (const f of readdirSync(process.cwd()).filter((f) => f.endsWith('-unmatched.csv'))) {
-    try {
-      const lines = readFileSync(f, 'utf8').split('\n').filter((l) => l.trim());
-      n += Math.max(0, lines.length - 1);
-    } catch {}
-  }
-  return n;
-}
-
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const unresolved = unresolvedCount();
+  const [{ n: unresolved }] = (await client`
+    select count(*)::int as n from import_unmatched where user_id = 'stuart'`) as unknown as { n: number }[];
   return (
     <html lang="en">
       <head>

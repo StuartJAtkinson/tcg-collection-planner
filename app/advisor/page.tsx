@@ -8,6 +8,7 @@
 // no printing covers. Display-only, like the For Play badge: real completion stays exact-print.
 import Link from 'next/link';
 import { client } from '../../src/db/index.ts';
+import { ENABLED_GAMES } from '../../src/games.ts';
 
 export const dynamic = 'force-dynamic';
 
@@ -127,7 +128,7 @@ export default async function AdvisorPage({
             ['mtg', 'Magic: The Gathering'],
             ['pokemon', 'Pokémon TCG'],
           ] as const
-        ).map(([id, label]) => (
+        ).filter(([id]) => ENABLED_GAMES.includes(id)).map(([id, label]) => (
           <Link
             key={id}
             // switching game resets aim to that game's default — the two games' aim keys

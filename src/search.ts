@@ -1,4 +1,5 @@
 import { client } from './db/index.ts';
+import { ENABLED_GAMES } from './games.ts';
 
 export type SearchParams = {
   q?: string; game?: string; kind?: string;
@@ -95,6 +96,7 @@ export async function searchCards(p: SearchParams): Promise<SearchCard[]> {
         or coalesce(c.attrs->'attacks', '[]'::jsonb)::text ilike ${like}
         or coalesce(c.attrs->'rules', '[]'::jsonb)::text ilike ${like}
       )` : client``}
+      and c.game_id = any(${ENABLED_GAMES})
       ${p.game ? client`and c.game_id = ${p.game}` : client``}
       ${p.kind ? client`and exists (select 1 from card_facets f where f.card_id = c.id and f.facet = 'kind' and f.value = ${p.kind})` : client``}
       ${combos.length ? client`and exists (select 1 from card_facets f where f.card_id = c.id and f.facet = 'color_combo' and f.value = any(${combos}))` : client``}

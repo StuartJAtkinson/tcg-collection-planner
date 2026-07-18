@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { client } from '../../../src/db/index.ts';
+import { ENABLED_GAMES } from '../../../src/games.ts';
 import BinderBuilder, { type BinderCandidate } from '../../components/BinderBuilder.tsx';
 
 export const dynamic = 'force-dynamic';
@@ -46,7 +47,7 @@ export default async function BuildBinderPage({ searchParams }: { searchParams: 
         <div className="flex flex-wrap items-end justify-between gap-3">
           <h1 className="text-2xl font-bold">Build from unsorted collection</h1>
           <div className="flex gap-1">
-            {(['mtg', 'pokemon'] as const).map((g) => (
+            {(['mtg', 'pokemon'] as const).filter((g) => ENABLED_GAMES.includes(g)).map((g) => (
               <Link key={g} href={`/binders/build?game=${g}`}
                 className={`rounded-full border px-3 py-1 text-xs ${game === g ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300' : 'border-neutral-700 text-neutral-400 hover:border-neutral-500'}`}>
                 {g === 'mtg' ? 'Magic' : 'Pokémon'}
