@@ -97,6 +97,18 @@ export async function discardImport(formData: FormData) {
   redirect('/resolve');
 }
 
+// Rename a binder/deck from its detail page. The unsorted pool keeps its fixed name.
+export async function renameContainer(formData: FormData) {
+  const id = String(formData.get('id') ?? '');
+  const name = String(formData.get('name') ?? '').trim().slice(0, 100);
+  if (!id || id === 'unsorted' || !name) return;
+  await client`update containers set name = ${name} where id = ${id} and user_id = ${USER}`;
+  revalidatePath('/binders');
+  revalidatePath('/decks');
+  revalidatePath(`/binders/${id}`);
+  revalidatePath(`/decks/${id}`);
+}
+
 // Delete a binder/deck container. mode 'keep' moves its holdings back to the unsorted pool
 // (merging quantities where a copy already sits there); mode 'delete' removes the holdings
 // outright. Either way the container is dropped. 'unsorted' can never be deleted.

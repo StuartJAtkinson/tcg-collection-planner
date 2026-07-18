@@ -6,6 +6,7 @@ import { client } from '../../../src/db/index.ts';
 import { orderFragment } from '../../../src/sort.ts';
 import SortBar from '../../components/SortBar.tsx';
 import CardTile from '../../components/CardTile.tsx';
+import RenameContainer from '../../components/RenameContainer.tsx';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,7 +51,10 @@ export default async function DeckPage({
             {' · '}
             {deck.kind}
           </div>
-          <h1 className="text-2xl font-bold">{deck.name}</h1>
+          <h1 className="flex items-center gap-1 text-2xl font-bold">
+            {deck.name}
+            {deck.id !== 'unsorted' && <RenameContainer id={deck.id} name={deck.name} />}
+          </h1>
         </div>
         <div className="text-right text-sm text-neutral-400">
           <div>
