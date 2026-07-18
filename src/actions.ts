@@ -108,6 +108,25 @@ function revalidateContainers(...ids: string[]) {
   }
 }
 
+// Manually add a catalogue card to a container (the write path Collections deliberately lacks).
+// Finish defaults to the card's primary finish; quantity merges into any existing copy.
+export async function addHolding(formData: FormData) {
+  const containerId = String(formData.get('container_id') ?? '');
+  const cardId = String(formData.get('card_id') ?? '');
+  const quantity = Math.max(1, parseInt(String(formData.get('quantity') ?? '1'), 10) || 1);
+  if (!containerId || !cardId) return;
+  const [card] = await client`select finishes from cards where id = ${cardId}`;
+  if (!card) return;
+  const wanted = String(formData.get('finish') ?? '');
+  const finish = wanted || card.finishes[0] || 'normal';
+  await client`
+    insert into holdings (user_id, card_id, finish, container_id, quantity)
+    values (${USER}, ${cardId}, ${finish}, ${containerId}, ${quantity})
+    on conflict (user_id, card_id, finish, container_id)
+    do update set quantity = holdings.quantity + excluded.quantity`;
+  revalidateContainers(containerId);
+}
+
 // Move a single holding (one card+finish) from one container to another, merging quantities
 // into any copy already sitting in the destination.
 export async function moveHolding(formData: FormData) {

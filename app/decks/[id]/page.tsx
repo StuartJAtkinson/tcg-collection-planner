@@ -8,6 +8,7 @@ import SortBar from '../../components/SortBar.tsx';
 import CardTile from '../../components/CardTile.tsx';
 import RenameContainer from '../../components/RenameContainer.tsx';
 import HoldingEditor from '../../components/HoldingEditor.tsx';
+import AddCardToContainer from '../../components/AddCardToContainer.tsx';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,6 +61,7 @@ export default async function DeckPage({
             {deck.name}
             {deck.id !== 'unsorted' && <RenameContainer id={deck.id} name={deck.name} />}
           </h1>
+          <div className="mt-2"><AddCardToContainer containerId={id} /></div>
         </div>
         <div className="text-right text-sm text-neutral-400">
           <div>

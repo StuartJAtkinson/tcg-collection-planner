@@ -10,6 +10,7 @@ import SortBar from '../../components/SortBar.tsx';
 import VanillaCard from '../../components/VanillaCard.tsx';
 import RenameContainer from '../../components/RenameContainer.tsx';
 import HoldingEditor from '../../components/HoldingEditor.tsx';
+import AddCardToContainer from '../../components/AddCardToContainer.tsx';
 
 export const dynamic = 'force-dynamic';
 
@@ -83,6 +84,7 @@ export default async function BinderPage({
             {binder.name}
             {binder.id !== 'unsorted' && <RenameContainer id={binder.id} name={binder.name} />}
           </h1>
+          <div className="mt-2"><AddCardToContainer containerId={id} /></div>
         </div>
         <form method="get" className="flex items-center gap-1 text-xs text-neutral-400">
           <input type="number" name="c" min={1} max={12} defaultValue={cols} className="w-14 rounded border border-neutral-700 bg-neutral-900 px-1.5 py-0.5" />
