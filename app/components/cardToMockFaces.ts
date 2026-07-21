@@ -87,36 +87,3 @@ export function cardToMockFaces(card: MockCardSource): MockFace[] {
     imageUrl: card.image_small ?? card.image_large ?? null,
   }];
 }
-
-// Collectr's Rarity column is inconsistent — sometimes an MTG-style single letter (C/U/R/M/S/P),
-// sometimes a full word, sometimes a Yu-Gi-Oh-style tier ("Super Rare", "Secret Rare") for the
-// unsupported-game rows that pass through here too. Best-effort mapping to the same 1-5 tier
-// used everywhere else, so the type line's rarity dot has something to show; null (no dot) if
-// the value doesn't match anything recognizable.
-function guessRarityTier(raw: string | undefined): number | null {
-  if (!raw) return null;
-  const s = raw.toLowerCase();
-  if (s.includes('secret') || s.includes('special')) return 5;
-  if (s === 'm' || s.includes('mythic') || s.includes('ultra') || s.includes('super')) return 4;
-  if (s === 'r' || s.includes('rare')) return 3;
-  if (s === 'p' || s.includes('promo')) return 3;
-  if (s === 'u' || s.includes('uncommon')) return 2;
-  if (s === 'c' || s.includes('common')) return 1;
-  return null;
-}
-
-// Builds a mock face straight from an unresolved import row — there's no catalogue match yet,
-// so no oracle text/mana cost/art exists to show. Only fields actually printed on a physical
-// card go in (name, set, collector number, rarity); commerce/tracking metadata (price paid,
-// condition, grade, quantity, date added...) isn't part of the card object and stays out of
-// the generated face, though it's still shown separately alongside it in the UI.
-export function importRowToMockFace(get: (field: string) => string | undefined): MockFace {
-  return {
-    name: get('name') || '(unknown)',
-    rarity: get('rarity') ?? null,
-    rarityTier: guessRarityTier(get('rarity')),
-    setCode: get('setCode') ?? get('set') ?? null,
-    collectorNumber: get('number') ?? null,
-    imageUrl: null,
-  };
-}

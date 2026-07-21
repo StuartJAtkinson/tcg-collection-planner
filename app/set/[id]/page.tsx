@@ -1,11 +1,12 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { client } from '../../../src/db/index.ts';
+import { holdCte } from '../../../src/ownership.ts';
 import ComboSlicer from '../../components/ComboSlicer.tsx';
 import FilterSidebar, { type FilterGroup } from '../../components/FilterSidebar.tsx';
 import CardTile from '../../components/CardTile.tsx';
 import SortBar from '../../components/SortBar.tsx';
-import { orderFragment } from '../../../src/sort.ts';
+import { orderFragment, SORT_FIELDS } from '../../../src/sort.ts';
 import PrintButton from './print-button.tsx';
 
 export const dynamic = 'force-dynamic';
@@ -33,7 +34,7 @@ export default async function SetPage({
   const view = sp.view ?? 'grid';
   const combos = toArr(sp.combo);
   const cmcs_sel = toArr(sp.cmc);
-  const order = orderFragment(sp.sort);
+  const order = orderFragment(SORT_FIELDS, sp.sort);
 
   const [set] = await client`
     select s.*, to_char(s.release_date, 'YYYY-MM-DD') as released, g.name as game_name
@@ -57,16 +58,7 @@ export default async function SetPage({
   // sharing this card's oracle identity. Drives the ring, the finish badges, the foil sheen,
   // and the per-card indicator strip.
   const cards = (await client`
-    with hold as (
-      select h.card_id,
-             sum(case when h.finish in ('normal','nonfoil') then h.quantity else 0 end)::int as set_nonfoil,
-             sum(case when h.finish not in ('normal','nonfoil') then h.quantity else 0 end)::int as set_foil,
-             sum(case when ct.kind = 'deck' and h.finish in ('normal','nonfoil') then h.quantity else 0 end)::int as deck_nonfoil,
-             sum(case when ct.kind = 'deck' and h.finish not in ('normal','nonfoil') then h.quantity else 0 end)::int as deck_foil,
-             array_agg(distinct h.finish) as owned_finishes
-      from holdings h join containers ct on ct.id = h.container_id
-      group by h.card_id
-    ),
+    with ${holdCte},
     oracle_total as (
       select c.oracle_id, sum(coalesce(hd.set_nonfoil,0) + coalesce(hd.set_foil,0))::int as total
       from cards c left join hold hd on hd.card_id = c.id

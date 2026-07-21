@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { client } from '../../../src/db/index.ts';
-import { orderFragment } from '../../../src/sort.ts';
+import { orderFragment, SORT_FIELDS } from '../../../src/sort.ts';
 import SortBar from '../../components/SortBar.tsx';
 import CardTile from '../../components/CardTile.tsx';
 import RenameContainer from '../../components/RenameContainer.tsx';
@@ -20,7 +20,7 @@ export default async function DeckPage({
   searchParams: Promise<{ sort?: string }>;
 }) {
   const { id } = await params;
-  const order = orderFragment((await searchParams).sort);
+  const order = orderFragment(SORT_FIELDS, (await searchParams).sort);
 
   const [deck] = await client`select id, name, kind from containers where id = ${id}`;
   if (!deck) notFound();

@@ -1,29 +1,35 @@
+// "name.a,rarity.d" → ORDER BY fragment, in precedence order. Returns null (or the
+// caller-supplied fallback) when nothing valid, so callers keep their own default ordering.
+// Field keys come only from the caller-supplied whitelist — never raw user text — so the
+// composed ORDER BY is injection-safe. `color` typically requires a left join card_facets
+// in the caller's query.
 import { client } from './db/index.ts';
 
-// Main sortable properties → SQL expression. Field keys come only from this whitelist (never
-// raw user text), so composing the ORDER BY fragment below is injection-safe.
-export const SORT_FIELDS = {
-  name: client`c.name`,
-  set: client`s.release_date`,
-  number: client`c.sort_key`,
-  rarity: client`c.rarity_tier`,
-  mv: client`(c.attrs->>'cmc')::numeric`,
-  color: client`cc.value`,
-  price: client`p.usd`, // only the set page exposes this chip + has the `p` price lateral
-} as const;
+// Whitelist shared by the binder, deck, and set list pages (all read the same SortBar
+// fields). `mv` and `price` are nullable in queries that don't pull prices or cmc.
+export const SORT_FIELDS: Record<string, string> = {
+  name: 'c.name',
+  set: 's.release_date',
+  number: 'c.sort_key',
+  rarity: 'c.rarity_tier',
+  mv: "(c.attrs->>'cmc')::numeric",
+  color: 'cc.value',
+  price: 'p.usd',
+};
 
-// "name.a,rarity.d" → ORDER BY fragment, in precedence order. null when nothing valid,
-// so callers keep their own default ordering. Requires a `left join card_facets cc … color_combo`
-// in the query when the `color` field is used (present in both consumers).
-export function orderFragment(raw?: string) {
+export function orderFragment(
+  fields: Record<string, string>,
+  raw?: string | null,
+  fallback?: any,
+) {
   const terms = (raw ?? '')
     .split(',')
     .map((t) => t.split('.'))
-    .filter(([f]) => f in SORT_FIELDS) as [keyof typeof SORT_FIELDS, string][];
-  if (!terms.length) return null;
+    .filter(([f]) => f in fields) as [string, string][];
+  if (!terms.length) return fallback ?? null;
   return terms.reduce(
     (acc, [f, d], i) => {
-      const col = client`${SORT_FIELDS[f]} ${client.unsafe(d === 'd' ? 'desc nulls last' : 'asc nulls last')}`;
+      const col = client`${client.unsafe(fields[f])} ${client.unsafe(d === 'd' ? 'desc nulls last' : 'asc nulls last')}`;
       return i === 0 ? col : client`${acc}, ${col}`;
     },
     client``,

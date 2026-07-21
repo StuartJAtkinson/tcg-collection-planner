@@ -5,7 +5,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { client } from '../../../src/db/index.ts';
-import { orderFragment } from '../../../src/sort.ts';
+import { orderFragment, SORT_FIELDS } from '../../../src/sort.ts';
 import SortBar from '../../components/SortBar.tsx';
 import VanillaCard from '../../components/VanillaCard.tsx';
 import RenameContainer from '../../components/RenameContainer.tsx';
@@ -34,7 +34,7 @@ export default async function BinderPage({
   if (!binder) notFound();
   const cols = clampDim(sp.c, Number(binder.pocket_cols) || 3);
   const rows = clampDim(sp.r, Number(binder.pocket_rows) || 3);
-  const order = orderFragment(sp.sort);
+  const order = orderFragment(SORT_FIELDS, sp.sort);
 
   const containers = (await client`select id, name, kind from containers order by kind, name`) as unknown as
     { id: string; name: string; kind: string }[];

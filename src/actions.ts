@@ -11,6 +11,11 @@ import { runCollectrImport, type MatchedHolding, type StagedContainer } from './
 
 const USER = 'stuart';
 
+// ponytail: local one-liner — slug derived from user-supplied names. Returns a short URL-safe
+// id string; falls back to the kind when the name has no usable characters.
+const slug = (name: string, fallback: string) =>
+  name.toLowerCase().normalize('NFKD').replace(/[^\w]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || fallback;
+
 // a staged (not-yet-committed) import batch lives as a temp JSON file keyed by an opaque token
 // in the URL. Nothing enters holdings until commitImport reads it; abandon the page and the
 // file is simply never consumed — the import is dropped, not suspended.
@@ -212,8 +217,7 @@ export async function createContainer(formData: FormData) {
   const name = String(formData.get('name') ?? '').trim().slice(0, 100);
   const kind = String(formData.get('kind')) === 'deck' ? 'deck' : 'binder';
   if (!name) return;
-  const slug = name.toLowerCase().normalize('NFKD').replace(/[^\w]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || kind;
-  const id = `${slug}-${Date.now().toString(36)}`;
+  const id = `${slug(name, kind)}-${Date.now().toString(36)}`;
   await client`insert into containers (id, user_id, name, kind) values (${id}, ${USER}, ${name}, ${kind})`;
   revalidatePath('/binders');
   revalidatePath('/decks');
@@ -237,11 +241,6 @@ export async function createSetBinder(formData: FormData) {
   revalidatePath('/binders');
 }
 
-type BinderRule = {
-  field: 'color' | 'rarity' | 'kind' | 'manaValue' | 'name' | 'set' | 'collectorNumber';
-  pageBreak: boolean;
-};
-
 // Functional binder builder: the browser calculates and previews the exact order, including
 // page-break gaps. The action treats that order as a request, not authority: only holdings
 // currently in this user's unsorted pool can move, and every submitted card/finish pair is
@@ -251,32 +250,22 @@ export async function createFunctionalBinder(formData: FormData) {
   if (!name) return;
   const cols = Math.min(12, Math.max(1, Number(formData.get('cols')) || 3));
   const rows = Math.min(12, Math.max(1, Number(formData.get('rows')) || 3));
-  const allowedFields = new Set(['color', 'rarity', 'kind', 'manaValue', 'name', 'set', 'collectorNumber']);
 
-  let rules: BinderRule[] = [];
   let ordered: string[] = [];
   try {
-    const parsedRules = JSON.parse(String(formData.get('rules') ?? '[]'));
     const parsedOrder = JSON.parse(String(formData.get('ordered') ?? '[]'));
-    if (Array.isArray(parsedRules)) {
-      rules = parsedRules
-        .filter((r): r is BinderRule => r && allowedFields.has(r.field))
-        .slice(0, allowedFields.size)
-        .map((r) => ({ field: r.field, pageBreak: Boolean(r.pageBreak) }));
-    }
     if (Array.isArray(parsedOrder)) ordered = parsedOrder.filter((v): v is string => typeof v === 'string');
   } catch {
     return;
   }
   if (!ordered.length) return;
 
-  const slug = name.toLowerCase().normalize('NFKD').replace(/[^\w]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'binder';
-  const binderId = `${slug}-${Date.now().toString(36)}`;
+  const binderId = `${slug(name, 'binder')}-${Date.now().toString(36)}`;
 
   await client.begin(async (tx) => {
     await tx`
-      insert into containers (id, user_id, name, kind, pocket_layout, pocket_cols, pocket_rows, sort_config)
-      values (${binderId}, ${USER}, ${name}, 'binder', ${cols * rows}, ${cols}, ${rows}, ${tx.json(rules)})`;
+      insert into containers (id, user_id, name, kind, pocket_cols, pocket_rows)
+      values (${binderId}, ${USER}, ${name}, 'binder', ${cols}, ${rows})`;
 
     for (const item of ordered) {
       const [positionRaw, cardId, finish] = item.split('\t');

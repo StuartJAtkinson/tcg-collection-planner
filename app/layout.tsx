@@ -1,7 +1,6 @@
 import './globals.css';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import SettingsMenu from './components/SettingsMenu.tsx';
 import { client } from '../src/db/index.ts';
 
 export const metadata = {
@@ -43,7 +42,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                   </span>
                 )}
               </Link>
-              <SettingsMenu />
+              <Link href="/preview" className="rounded-full border border-neutral-700 px-2 py-1 text-neutral-300 hover:border-neutral-500 hover:text-white" title="MockCard preview">▦</Link>
             </div>
           </nav>
         </header>

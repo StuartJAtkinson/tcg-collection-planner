@@ -7,6 +7,7 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { client } from '../../../src/db/index.ts';
+import { holdCte } from '../../../src/ownership.ts';
 import MockCard from '../../components/MockCard.tsx';
 import VanillaCard from '../../components/VanillaCard.tsx';
 import OwnershipStrip from '../../components/OwnershipStrip.tsx';
@@ -50,16 +51,7 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
   // group key: all printings share oracle_id (Gatherer's all-printings concept); fall back to
   // this single card when it has no oracle identity.
   const printings = (await client`
-    with hold as (
-      select h.card_id,
-             sum(case when h.finish in ('normal','nonfoil') then h.quantity else 0 end)::int as set_nonfoil,
-             sum(case when h.finish not in ('normal','nonfoil') then h.quantity else 0 end)::int as set_foil,
-             sum(case when ct.kind = 'deck' and h.finish in ('normal','nonfoil') then h.quantity else 0 end)::int as deck_nonfoil,
-             sum(case when ct.kind = 'deck' and h.finish not in ('normal','nonfoil') then h.quantity else 0 end)::int as deck_foil,
-             array_agg(distinct h.finish) as owned_finishes
-      from holdings h join containers ct on ct.id = h.container_id
-      group by h.card_id
-    ),
+    with ${holdCte},
     oracle_total as (
       select c.oracle_id, sum(coalesce(hd.set_nonfoil,0) + coalesce(hd.set_foil,0))::int as total
       from cards c left join hold hd on hd.card_id = c.id

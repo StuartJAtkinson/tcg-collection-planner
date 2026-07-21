@@ -1,9 +1,8 @@
 import { readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { importRowToMockFace } from '../components/cardToMockFaces.ts';
 import DeselectableRadio from '../components/DeselectableRadio.tsx';
-import MockCard from '../components/MockCard.tsx';
+import MockCard, { type MockFace } from '../components/MockCard.tsx';
 import { client } from '../../src/db/index.ts';
 import { commitImport, discardImport, resolveImportRows, runImport } from '../../src/actions.ts';
 import { findCandidates } from '../../src/import/candidates.ts';
@@ -13,6 +12,28 @@ import type { StagedContainer } from '../../src/import/run.ts';
 export const dynamic = 'force-dynamic';
 
 const USER = 'stuart';
+
+// Build a minimal mock face straight from an unresolved import row (no catalogue match yet, so
+// no oracle text/mana cost/art). Same logic as the now-removed importRowToMockFace helper.
+function rowToFace(f: Record<string, string>): MockFace {
+  const rarityRaw = f.rarity;
+  const r = rarityRaw?.toLowerCase() ?? '';
+  let rarityTier: number | null = null;
+  if (r.includes('secret') || r.includes('special')) rarityTier = 5;
+  else if (r === 'm' || r.includes('mythic') || r.includes('ultra') || r.includes('super')) rarityTier = 4;
+  else if (r === 'r' || r.includes('rare')) rarityTier = 3;
+  else if (r === 'p' || r.includes('promo')) rarityTier = 3;
+  else if (r === 'u' || r.includes('uncommon')) rarityTier = 2;
+  else if (r === 'c' || r.includes('common')) rarityTier = 1;
+  return {
+    name: f.name || '(unknown)',
+    rarity: rarityRaw ?? null,
+    rarityTier,
+    setCode: f.setCode ?? f.set ?? null,
+    collectorNumber: f.number ?? null,
+    imageUrl: null,
+  };
+}
 
 export default async function ImportPage({ searchParams }: { searchParams: Promise<{ batch?: string }> }) {
   const sp = await searchParams;
@@ -149,7 +170,7 @@ export default async function ImportPage({ searchParams }: { searchParams: Promi
                     <div className="mb-3 flex items-start gap-4">
                       <div className="shrink-0">
                         <div className="rounded-lg border border-transparent p-1">
-                          <MockCard faces={[importRowToMockFace((field) => f[field])]} />
+                          <MockCard faces={[rowToFace(f)]} />
                         </div>
                         <div className="mt-2 max-w-56 text-xs text-neutral-500">
                           {f.variant && <div>Variant: {f.variant}</div>}

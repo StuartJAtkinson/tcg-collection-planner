@@ -43,7 +43,7 @@ export function parseCsv(text: string): string[][] {
   return rows;
 }
 
-const DIACRITIC_MARKS = new RegExp(`[${String.fromCharCode(0x300)}-${String.fromCharCode(0x36f)}]`, 'g');
+const DIACRITIC_MARKS = /[̀-ͯ]/g;
 export const norm = (s: string) => s.toLowerCase().normalize('NFKD').replace(DIACRITIC_MARKS, '').replace(/[^a-z0-9]/g, '');
 export const money = (s: string) => { const m = s.replace(/,/g, '').match(/-?\d+(\.\d+)?/); return m ? parseFloat(m[0]) : null; };
 
@@ -71,7 +71,7 @@ const ORDINALS: Record<string, string> = {
   '11th': 'eleventh', '12th': 'twelfth',
 };
 const stem = (w: string) => (w.length > 3 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w);
-export const tokenize = (s: string) =>
+const tokenize = (s: string) =>
   new Set(s.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).map((w) => stem(ORDINALS[w] ?? w)));
 
 export function tokenScore(a: string, b: string): number {

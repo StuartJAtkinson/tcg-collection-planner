@@ -1,8 +1,7 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
-export const DATABASE_URL =
-  process.env.DATABASE_URL ?? 'postgres://cards:cards@localhost:5254/cards';
+const DATABASE_URL = process.env.DATABASE_URL ?? 'postgres://cards:cards@localhost:5254/cards';
 
 // next dev hot-reloads modules; keep one pool across reloads
 const g = globalThis as { __pg?: ReturnType<typeof postgres> };

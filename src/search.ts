@@ -1,5 +1,7 @@
 import { client } from './db/index.ts';
 import { ENABLED_GAMES } from './games.ts';
+import { holdCte } from './ownership.ts';
+import { orderFragment } from './sort.ts';
 
 export type SearchParams = {
   q?: string; game?: string; kind?: string;
@@ -7,23 +9,14 @@ export type SearchParams = {
   sort?: string; offset?: number; limit?: number;
 };
 
-// SortBar fields → representative-row columns exposed by the inner query below. Same field
-// names the shared SortBar emits; whitelist keeps the composed ORDER BY injection-safe.
+// Search-result columns exposed by the inner query below; same field names the shared
+// SortBar emits. Whitelist keeps the composed ORDER BY injection-safe.
 const SEARCH_SORT: Record<string, string> = {
   name: 'sort_name', set: 'release_date', number: 'sort_key',
   rarity: 'rarity_tier', mv: 'cmc_num', color: 'color_combo', price: 'usd',
 };
-function searchOrder(raw?: string) {
-  const terms = (raw ?? '').split(',').map((t) => t.split('.')).filter(([f]) => f in SEARCH_SORT);
-  if (!terms.length) return client`(func_total > 0) desc, sort_name`; // default: owned first, then A–Z
-  return terms.reduce(
-    (acc, [f, d], i) => {
-      const col = client`${client.unsafe(SEARCH_SORT[f])} ${client.unsafe(d === 'd' ? 'desc nulls last' : 'asc nulls last')}`;
-      return i === 0 ? col : client`${acc}, ${col}`;
-    },
-    client``,
-  );
-}
+// default: owned first, then A–Z
+const SEARCH_DEFAULT = client`(func_total > 0) desc, sort_name`;
 
 export type SearchCard = {
   id: string; name: string; image_small: string | null; set_code: string;
@@ -49,25 +42,16 @@ export async function searchCards(p: SearchParams): Promise<SearchCard[]> {
   const limit = p.limit ?? 60;
   const offset = p.offset ?? 0;
   return (await client`
-    with hold as (
-      select h.card_id,
-             sum(case when h.finish in ('normal','nonfoil') then h.quantity else 0 end)::int as set_nonfoil,
-             sum(case when h.finish not in ('normal','nonfoil') then h.quantity else 0 end)::int as set_foil,
-             sum(h.quantity)::int as total,
-             sum(case when ct.kind = 'deck' and h.finish in ('normal','nonfoil') then h.quantity else 0 end)::int as deck_nonfoil,
-             sum(case when ct.kind = 'deck' and h.finish not in ('normal','nonfoil') then h.quantity else 0 end)::int as deck_foil
-      from holdings h join containers ct on ct.id = h.container_id
-      group by h.card_id
-    ),
-    grp as ( -- oracle-level rollup (falls back to the card id when there's no oracle identity)
-      select coalesce(c.oracle_id, c.id) as gid,
-             sum(coalesce(hd.total, 0))::int as func_total,
-             sum(coalesce(hd.deck_nonfoil, 0))::int as deck_nonfoil,
-             sum(coalesce(hd.deck_foil, 0))::int as deck_foil,
-             bool_or(coalesce(hd.set_foil, 0) > 0) as any_foil
-      from cards c left join hold hd on hd.card_id = c.id
-      group by 1
-    )
+    with ${holdCte},
+      grp as ( -- oracle-level rollup (falls back to the card id when there's no oracle identity)
+        select coalesce(c.oracle_id, c.id) as gid,
+               sum(coalesce(hd.total, 0))::int as func_total,
+               sum(coalesce(hd.deck_nonfoil, 0))::int as deck_nonfoil,
+               sum(coalesce(hd.deck_foil, 0))::int as deck_foil,
+               bool_or(coalesce(hd.set_foil, 0) > 0) as any_foil
+        from cards c left join hold hd on hd.card_id = c.id
+        group by 1
+      )
     select id, name, image_small, set_code, game_id, set_icon_url,
            func_total > 0 as owned, set_nonfoil, set_foil,
            func_total, deck_nonfoil, deck_foil, any_foil
@@ -103,6 +87,6 @@ export async function searchCards(p: SearchParams): Promise<SearchCard[]> {
       ${cmcs.length ? client`and c.attrs->>'cmc' = any(${cmcs})` : client``}
       order by coalesce(c.oracle_id, c.id), (hd.card_id is not null) desc, s.release_date desc nulls last
     ) reps
-    order by ${searchOrder(p.sort)}
+    order by ${orderFragment(SEARCH_SORT, p.sort, SEARCH_DEFAULT)}
     limit ${limit} offset ${offset}`) as unknown as SearchCard[];
 }
