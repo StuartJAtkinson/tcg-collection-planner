@@ -138,6 +138,12 @@ export const holdings = pgTable(
     grade: text('grade'), // e.g. "PSA 10" — distinct from condition (raw NM/LP/…), set once slabbed
     paid: numeric('paid', { precision: 12, scale: 2 }),
     binderPosition: integer('binder_position'),
+    // When did this slot show up? Defaults to NULL ("unknown / since the dawn of time") so
+    // existing imports don't need a backfill; new entries use now(). The /value sparkline gates
+    // each day on h.held_since <= p.as_of so a card acquired today doesn't pretend it was in
+    // the collection last year. Nullable so older Collectr exports without a dateAdded column
+    // aren't rejected; treat NULL as 'assume always owned' when filtering.
+    heldSince: date('held_since'),
   },
   (t) => [
     // one row per (card, finish, container): the same physical printing can sit in the main

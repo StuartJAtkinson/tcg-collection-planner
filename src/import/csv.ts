@@ -47,6 +47,31 @@ const DIACRITIC_MARKS = /[̀-ͯ]/g;
 export const norm = (s: string) => s.toLowerCase().normalize('NFKD').replace(DIACRITIC_MARKS, '').replace(/[^a-z0-9]/g, '');
 export const money = (s: string) => { const m = s.replace(/,/g, '').match(/-?\d+(\.\d+)?/); return m ? parseFloat(m[0]) : null; };
 
+// Best-effort date parser for Collectr's "Date Added" / "Purchase Date" column. Returns a UTC
+// ISO `YYYY-MM-DD` string or null if the cell has no recognisable date. Accepts the four
+// shapes we see in the wild: ISO, YYYY/MM/DD, M/D/YYYY and MM/DD/YYYY (US). Ambiguous 3- and
+// 4-digit numbers are not attempted — the user-provided header is the signal to try.
+export function parseDate(s: string | undefined): string | null {
+  if (!s) return null;
+  const trimmed = s.trim();
+  if (!trimmed) return null;
+  // ISO already YYYY-MM-DD
+  let m = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return pad(+m[1], +m[2], +m[3]);
+  // YYYY/MM/DD
+  m = trimmed.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})/);
+  if (m) return pad(+m[1], +m[2], +m[3]);
+  // M/D/YYYY (US — first part is the month if <= 12)
+  m = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if (m) return pad(yy(+m[3]), +m[1], +m[2]);
+  return null;
+}
+const pad = (y: number, mo: number, d: number) =>
+  Number.isFinite(y) && Number.isFinite(mo) && Number.isFinite(d) && mo >= 1 && mo <= 12 && d >= 1 && d <= 31
+    ? `${y.toString().padStart(4, '0')}-${mo.toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`
+    : null;
+const yy = (n: number) => (n < 100 ? 2000 + n : n);
+
 export function resolveHeaders(headerRow: string[]) {
   const normed = headerRow.map(norm);
   const idx: Record<string, number> = {};

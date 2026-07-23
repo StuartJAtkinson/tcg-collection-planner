@@ -32,13 +32,17 @@ async function main() {
     await tx`insert into containers (id, user_id, name, kind) values (${unsorted.id}, 'stuart', ${unsorted.name}, ${unsorted.kind}) on conflict (id) do nothing`;
 
     for (const m of matched) {
-      await tx`insert into holdings (user_id, card_id, finish, container_id, quantity, condition, grade, paid)
-               values ('stuart', ${m.card_id}, ${m.finish}, ${m.container_id}, ${m.quantity}, ${m.condition}, ${m.grade}, ${m.paid})
+      // held_since: prefer the CSV's Date Added cell; only on first insert do we set it
+      // (a re-import of the same CSV shouldn't overwrite a richer historical date the user
+      // later edited). For missing dates, leave the existing row's held_since alone.
+      await tx`insert into holdings (user_id, card_id, finish, container_id, quantity, condition, grade, paid, held_since)
+               values ('stuart', ${m.card_id}, ${m.finish}, ${m.container_id}, ${m.quantity}, ${m.condition}, ${m.grade}, ${m.paid}, coalesce(${m.held_since ?? null}::date, current_date))
                on conflict (user_id, card_id, finish, container_id)
                do update set quantity = holdings.quantity + excluded.quantity,
                              condition = coalesce(excluded.condition, holdings.condition),
                              grade = coalesce(excluded.grade, holdings.grade),
-                             paid = coalesce(holdings.paid, excluded.paid)`;
+                             paid = coalesce(holdings.paid, excluded.paid),
+                             held_since = coalesce(holdings.held_since, excluded.held_since)`;
     }
 
     await tx`delete from import_unmatched where user_id = 'stuart'`;

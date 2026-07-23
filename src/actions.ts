@@ -6,7 +6,7 @@ import path from 'node:path';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { client } from './db/index.ts';
-import { money, normalizeGrade, pickFinish, portfolioToContainer } from './import/csv.ts';
+import { money, normalizeGrade, parseDate, pickFinish, portfolioToContainer } from './import/csv.ts';
 import { runCollectrImport, type MatchedHolding, type StagedContainer } from './import/run.ts';
 
 const USER = 'stuart';
@@ -79,13 +79,14 @@ export async function commitImport(formData: FormData) {
     for (const m of stage.matched) {
       // if this card's portfolio was dropped to unsorted, redirect it into the global pool
       const containerId = m.container_id !== 'unsorted' && kindOf(m.container_id) === 'unsorted' ? 'unsorted' : m.container_id;
-      await tx`insert into holdings (user_id, card_id, finish, container_id, quantity, condition, grade, paid)
-               values (${USER}, ${m.card_id}, ${m.finish}, ${containerId}, ${m.quantity}, ${m.condition}, ${m.grade}, ${m.paid})
+      await tx`insert into holdings (user_id, card_id, finish, container_id, quantity, condition, grade, paid, held_since)
+               values (${USER}, ${m.card_id}, ${m.finish}, ${containerId}, ${m.quantity}, ${m.condition}, ${m.grade}, ${m.paid}, coalesce(${m.held_since ?? null}::date, current_date))
                on conflict (user_id, card_id, finish, container_id)
                do update set quantity = holdings.quantity + excluded.quantity,
                              condition = coalesce(excluded.condition, holdings.condition),
                              grade = coalesce(excluded.grade, holdings.grade),
-                             paid = coalesce(holdings.paid, excluded.paid)`;
+                             paid = coalesce(holdings.paid, excluded.paid),
+                             held_since = coalesce(holdings.held_since, excluded.held_since)`;
     }
   });
   try { unlinkSync(stagePath(token)); } catch { /* already gone */ }
@@ -125,8 +126,8 @@ export async function addHolding(formData: FormData) {
   const wanted = String(formData.get('finish') ?? '');
   const finish = wanted || card.finishes[0] || 'normal';
   await client`
-    insert into holdings (user_id, card_id, finish, container_id, quantity)
-    values (${USER}, ${cardId}, ${finish}, ${containerId}, ${quantity})
+    insert into holdings (user_id, card_id, finish, container_id, quantity, held_since)
+    values (${USER}, ${cardId}, ${finish}, ${containerId}, ${quantity}, current_date)
     on conflict (user_id, card_id, finish, container_id)
     do update set quantity = holdings.quantity + excluded.quantity`;
   revalidateContainers(containerId);
@@ -141,12 +142,15 @@ export async function moveHolding(formData: FormData) {
   const to = String(formData.get('to') ?? '');
   if (!cardId || !finish || !from || !to || from === to) return;
   await client.begin(async (tx) => {
+    // preserve held_since when shifting the same card between containers — the date the user
+    // acquired it doesn't move with the card
     await tx`
-      insert into holdings (user_id, card_id, finish, container_id, quantity, condition, grade, paid)
-      select user_id, card_id, finish, ${to}, quantity, condition, grade, paid
+      insert into holdings (user_id, card_id, finish, container_id, quantity, condition, grade, paid, held_since)
+      select user_id, card_id, finish, ${to}, quantity, condition, grade, paid, held_since
       from holdings where user_id = ${USER} and card_id = ${cardId} and finish = ${finish} and container_id = ${from}
       on conflict (user_id, card_id, finish, container_id)
-      do update set quantity = holdings.quantity + excluded.quantity`;
+      do update set quantity = holdings.quantity + excluded.quantity,
+                    held_since = coalesce(holdings.held_since, excluded.held_since)`;
     await tx`delete from holdings where user_id = ${USER} and card_id = ${cardId} and finish = ${finish} and container_id = ${from}`;
   });
   revalidateContainers(from, to);
@@ -197,11 +201,12 @@ export async function deleteContainer(formData: FormData) {
     if (mode === 'keep') {
       // move to unsorted, summing into any existing unsorted row for the same card+finish
       await tx`
-        insert into holdings (user_id, card_id, finish, container_id, quantity, condition, grade, paid)
-        select user_id, card_id, finish, 'unsorted', quantity, condition, grade, paid
+        insert into holdings (user_id, card_id, finish, container_id, quantity, condition, grade, paid, held_since)
+        select user_id, card_id, finish, 'unsorted', quantity, condition, grade, paid, held_since
         from holdings where container_id = ${id}
         on conflict (user_id, card_id, finish, container_id)
-        do update set quantity = holdings.quantity + excluded.quantity`;
+        do update set quantity = holdings.quantity + excluded.quantity,
+                      held_since = coalesce(holdings.held_since, excluded.held_since)`;
     }
     await tx`delete from holdings where container_id = ${id}`;
     await tx`delete from containers where id = ${id} and user_id = ${USER}`;
@@ -308,13 +313,14 @@ export async function resolveImportRows(formData: FormData) {
     const containerId = await ensureContainer(portfolioToContainer(f.portfolio));
 
     await client`
-      insert into holdings (user_id, card_id, finish, container_id, quantity, condition, grade, paid)
-      values (${USER}, ${choice}, ${finish}, ${containerId}, ${quantity}, ${f.condition || null}, ${grade}, ${paid})
+      insert into holdings (user_id, card_id, finish, container_id, quantity, condition, grade, paid, held_since)
+      values (${USER}, ${choice}, ${finish}, ${containerId}, ${quantity}, ${f.condition || null}, ${grade}, ${paid}, coalesce(${parseDate(f.dateAdded)}::date, current_date))
       on conflict (user_id, card_id, finish, container_id)
       do update set quantity = holdings.quantity + excluded.quantity,
                      condition = coalesce(excluded.condition, holdings.condition),
                      grade = coalesce(excluded.grade, holdings.grade),
-                     paid = coalesce(holdings.paid, excluded.paid)`;
+                     paid = coalesce(holdings.paid, excluded.paid),
+                     held_since = coalesce(holdings.held_since, excluded.held_since)`;
     await client`delete from import_unmatched where id = ${id} and user_id = ${USER}`;
   }
 

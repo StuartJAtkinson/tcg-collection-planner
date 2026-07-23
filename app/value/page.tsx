@@ -1,10 +1,10 @@
 // Phase-5 collection value: today's owned-portfolio value plus a 90-day sparkline sourced
 // from the prices time series (populated by the nightly `db:prices` job in src/import/prices.ts).
 //
-// Caveat: holdings have no acquisition timestamp, so a card bought today counts in every
-// historical snapshot too. For "true value as of day X", that requires recording held_since
-// on the holding — out of scope here; the chart answers "how have the listed prices moved
-// against my static collection", which is the more useful tracker for a long-running owner.
+// held_since: holdings carry an acquisition date (set by import to the CSV's Date Added or
+// now() for manual adds; null pre-backfill means "assume since forever"). The per-day join
+// gates on h.held_since <= p.as_of, so a card acquired yesterday correctly doesn't appear in
+// the chart for last week.
 import { client } from '../../src/db/index.ts';
 
 export const dynamic = 'force-dynamic';
@@ -37,7 +37,8 @@ export default async function ValuePage() {
     group by c.game_id
     order by 1 desc`;
 
-  // 90-day series: for each day that has prices, total holdings × that day's price.
+  // 90-day series: for each day that has prices, total holdings × that day's price — but only
+  // counting holdings that existed by that day (held_since <= as_of; NULL treated as always).
   // Uses the latest price as-of that day per (card, finish) via distinct-on.
   const series = await client`
     with days as (
@@ -54,6 +55,7 @@ export default async function ValuePage() {
            sum(h.quantity * p.usd)::float as total
     from priced p
     join holdings h on h.card_id = p.card_id and h.finish = p.finish and h.user_id = 'stuart'
+      and (h.held_since is null or h.held_since <= p.as_of)
     group by 1
     order by 1`;
 

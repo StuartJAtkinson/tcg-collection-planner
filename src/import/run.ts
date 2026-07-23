@@ -4,19 +4,20 @@
 // caller decides what to persist — the CLI commits directly; the app stages the result and
 // only commits when you click Import.
 import { client } from '../db/index.ts';
-import { bestFuzzySetMatch, GAME_MAP, money, norm, normalizeGrade, parseCsv, pickFinish, portfolioToContainer, resolveHeaders } from './csv.ts';
+import { bestFuzzySetMatch, GAME_MAP, money, norm, normalizeGrade, parseCsv, parseDate, pickFinish, portfolioToContainer, resolveHeaders } from './csv.ts';
 
 export type MatchedHolding = {
   card_id: string; finish: string; quantity: number;
   condition: string | null; grade: string | null; paid: number | null;
   container_id: string; container_name: string;
+  held_since?: string | null; // YYYY-MM-DD; null if CSV's Date Added cell was unparseable
 };
 export type UnmatchedRow = { fields: Record<string, string>; reason: string };
 export type StagedContainer = { id: string; name: string; count: number; presumedKind: 'binder' | 'deck' };
 
 // the parsed Collectr columns we keep on an unmatched row so it can be re-searched and, once
 // resolved, turned into a holding (mirrors what resolveImportRows consumes)
-const KEEP_FIELDS = ['name', 'set', 'setCode', 'number', 'rarity', 'variant', 'quantity', 'purchasePrice', 'condition', 'grade', 'gradingCompany', 'portfolio', 'game'];
+const KEEP_FIELDS = ['name', 'set', 'setCode', 'number', 'rarity', 'variant', 'quantity', 'purchasePrice', 'dateAdded', 'condition', 'grade', 'gradingCompany', 'portfolio', 'game'];
 const TRUTHY = new Set(['true', '1', 'yes']);
 
 export async function runCollectrImport(csvText: string): Promise<{
@@ -88,6 +89,7 @@ export async function runCollectrImport(csvText: string): Promise<{
       paid: paidRaw ? money(paidRaw) : null,
       container_id: container.id,
       container_name: container.name,
+      held_since: parseDate(get('dateAdded')),
     });
   }
 

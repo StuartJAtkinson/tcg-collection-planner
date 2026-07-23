@@ -19,7 +19,7 @@ const clampDim = (raw: string | undefined, fallback: number) =>
 const chunk = <T,>(arr: T[], n: number): T[][] =>
   Array.from({ length: Math.ceil(arr.length / n) }, (_, i) => arr.slice(i * n, i * n + n));
 
-type Slot = { id: string; name: string; image_small: string | null; quantity: number; finish: string; binder_position: number | null; condition: string | null; paid: string | null };
+type Slot = { id: string; name: string; image_small: string | null; quantity: number; finish: string; binder_position: number | null; condition: string | null; paid: string | null; held_since: string | null };
 
 export default async function BinderPage({
   params,
@@ -40,7 +40,7 @@ export default async function BinderPage({
     { id: string; name: string; kind: string }[];
 
   const cardsRaw = (await client`
-    select c.id, c.name, c.image_small, h.quantity, h.finish, h.binder_position, h.condition, h.paid::text as paid, c.sort_key, s.code as set_code
+    select c.id, c.name, c.image_small, h.quantity, h.finish, h.binder_position, h.condition, h.paid::text as paid, h.held_since::text as held_since, c.sort_key, s.code as set_code
     from holdings h
     join cards c on c.id = h.card_id
     join sets s on s.id = c.set_id
@@ -135,6 +135,11 @@ export default async function BinderPage({
                             <Link href={`/card/${encodeURIComponent(c.id)}`} className="block">
                               <VanillaCard card={{ name: c.name, imageSmall: c.image_small, owned: true, quantity: c.quantity, finish: c.finish }} />
                             </Link>
+                            {c.held_since && (
+                              <div className="absolute bottom-0.5 left-0.5 rounded bg-neutral-900/80 px-1 text-[10px] text-neutral-400" title="Acquired">
+                                {c.held_since}
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <div key={`gap-${k}`} className="aspect-[5/7] rounded border border-dashed border-neutral-800" />
