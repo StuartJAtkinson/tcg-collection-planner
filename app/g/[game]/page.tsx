@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { client } from '../../../src/db/index.ts';
 import { ENABLED_GAMES } from '../../../src/games.ts';
+import ChipFormSection from '../../components/ChipFormSection.tsx';
 
 export const dynamic = 'force-dynamic';
 
@@ -98,21 +99,8 @@ export default async function GamePage({
     .sort((a, b) => b.released.localeCompare(a.released)); // flatMap groups by tab; re-sort by date across tabs
   const years = [...new Set(shown.map((s) => s.year))];
 
-  const tabHref = (label: string) => {
-    const next = new Set(selected);
-    next.has(label) ? next.delete(label) : next.add(label);
-    const kindParam = [...next].join(',') || 'none';
-    return `/g/${game}?kind=${encodeURIComponent(kindParam)}${format ? `&format=${encodeURIComponent(format)}` : ''}`;
-  };
-
-  // format chips: single-select toggle — clicking the active one clears it ("select none")
-  const formatHref = (f: string) => {
-    const kindParam = [...selected].join(',') || (kind !== undefined ? 'none' : '');
-    const parts = [];
-    if (kindParam) parts.push(`kind=${encodeURIComponent(kindParam)}`);
-    if (format !== f) parts.push(`format=${encodeURIComponent(f)}`);
-    return `/g/${game}${parts.length ? `?${parts.join('&')}` : ''}`;
-  };
+  // Format (single-select radio) + kind (multi-select checkbox group) each render inside their
+  // own ChipFormSection so a single Apply navigates with the change set, plain GET.
 
   return (
     <div>
@@ -134,39 +122,41 @@ export default async function GamePage({
         ))}
       </div>
 
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="no-print flex flex-wrap items-center gap-1.5 text-sm">
-          <span className="text-xs uppercase text-neutral-500">Format</span>
-          {FORMATS[game]?.map((f) => (
-            <Link
-              key={f}
-              href={formatHref(f)}
-              className={`rounded-full border px-2.5 py-0.5 text-xs ${
-                format === f
-                  ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300'
-                  : 'border-neutral-700 text-neutral-300 hover:border-neutral-500'
-              }`}
-            >
-              {properCase(f)}
-            </Link>
-          ))}
-        </div>
-      </div>
+      <ChipFormSection
+        action={`/g/${game}`}
+        className="no-print mb-6 flex flex-wrap items-center gap-1.5 text-sm"
+        fields={[
+          {
+            name: 'format',
+            kind: 'radio',
+            defaultValue: format ?? '',
+            options: [
+              { value: '', label: 'Any format' },
+              ...(FORMATS[game] ?? []).map((f) => ({ value: f, label: properCase(f) })),
+            ],
+          },
+        ]}
+        rowId="g-format"
+        clearHref={`/g/${game}`}
+      />
 
-      <div className="no-print mb-6 flex flex-wrap gap-2">
-        {tabs.map((t) => (
-          <Link
-            key={t.label}
-            href={tabHref(t.label)}
-            className={`rounded-full border px-3 py-1 text-sm ${
-              selected.has(t.label)
-                ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300'
-                : 'border-neutral-700 text-neutral-300 hover:border-neutral-500'
-            }`}
-          >
-            {t.label} <span className="text-neutral-500">{t.sets.length}</span>
-          </Link>
-        ))}
+      <div className="no-print mb-6">
+        <ChipFormSection
+          action={`/g/${game}`}
+          className="flex flex-wrap gap-2 text-sm"
+          fields={[
+            {
+              name: 'kind',
+              kind: 'multi',
+              defaultValue: [...selected],
+              options: tabs.map((t) => ({ value: t.label, label: t.label, n: t.sets.length })),
+            },
+          ]}
+          rowId="g-kinds"
+          // explicit "none" sentinel so toggling all kinds off posts the empty state
+          hidden={{ kind: [...selected].join(',') || 'none' }}
+          clearHref={`/g/${game}`}
+        />
       </div>
 
       {shown.length === 0 && (

@@ -2,13 +2,13 @@
 // is a single scope toggle (a tab, not an "Any" chip): none = all games, click the active one
 // to clear back to all. Picking a game reveals that game's facet slicers. Game scope is
 // remembered via cookie (see middleware) so it defaults to whatever was last used.
-import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { client } from '../../src/db/index.ts';
 import { searchCards } from '../../src/search.ts';
 import ComboSlicer from '../components/ComboSlicer.tsx';
 import FilterSidebar, { type FilterGroup } from '../components/FilterSidebar.tsx';
 import SortBar from '../components/SortBar.tsx';
+import ChipFormSection from '../components/ChipFormSection.tsx';
 import SearchResults from './SearchResults.tsx';
 
 export const dynamic = 'force-dynamic';
@@ -73,27 +73,24 @@ export default async function SearchPage({
   return (
     <div>
       <h1 className="mb-2 text-2xl font-bold">Search</h1>
-      {/* game scope tabs: click the active one to clear back to all games */}
-      <div className="no-print mb-4 flex gap-2">
-        {games.map((g) => {
-          const active = game === g.id;
-          // always carry game (empty when toggling the active one off) so middleware records
-          // the "all games" choice as the remembered default too
-          const href = `/search?${new URLSearchParams({ ...(q ? { q } : {}), game: active ? '' : g.id }).toString()}`;
-          return (
-            <Link
-              key={g.id}
-              href={href}
-              className={`rounded-t-lg border-b-2 px-3 py-1.5 text-sm font-medium ${
-                active ? 'border-emerald-500 text-white' : 'border-transparent text-neutral-400 hover:text-neutral-200'
-              }`}
-            >
-              {g.name}
-            </Link>
-          );
-        })}
-        <span className="self-center text-xs text-neutral-500">{game ? '' : 'all games'}</span>
-      </div>
+      {/* game scope tabs: select-then-apply. Carrying an empty `game=` when toggling the
+          active one off so middleware records the 'all games' choice as the remembered default
+          too. */}
+      <ChipFormSection
+        action="/search"
+        className="no-print mb-4 flex flex-wrap items-center gap-1.5 text-sm"
+        fields={[
+          {
+            name: 'game',
+            kind: 'radio',
+            defaultValue: game,
+            options: [{ value: '', label: 'all games' }, ...games.map((g) => ({ value: g.id, label: g.name }))],
+          },
+        ]}
+        hidden={{ q: q || undefined }}
+        rowId="search-game"
+        clearHref={q ? `/search?q=${encodeURIComponent(q)}` : '/search'}
+      />
 
       <div className="flex gap-6">
         <FilterSidebar

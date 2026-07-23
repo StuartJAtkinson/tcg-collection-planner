@@ -1,10 +1,12 @@
-import Link from 'next/link';
+import React from 'react';
+import FilterApply from './FilterApply.tsx';
 
 // Standardized filter panel used across Search / Collections / Decks. A plain GET <form>, so
 // nothing applies until the sticky Apply button is pressed (click-to-apply, not laggy live
 // toggling). Fixed order everywhere: Display settings → text search → slicers → collapsible
 // "Other" (rarely-browsed facets like illustrator). Single-select slicers as radio chips,
-// each with an "Any" reset option.
+// each with an "Any" reset option. Apply greys out when nothing in the form differs from the
+// current URL, so a passive chip-state never triggers a pointless navigation.
 
 export type FilterOpt = { value: string; label: string; n?: number };
 // rawLabel: don't proper-case (for codes like mana values "3", which would mangle to "Wr").
@@ -79,8 +81,10 @@ export default function FilterSidebar({
   hidden?: Record<string, string | undefined>;
   clearHref?: string;
 }) {
+  const formId = React.useId();
   return (
     <form
+      id={formId}
       method="get"
       action={action}
       className="no-print flex w-56 shrink-0 flex-col self-start rounded-xl border border-neutral-800 bg-neutral-900/50"
@@ -121,16 +125,9 @@ export default function FilterSidebar({
         )}
       </div>
 
-      {/* sticky Apply */}
+      {/* sticky Apply (with dirty check) */}
       <div className="sticky bottom-0 flex items-center gap-2 rounded-b-xl border-t border-neutral-800 bg-neutral-900 p-2">
-        <button className="flex-1 rounded bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-500">
-          Apply
-        </button>
-        {clearHref && (
-          <Link href={clearHref} className="rounded border border-neutral-700 px-3 py-1.5 text-sm text-neutral-400 hover:text-white">
-            Clear
-          </Link>
-        )}
+        <FilterApply formId={formId} searchName={search?.name} clearHref={clearHref} />
       </div>
     </form>
   );

@@ -13,6 +13,7 @@ import { createSetBinder } from '../../src/actions.ts';
 import { ENABLED_GAMES } from '../../src/games.ts';
 import DeleteContainer from '../components/DeleteContainer.tsx';
 import NewContainer from '../components/NewContainer.tsx';
+import ChipFormSection from '../components/ChipFormSection.tsx';
 
 export const dynamic = 'force-dynamic';
 
@@ -120,17 +121,36 @@ export default async function BindersPage({ searchParams }: { searchParams: Prom
           counts copies held anywhere including decks, but not for-play copies of a different printing.
         </p>
 
-        <form className="mb-4 flex items-center gap-2 text-sm">
-          {ENABLED_GAMES.map((g) => (
-            <Link key={g} href={`/binders?game=${g}&pct=${threshold}`}
-              className={`rounded-full border px-2.5 py-0.5 text-xs ${game === g ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300' : 'border-neutral-700 text-neutral-300 hover:border-neutral-500'}`}>
-              {g === 'mtg' ? 'Magic' : 'Pokémon'}
-            </Link>
-          ))}
+        {/* Game scope (Magic / Pokémon) — radio chips + Apply. Threshold % sits in its own
+            small form below since it's a free-form number, not a choice. */}
+        <ChipFormSection
+          action="/binders"
+          className="no-print mb-3 flex flex-wrap items-center gap-1.5 text-sm"
+          fields={[
+            {
+              name: 'game',
+              kind: 'radio',
+              defaultValue: game,
+              options: ENABLED_GAMES.map((g) => ({ value: g, label: g === 'mtg' ? 'Magic' : 'Pokémon' })),
+            },
+          ]}
+          hidden={{ pct: String(threshold) }}
+          rowId="binders-game"
+          clearHref={`/binders?game=${game}`}
+        />
+
+        <form method="get" action="/binders" className="mb-4 flex items-center gap-2 text-sm">
           <input type="hidden" name="game" value={game} />
-          <label className="ml-2 flex items-center gap-1 text-neutral-400">
+          <label className="flex items-center gap-1 text-neutral-400">
             threshold %
-            <input type="number" name="pct" min={1} max={100} defaultValue={threshold} className="w-16 rounded border border-neutral-700 bg-neutral-900 px-2 py-1" />
+            <input
+              type="number"
+              name="pct"
+              min={1}
+              max={100}
+              defaultValue={threshold}
+              className="w-16 rounded border border-neutral-700 bg-neutral-900 px-2 py-1"
+            />
           </label>
           <button className="rounded border border-neutral-700 px-3 py-1 hover:bg-neutral-800">Apply</button>
         </form>

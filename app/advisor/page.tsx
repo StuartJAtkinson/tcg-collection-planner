@@ -9,6 +9,7 @@
 import Link from 'next/link';
 import { client } from '../../src/db/index.ts';
 import { ENABLED_GAMES } from '../../src/games.ts';
+import ChipFormSection from '../components/ChipFormSection.tsx';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,12 +57,6 @@ export default async function AdvisorPage({
     ([key]) => aim.has(key) && key !== 'crossovers' && key !== 'precons',
   ).flatMap(([, , types]) => types);
 
-  const aimHref = (key: string) => {
-    const next = new Set(aim);
-    next.has(key) ? next.delete(key) : next.add(key);
-    const aimParam = [...next].join(',') || 'none';
-    return `/advisor?game=${game}&min=${minSize}&aim=${encodeURIComponent(aimParam)}`;
-  };
   const rows = await client`
     with owned_cards as (
       select distinct card_id from holdings
@@ -122,6 +117,9 @@ export default async function AdvisorPage({
         completion elsewhere stays exact-print — this is the &quot;what should I finish next&quot; view.
       </p>
 
+      {/* Game nav (path changes, not filters): Magic / Pokémon tabs. Switching game resets
+          aim to that game's default — the two games' aim keys don't overlap, so carrying one
+          across would silently filter everything out. */}
       <div className="mb-6 flex flex-wrap items-center gap-2 text-sm">
         {(
           [
@@ -131,8 +129,6 @@ export default async function AdvisorPage({
         ).filter(([id]) => ENABLED_GAMES.includes(id)).map(([id, label]) => (
           <Link
             key={id}
-            // switching game resets aim to that game's default — the two games' aim keys
-            // don't overlap, so carrying one across would silently filter everything out
             href={`/advisor?game=${id}&min=${minSize}`}
             className={`rounded-full border px-2.5 py-0.5 text-xs ${
               game === id
@@ -143,41 +139,40 @@ export default async function AdvisorPage({
             {label}
           </Link>
         ))}
-        <form className="flex items-center gap-1 text-neutral-400">
-          <input type="hidden" name="game" value={game} />
-          {sp.aim && <input type="hidden" name="aim" value={sp.aim} />}
-          min set size
-          <input
-            type="number"
-            name="min"
-            defaultValue={minSize}
-            className="w-16 rounded border border-neutral-700 bg-neutral-900 px-2 py-1"
-          />
-          <button className="rounded border border-neutral-700 px-3 py-1 hover:bg-neutral-800">Apply</button>
-        </form>
       </div>
 
-      {/* Collection Aim: which set kinds count as collection goals — multi-select toggles,
-          same convention as the master-sets kind tabs (click the last one off for none).
-          Each game has its own vocabulary: mtg's curated buckets, pokemon's main/promo/kits. */}
-      <div className="mb-6 flex flex-wrap items-center gap-1.5 text-sm">
-        <span className="text-xs uppercase text-neutral-500">Collection aim</span>
-        {(game === 'mtg' ? AIM_BUCKETS.map(([key, label]) => [key, label] as const) : POKEMON_AIM).map(
-          ([key, label]) => (
-            <Link
-              key={key}
-              href={aimHref(key)}
-              className={`rounded-full border px-2.5 py-0.5 text-xs ${
-                aim.has(key)
-                  ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300'
-                  : 'border-neutral-700 text-neutral-300 hover:border-neutral-500'
-              }`}
-            >
-              {label}
-            </Link>
-          ),
-        )}
-      </div>
+      {/* min set size — a small free-form number input + Apply, separate from Collection Aim
+          below so you can type any value without the chip layout forcing a preset. */}
+      <form method="get" action="/advisor" className="mb-3 flex items-center gap-1 text-sm text-neutral-400">
+        <input type="hidden" name="game" value={game} />
+        {sp.aim && <input type="hidden" name="aim" value={sp.aim} />}
+        min set size
+        <input
+          type="number"
+          name="min"
+          defaultValue={minSize}
+          className="w-16 rounded border border-neutral-700 bg-neutral-900 px-2 py-1"
+        />
+        <button className="rounded border border-neutral-700 px-3 py-1 hover:bg-neutral-800 disabled:opacity-40">Apply</button>
+      </form>
+
+      {/* Collection Aim chips are multi-select; toggling everything off posts the explicit
+          'none' sentinel so we don't snap back to the seeded default. */}
+      <ChipFormSection
+        action="/advisor"
+        className="no-print mb-6 flex flex-wrap items-center gap-1.5 text-sm"
+        fields={[
+          {
+            name: 'aim',
+            kind: 'multi',
+            defaultValue: [...aim],
+            options: (game === 'mtg' ? AIM_BUCKETS : POKEMON_AIM).map(([k, l]) => ({ value: k, label: l })),
+          },
+        ]}
+        hidden={{ game, min: String(minSize) }}
+        rowId="advisor-aim"
+        clearHref={`/advisor?game=${game}&min=${minSize}`}
+      />
 
       <div className="flex flex-col gap-2">
         {rows.map((s) => {
