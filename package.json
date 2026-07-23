@@ -11,6 +11,7 @@
     "import:mtg": "node src/import/mtg.ts",
     "import:pokemon": "node src/import/pokemon.ts",
     "import": "node src/import/mtg.ts && node src/import/pokemon.ts",
+    "db:prices": "node src/import/prices.ts",
     "import:collectr": "node src/import/collectr.ts",
     "verify": "node src/verify.ts"
   },

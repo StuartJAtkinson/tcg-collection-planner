@@ -29,6 +29,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             <Link href="/binders" className="text-neutral-300 hover:text-white">Binders</Link>
             <Link href="/decks" className="text-neutral-300 hover:text-white">Decks</Link>
             <Link href="/advisor" className="text-neutral-300 hover:text-white">Advisor</Link>
+            <Link href="/value" className="text-neutral-300 hover:text-white">Value</Link>
 
             <div className="ml-auto flex items-center gap-3">
               <Link
