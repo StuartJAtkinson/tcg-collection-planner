@@ -15,7 +15,9 @@ const SEARCH_SORT: Record<string, string> = {
   name: 'sort_name', set: 'release_date', number: 'sort_key',
   rarity: 'rarity_tier', mv: 'cmc_num', color: 'color_combo', price: 'usd',
 };
-// default: owned first, then A–Z
+// default: owned first, then A–Z. When there's a fuzzy query, similarity to the query takes
+// priority so "lightning bollt" floats "Lightning Bolt" above alphabetical noise — but only
+// when the user hasn't picked an explicit sort.
 const SEARCH_DEFAULT = client`(func_total > 0) desc, sort_name`;
 
 export type SearchCard = {
@@ -73,7 +75,8 @@ export async function searchCards(p: SearchParams): Promise<SearchCard[]> {
       ) p on true
       where true
       ${q ? client`and (
-        c.name ilike ${like}
+        c.name % ${q}
+        or c.name ilike ${like}
         or coalesce(c.attrs->>'oracle_text', '') ilike ${like}
         or coalesce(c.attrs->>'flavor_text', '') ilike ${like}
         or coalesce(c.attrs->>'type_line', '') ilike ${like}
@@ -87,6 +90,6 @@ export async function searchCards(p: SearchParams): Promise<SearchCard[]> {
       ${cmcs.length ? client`and c.attrs->>'cmc' = any(${cmcs})` : client``}
       order by coalesce(c.oracle_id, c.id), (hd.card_id is not null) desc, s.release_date desc nulls last
     ) reps
-    order by ${orderFragment(SEARCH_SORT, p.sort, SEARCH_DEFAULT)}
+    order by ${orderFragment(SEARCH_SORT, p.sort, q ? client`similarity(name, ${q}) desc, (func_total > 0) desc, sort_name` : SEARCH_DEFAULT)}
     limit ${limit} offset ${offset}`) as unknown as SearchCard[];
 }

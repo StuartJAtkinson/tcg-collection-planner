@@ -7,3 +7,6 @@ const DATABASE_URL = process.env.DATABASE_URL ?? 'postgres://cards:cards@localho
 const g = globalThis as { __pg?: ReturnType<typeof postgres> };
 export const client = (g.__pg ??= postgres(DATABASE_URL, { max: 4, onnotice: () => {} }));
 export const db = drizzle(client);
+
+// pg_trgm backs fuzzy name search (src/search.ts). Idempotent; once per process.
+client`create extension if not exists pg_trgm`.catch((e: unknown) => console.warn('pg_trgm init failed:', e));

@@ -68,6 +68,9 @@ export const cards = pgTable(
     index('cards_oracle_idx').on(t.oracleId),
     // functional index for the exact-name candidate lookup on /resolve (lower(c.name) = ?)
     index('cards_lower_name_idx').on(sql`lower(${t.name})`),
+    // pg_trgm GIN over name — backs fuzzy search (typos / partials) in src/search.ts.
+    // Requires `create extension pg_trgm`; see src/db/index.ts.
+    index('cards_name_trgm_idx').using('gin', sql`${t.name} gin_trgm_ops`),
   ],
 );
 

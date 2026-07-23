@@ -1,11 +1,14 @@
 # Issues — Card Collector v2
 
 ## Open
-- [ ] **Rename container** — inline-edit a binder/deck name on its detail page (`renameContainer` action) *(found 2026-07-18)*
-- [ ] **Move holdings between containers** — per-holding control to reassign a card's container (to unsorted / any binder / any deck), quantity-merging on conflict *(found 2026-07-18)*
-- [ ] **Edit holding quantity / condition / paid** — inline editing of a holding's fields where holdings are listed *(found 2026-07-18)*
-- [ ] **Manual add-to-container** — add a catalogue card straight into a chosen container (unlocked by the edit path; Collections stays read-only totals) *(found 2026-07-18)*
-- [ ] **Fuzzy search (pg_trgm)** — replace the ILIKE name scan with trigram similarity ranking so typos/partials rank sensibly *(found 2026-07-18)*
+*(none)*
+
+## Resolved
+- [x] **Fuzzy search (pg_trgm)** — `pg_trgm` enabled + GIN index `cards_name_trgm_idx` over `cards.name`; `searchCards` predicate now `c.name % ${q}` (trigram match) OR ILIKE on name/oracle/text (existing scope). When the user picks no explicit sort, ordering switches to `similarity(name, q) desc, owned desc, name asc` so `"lightning bollt"` ranks `Lightning Bolt` first. `lightnig` → `Lightning`, exact terms unchanged *(resolved 2026-07-23)*
+- [x] **Rename container** — inline-edit a binder/deck name on its detail page (`renameContainer` action) *(resolved 2026-07-23)*
+- [x] **Move holdings between containers** — per-holding control to reassign a card's container (to unsorted / any binder / any deck), quantity-merging on conflict *(resolved 2026-07-23)*
+- [x] **Edit holding quantity / condition / paid** — inline editing of a holding's fields where holdings are listed *(resolved 2026-07-23)*
+- [x] **Manual add-to-container** — add a catalogue card straight into a chosen container (unlocked by the edit path; Collections stays read-only totals) *(resolved 2026-07-23)*
 
 ## Resolved
 - [x] **Create binder / deck buttons** — "+ New binder" / "+ New deck" at the top of `/binders` and `/decks`; click reveals an inline name field (DeleteContainer-style popover), `createContainer` action inserts the empty container and jumps into it *(resolved 2026-07-18)*
