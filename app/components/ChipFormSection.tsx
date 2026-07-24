@@ -3,38 +3,29 @@ import { useEffect, useRef, useState } from 'react';
 
 // Standardized chip-row filter for surfaces that don't use the full FilterSidebar (the master
 // Sets page, advisor's Collection Aim, /binders and /search's game tabs). Each chip is a
-// styled label wrapping an sr-only checkbox/radio, and the FORM submits a single hidden input
-// per field carrying the joined/delimited value of the current selection. Apply is disabled
-// while the form's values match the current URL, so picking or unchecking a chip flips it
-// back to enabled. Plain GET <form> — no client router calls, the browser navigates on submit.
+// styled button — chips are NOT form inputs, so they never participate in form submission.
+// The form posts one hidden input per field, carrying the joined/delimited current value,
+// with the Apply button disabled while it equals the URL.
 //
-// Ponytail: the URL convention here is that multi-select fields are comma-separated in a
-// single param (e.g. ?kind=A,B,C or ?kind=none for empty). That means plain checkboxes that
-// each submit their own param value don't match — the page side reads ONE value per field.
-// So we keep the live state in client JS, write the joined value into a single hidden input
-// on every change, and let the form submit that single string. No new state library, no global
-// store; one useState per multi field.
+// Ponytail: this avoided an earlier duplicate-name bug where a server-side hidden and a live
+// checkbox both had the same name — the form posted both, the first won, the page appeared
+// to never change. Keeping the chips as <button type="button">s and the form-submitter as a
+// single controlled hidden is the cleanest fix.
 
 type Opt = { value: string; label: string; n?: number };
 type Field = {
   name: string;
   kind: 'radio' | 'multi';
   options: Opt[];
-  // Single-select radios use this to render `checked` server-side. Multi-select fields use
-  // initialValue[]. Either way it's read-only on the server; runtime state lives in `sel`.
   defaultValue?: string | string[];
   // Multi-select: sentinel value for "nothing checked" so the server can distinguish "user
   // toggled all off" from "user never visited this field". Defaults to 'none' if absent.
   uncheckedValue?: string;
-  // Multi-select: separator for joining values; defaults to ','.
-  joiner?: string;
+  joiner?: string; // default ','
 };
 
-// Convert a multi-select state into the single string posted in the hidden field.
 const joinMulti = (vals: Set<string>, joiner: string, sentinel: string) =>
   vals.size === 0 ? sentinel : [...vals].sort().join(joiner);
-
-// Convert the page-supplied defaultValue into the runtime Set used by client state.
 const initSet = (v: Field['defaultValue']): Set<string> =>
   new Set(Array.isArray(v) ? v : v ? [v] : []);
 
@@ -70,24 +61,17 @@ export default function ChipFormSection({
   );
   const [dirty, setDirty] = useState(false);
 
-  // Compute whether the form's current values differ from the URL. Reading fresh from window
-  // each computation instead of capturing at mount — Back/Forward navigation can change the
-  // URL without the component re-mounting.
   const computeDirty = () => {
-    const form = formRef.current;
-    if (!form) return false;
+    if (typeof window === 'undefined') return false;
     const url = new URLSearchParams(window.location.search);
     for (const f of fields) {
-      const inputs = form.querySelectorAll<HTMLInputElement>(`input[name="${CSS.escape(f.name)}"]`);
+      const want = url.get(f.name) ?? '';
+      const cur = sel[f.name] ?? new Set();
       if (f.kind === 'radio') {
-        const checked = [...inputs].find((i) => i.checked);
-        const v = checked?.value ?? '';
-        const want = url.get(f.name) ?? '';
-        if (v !== want) return true;
+        const got = [...cur][0] ?? '';
+        if (got !== want) return true;
       } else {
-        // Multi: the actual posted value is the hidden `sel[name]` (joined string OR sentinel).
-        const want = url.get(f.name) ?? '';
-        const got = joinMulti(sel[f.name] ?? new Set(), f.joiner ?? ',', f.uncheckedValue ?? 'none');
+        const got = joinMulti(cur, f.joiner ?? ',', f.uncheckedValue ?? 'none');
         if (got !== want) return true;
       }
     }
@@ -96,7 +80,6 @@ export default function ChipFormSection({
 
   useEffect(() => {
     setDirty(computeDirty());
-    // Also re-check after a browser navigation settles (Back button etc.)
     const onPop = () => setDirty(computeDirty());
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
@@ -109,7 +92,6 @@ export default function ChipFormSection({
       next.has(value) ? next.delete(value) : next.add(value);
       return { ...prev, [name]: next };
     });
-
   const setRadio = (name: string, value: string) =>
     setSel((prev) => ({ ...prev, [name]: new Set([value]) }));
 
@@ -118,70 +100,30 @@ export default function ChipFormSection({
       {hidden && Object.entries(hidden).map(([k, v]) => (v ? <input key={k} type="hidden" name={k} value={v} /> : null))}
       {fields.map((f) => {
         const cur = sel[f.name] ?? new Set();
-        if (f.kind === 'radio') {
-          // Radio state: a single hidden mirrors the checked option's value. Default empty
-          // value means "field has no current choice", which the page can map to a default.
-          const v = [...cur][0] ?? '';
-          return (
-            <fieldset key={f.name} className="contents">
-              <legend className="sr-only">{f.name}</legend>
-              {/* Hidden carries the URL-friendly single string the page expects. */}
-              <input type="hidden" name={f.name} value={v} />
-              {f.options.map((o) => {
-                const on = cur.has(o.value);
-                return (
-                  <label
-                    key={o.value || '(none)'}
-                    className={`cursor-pointer ${optionClass} ${on ? activeClass : inactiveClass}`}
-                  >
-                    <input
-                      type="radio"
-                      name={`_${f.name}_ui`} // separate namespace so the hidden is THE submitter
-                      value={o.value}
-                      checked={on}
-                      onChange={() => setRadio(f.name, o.value)}
-                      className="sr-only"
-                    />
-                    {o.label}
-                    {o.n != null && o.n ? <span className="text-neutral-500"> {o.n}</span> : null}
-                  </label>
-                );
-              })}
-            </fieldset>
-          );
-        }
-        // Multi: a single hidden carries the joined string OR the sentinel; each chip just
-        // toggles the Set in client state. No duplicate-name submissions on the form.
-        const joiner = f.joiner ?? ',';
         const sentinel = f.uncheckedValue ?? 'none';
+        const joiner = f.joiner ?? ',';
+        const posted = f.kind === 'radio' ? ([...cur][0] ?? '') : joinMulti(cur, joiner, sentinel);
         return (
           <fieldset key={f.name} className="contents">
             <legend className="sr-only">{f.name}</legend>
-            <input type="hidden" name={f.name} value={joinMulti(cur, joiner, sentinel)} />
+            {/* The single submitter for this field. Reads from `sel`; the chips above are
+                inert buttons so they never post anything. */}
+            <input type="hidden" name={f.name} value={posted} />
             {f.options.map((o) => {
               const on = cur.has(o.value);
               return (
-                <label
+                <button
                   key={o.value || '(none)'}
+                  type="button"
+                  onClick={() =>
+                    f.kind === 'radio' ? setRadio(f.name, o.value) : toggleMulti(f.name, o.value)
+                  }
+                  aria-pressed={f.kind === 'radio' ? on : undefined}
                   className={`cursor-pointer ${optionClass} ${on ? activeClass : inactiveClass}`}
-                  onClick={(e) => {
-                    // Toggle state on chip click so the hidden updates without waiting for the
-                    // input's change handler — and so a click on the label text still works.
-                    e.preventDefault();
-                    toggleMulti(f.name, o.value);
-                  }}
                 >
-                  <input
-                    type="checkbox"
-                    name={`_${f.name}_ui`}
-                    value={o.value}
-                    checked={on}
-                    onChange={() => toggleMulti(f.name, o.value)}
-                    className="sr-only"
-                  />
                   {o.label}
                   {o.n != null && o.n ? <span className="text-neutral-500"> {o.n}</span> : null}
-                </label>
+                </button>
               );
             })}
           </fieldset>
