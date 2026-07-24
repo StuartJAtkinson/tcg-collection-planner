@@ -27,6 +27,7 @@ function attrsFor(c: any) {
   const face = (f: any) => ({
     name: f.name, mana_cost: f.mana_cost, type_line: f.type_line, oracle_text: f.oracle_text,
     power: f.power, toughness: f.toughness, loyalty: f.loyalty, flavor_text: f.flavor_text,
+    security_stamp: f.security_stamp, promo_types: f.promo_types,
     image_small: f.image_uris?.small, image_large: f.image_uris?.large,
   });
   return {
@@ -35,6 +36,8 @@ function attrsFor(c: any) {
     keywords: c.keywords?.length ? c.keywords : undefined,
     card_faces: c.card_faces?.map(face),
     legalities: c.legalities,
+    security_stamp: c.security_stamp, promo_types: c.promo_types,
+    frame: c.frame, border_color: c.border_color,
   };
 }
 
