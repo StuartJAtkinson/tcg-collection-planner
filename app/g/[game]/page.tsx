@@ -153,8 +153,8 @@ export default async function GamePage({
             },
           ]}
           rowId="g-kinds"
-          // explicit "none" sentinel so toggling all kinds off posts the empty state
-          hidden={{ kind: [...selected].join(',') || 'none' }}
+          // ChipFormSection owns the multi-select sentinel itself; passing a `kind` hidden
+          // here would double-submit on Apply and the filter would never appear to change.
           clearHref={`/g/${game}`}
         />
       </div>
