@@ -127,7 +127,7 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
         {' · '}
         <Link href={`/set/${encodeURIComponent(current.set_id)}`} className="hover:text-white">{current.set_name}</Link>
       </div>
-      <h1 className="mb-4 flex items-center gap-3 text-3xl font-bold">
+      <h1 className="mb-4 flex items-center gap-3 text-2xl font-bold">
         {current.name}
         {isMtg && attrs.mana_cost && <span className="text-2xl"><ManaText text={attrs.mana_cost} /></span>}
       </h1>
