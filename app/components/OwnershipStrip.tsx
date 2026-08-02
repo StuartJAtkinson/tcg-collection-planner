@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 //   🎴 total functional copies owned (across every printing of this card)
 //   [set symbol] copies of THIS exact printing
 //   🃏 copies committed to decks
+//   🔁 copies of this printing free to trade (owned − in decks − 1 kept)
 // A ✨ twinkle next to a number means a foil is involved. Rows with a zero count are omitted,
 // so an unowned card shows nothing and a single number reads instantly. All fields but
 // funcTotal are optional — search passes the oracle-level rollup (no single printing), the
@@ -28,6 +29,8 @@ export default function OwnershipStrip({
   const setTotal = (counts.setNonfoil ?? 0) + (counts.setFoil ?? 0);
   const deckTotal = (counts.deckNonfoil ?? 0) + (counts.deckFoil ?? 0);
   const totalFoil = counts.totalFoil ?? ((counts.setFoil ?? 0) > 0 || (counts.deckFoil ?? 0) > 0);
+  // this exact printing, beyond one kept for yourself and whatever's in decks
+  const forTrade = Math.max(0, setTotal - deckTotal - 1);
 
   const setIcon: ReactNode = setIconUrl
     ? <img src={setIconUrl} alt="" className={`h-3.5 w-3.5 ${game === 'mtg' ? 'invert' : ''}`} />
@@ -37,6 +40,7 @@ export default function OwnershipStrip({
     counts.funcTotal > 0 && { key: 'total', icon: '🎴', label: 'copies owned (all printings)', n: counts.funcTotal, foil: totalFoil },
     setTotal > 0 && { key: 'set', icon: setIcon, label: 'this printing', n: setTotal, foil: (counts.setFoil ?? 0) > 0 },
     deckTotal > 0 && { key: 'deck', icon: '🃏', label: 'in decks', n: deckTotal, foil: (counts.deckFoil ?? 0) > 0 },
+    forTrade > 0 && { key: 'trade', icon: '🔁', label: 'for trade (this printing, 1 kept)', n: forTrade, foil: false },
   ].filter(Boolean) as any;
 
   // always render the fixed-width bar (even with no rows) so every CardTile is the same width

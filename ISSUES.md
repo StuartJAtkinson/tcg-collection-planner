@@ -3,6 +3,7 @@
 ## Open
 
 ## Resolved
+- [x] **"For trade" was documented in a code comment but not implemented anywhere in the UI** — `OwnershipStrip` gains a 🔁 row: copies of this exact printing (not oracle-grouped) beyond one kept and whatever's committed to decks (`setTotal - deckTotal - 1`, floored at 0). Shows on set/card pages wherever per-printing counts are passed; naturally absent on search's oracle-level rollup. *(resolved 2026-08-02)*
 - [x] **`/card/[id]` page title is `text-3xl` while every other page uses `text-2xl`** — `app/card/[id]/page.tsx:130` h1 dropped to `text-2xl` to match every other page. *(resolved 2026-08-02, commit 3a7b222)*
 - [x] **`BinderBuilder`'s facet labels have drifted from the labels used everywhere else** — `app/components/BinderBuilder.tsx:26,28` relabelled `'Colour combination'`→`'Colour combo'`, `'Type'`→`'Kind'` to match `app/set/[id]/page.tsx`, `app/search/page.tsx`, `app/components/ComboSlicer.tsx`. *(resolved 2026-08-02)*
 - [x] **`app/advisor/page.tsx:156` Apply button has a dead `disabled:opacity-40` class** — dropped the dead class; this Apply button isn't dirty-tracked like `ChipFormSection`/`FilterApply`, so wiring real tracking would've meant duplicating that logic for one free-text field. *(resolved 2026-08-02)*
