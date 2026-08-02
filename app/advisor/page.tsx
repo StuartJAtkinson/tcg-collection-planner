@@ -123,8 +123,8 @@ export default async function AdvisorPage({
       <div className="mb-6 flex flex-wrap items-center gap-2 text-sm">
         {(
           [
-            ['mtg', 'Magic: The Gathering'],
-            ['pokemon', 'Pokémon TCG'],
+            ['mtg', 'Magic'],
+            ['pokemon', 'Pokémon'],
           ] as const
         ).filter(([id]) => ENABLED_GAMES.includes(id)).map(([id, label]) => (
           <Link
@@ -153,7 +153,7 @@ export default async function AdvisorPage({
           defaultValue={minSize}
           className="w-16 rounded border border-neutral-700 bg-neutral-900 px-2 py-1"
         />
-        <button className="rounded border border-neutral-700 px-3 py-1 hover:bg-neutral-800 disabled:opacity-40">Apply</button>
+        <button className="rounded border border-neutral-700 px-3 py-1 hover:bg-neutral-800">Apply</button>
       </form>
 
       {/* Collection Aim chips are multi-select; toggling everything off posts the explicit

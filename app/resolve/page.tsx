@@ -49,7 +49,7 @@ export default async function ImportPage({ searchParams }: { searchParams: Promi
     if (!stage) {
       return (
         <div>
-          <h1 className="mb-4 text-2xl font-bold">Import</h1>
+          <h1 className="mb-1 text-2xl font-bold">Import</h1>
           <p className="text-amber-400">That staged import is gone (committed, discarded, or expired). <a href="/resolve" className="underline">Start a new import.</a></p>
         </div>
       );
@@ -124,7 +124,7 @@ export default async function ImportPage({ searchParams }: { searchParams: Promi
   if (!unmatched.length) {
     return (
       <div>
-        <h1 className="mb-4 text-2xl font-bold">Import</h1>
+        <h1 className="mb-1 text-2xl font-bold">Import</h1>
         {importPanel}
         <p className="text-sm text-emerald-400">Nothing unresolved — every imported card has been matched.</p>
       </div>
@@ -149,7 +149,7 @@ export default async function ImportPage({ searchParams }: { searchParams: Promi
 
   return (
     <div>
-      <h1 className="mb-4 text-2xl font-bold">Import</h1>
+      <h1 className="mb-1 text-2xl font-bold">Import</h1>
       {importPanel}
 
       <h2 className="mb-1 text-lg font-semibold text-neutral-300">Resolve unmatched cards</h2>

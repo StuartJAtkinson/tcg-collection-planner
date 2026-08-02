@@ -104,7 +104,7 @@ export default async function GamePage({
 
   return (
     <div>
-      <h1 className="mb-2 text-2xl font-bold">Collections</h1>
+      <h1 className="mb-1 text-2xl font-bold">Collections</h1>
       {/* games as tabs under Collections */}
       <div className="no-print mb-4 flex gap-2">
         {allGames.map((g) => (

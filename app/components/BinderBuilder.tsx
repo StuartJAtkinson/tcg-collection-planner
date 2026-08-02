@@ -23,9 +23,9 @@ type Field = keyof Pick<BinderCandidate, 'color' | 'rarity' | 'kind' | 'manaValu
 type Rule = { field: Field; pageBreak: boolean };
 
 const OPTIONS: { field: Field; label: string }[] = [
-  { field: 'color', label: 'Colour combination' },
+  { field: 'color', label: 'Colour combo' },
   { field: 'rarity', label: 'Rarity' },
-  { field: 'kind', label: 'Type' },
+  { field: 'kind', label: 'Kind' },
   { field: 'manaValue', label: 'Mana value' },
   { field: 'name', label: 'Alphabetical' },
   { field: 'set', label: 'Set' },

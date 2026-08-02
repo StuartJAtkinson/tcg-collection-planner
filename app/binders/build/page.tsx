@@ -42,7 +42,7 @@ export default async function BuildBinderPage({ searchParams }: { searchParams: 
 
   return (
     <div>
-      <div className="mb-5">
+      <div className="mb-4">
         <div className="text-sm text-neutral-400"><Link href="/binders" className="hover:text-white">Binders</Link> · Create</div>
         <div className="flex flex-wrap items-end justify-between gap-3">
           <h1 className="text-2xl font-bold">Build from unsorted collection</h1>

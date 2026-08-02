@@ -72,7 +72,7 @@ export default async function SearchPage({
 
   return (
     <div>
-      <h1 className="mb-2 text-2xl font-bold">Search</h1>
+      <h1 className="mb-1 text-2xl font-bold">Search</h1>
       {/* game scope tabs: select-then-apply. Carrying an empty `game=` when toggling the
           active one off so middleware records the 'all games' choice as the remembered default
           too. */}
