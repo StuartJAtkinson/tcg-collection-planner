@@ -8,26 +8,18 @@
 // no printing covers. Display-only, like the For Play badge: real completion stays exact-print.
 import Link from 'next/link';
 import { client } from '../../src/db/index.ts';
-import { ENABLED_GAMES } from '../../src/games.ts';
+import { ENABLED_GAMES, MTG_BUCKETS, MTG_DECK_TYPES } from '../../src/games.ts';
 import ChipFormSection from '../components/ChipFormSection.tsx';
 
 export const dynamic = 'force-dynamic';
 
 const HIDDEN_TYPES = ['token', 'memorabilia', 'minigame', 'vanguard'];
-const DECK_TYPES = ['commander', 'duel_deck', 'planechase', 'archenemy', 'starter', 'arsenal', 'premium_deck'];
 
 // "Collection Aim" — which kinds of set count as collection goals. Precon decks are buyable
 // products, not collections; promos/draft/boxes rarely hold unique cards (2-3 at most, like
 // promos) so they're asides, off by default. Crossovers are collectable and on by default.
-const AIM_BUCKETS: [string, string, string[]][] = [
-  ['core', 'Core & Reprints', ['core', 'masters', 'from_the_vault', 'spellbook', 'masterpiece']],
-  ['expansions', 'Expansions', ['expansion']],
-  ['crossovers', 'Crossovers', []], // via sets.crossover, not set_type
-  ['draft', 'Draft & Supplemental', ['draft_innovation', 'eternal', 'funny']],
-  ['boxes', 'Secret Lair & Boxes', ['box']],
-  ['promos', 'Promos', ['promo']],
-  ['precons', 'Precon decks', DECK_TYPES],
-];
+// ponytail: the six core buckets + precons come from src/games.ts so /g/mtg can't drift.
+const AIM_BUCKETS = MTG_BUCKETS;
 const DEFAULT_AIM = ['core', 'expansions', 'crossovers'];
 
 export default async function AdvisorPage({
@@ -87,7 +79,7 @@ export default async function AdvisorPage({
       game === 'mtg'
         ? client`and (
             case
-              when s.set_type = any(${DECK_TYPES}) then ${aim.has('precons')}
+              when s.set_type = any(${MTG_DECK_TYPES}) then ${aim.has('precons')}
               when s.crossover then ${aim.has('crossovers')}
               else s.set_type = any(${allowedTypes})
             end
@@ -170,7 +162,6 @@ export default async function AdvisorPage({
           },
         ]}
         hidden={{ game, min: String(minSize) }}
-        rowId="advisor-aim"
         clearHref={`/advisor?game=${game}&min=${minSize}`}
       />
 

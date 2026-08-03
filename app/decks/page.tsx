@@ -6,15 +6,16 @@
 // sit alongside as selections. Cards in decks still count as collected everywhere.
 import Link from 'next/link';
 import { client } from '../../src/db/index.ts';
-import { ENABLED_GAMES } from '../../src/games.ts';
+import { ENABLED_GAMES, MTG_DECK_TYPES } from '../../src/games.ts';
 import DeleteContainer from '../components/DeleteContainer.tsx';
 import NewContainer from '../components/NewContainer.tsx';
 
 export const dynamic = 'force-dynamic';
 
 // deck-shaped set types across games: mtg's precon products plus pokemon's 'deck'
-// (Trainer Kits / Starter Sets, derived at import)
-const DECK_SET_TYPES = ['commander', 'duel_deck', 'planechase', 'archenemy', 'starter', 'arsenal', 'premium_deck', 'deck'];
+// (Trainer Kits / Starter Sets, derived at import). MTG list comes from src/games.ts so
+// /advisor and /g/mtg agree on what counts as a precon.
+const DECK_SET_TYPES = [...MTG_DECK_TYPES, 'deck'];
 
 export default async function DecksPage() {
   // a container has no game column; a deck's game is whichever game most of its cards

@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { client } from '../../../src/db/index.ts';
-import { ENABLED_GAMES } from '../../../src/games.ts';
+import { ENABLED_GAMES, MTG_BUCKETS, MTG_DECK_TYPES } from '../../../src/games.ts';
 import ChipFormSection from '../../components/ChipFormSection.tsx';
 
 export const dynamic = 'force-dynamic';
@@ -12,15 +12,11 @@ export const dynamic = 'force-dynamic';
 // here — they're fixed buyable decks, not collectible sets. Masters/reprint sets merge into
 // Core (they're "kind of core again": reprint products), and crossover (non-Magic-IP /
 // Universes Beyond) sets get their own bucket regardless of set_type via sets.crossover.
-const MTG_DECK_TYPES = ['commander', 'duel_deck', 'planechase', 'archenemy', 'starter', 'arsenal', 'premium_deck'];
-const MTG_BUCKETS: [string, string[]][] = [
-  ['Core & Reprints', ['core', 'masters', 'from_the_vault', 'spellbook', 'masterpiece']],
-  ['Expansions', ['expansion']],
-  ['Crossovers', []], // filled by the crossover flag, not set_type
-  ['Draft & Supplemental', ['draft_innovation', 'eternal', 'funny']],
-  ['Secret Lair & Boxes', ['box']],
-  ['Promos', ['promo']],
-];
+// ponytail: taxonomy comes from src/games.ts so /advisor's "precons" key and the six core
+// bucket labels can't drift between the two surfaces.
+const MTG_NAV_BUCKETS: [string, string[]][] = MTG_BUCKETS
+  .filter(([key]) => key !== 'precons')
+  .map(([key, label, types]) => [label, types]);
 
 const FORMATS: Record<string, string[]> = {
   mtg: ['standard', 'pioneer', 'modern', 'legacy', 'vintage', 'commander', 'pauper'],
@@ -64,10 +60,10 @@ export default async function GamePage({
   // main sets, with promos pulled out of their eras into one trailing Promos bucket — same
   // Main-vs-Promo treatment as mtg. Deck products (trainer kits/starter sets, set_type
   // 'deck') are excluded here entirely and live on /decks, like mtg's precons.
-  let tabs: { label: string; sets: typeof sets }[];
+  let tabs: { label: string; sets: any[] }[];
   if (game === 'mtg') {
     const collectible = sets.filter((s) => !MTG_DECK_TYPES.includes(s.set_type));
-    tabs = MTG_BUCKETS.map(([label, types]) => ({
+    tabs = MTG_NAV_BUCKETS.map(([label, types]) => ({
       label,
       sets:
         label === 'Crossovers'
@@ -136,7 +132,6 @@ export default async function GamePage({
             ],
           },
         ]}
-        rowId="g-format"
         clearHref={`/g/${game}`}
       />
 
@@ -152,7 +147,6 @@ export default async function GamePage({
               options: tabs.map((t) => ({ value: t.label, label: t.label, n: t.sets.length })),
             },
           ]}
-          rowId="g-kinds"
           // ChipFormSection owns the multi-select sentinel itself; passing a `kind` hidden
           // here would double-submit on Apply and the filter would never appear to change.
           clearHref={`/g/${game}`}
