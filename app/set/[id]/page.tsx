@@ -121,7 +121,7 @@ export default async function SetPage({
   ];
 
   // Collections is read-only ownership: the ring is derived from what's in your binders/decks,
-  // not toggled here (that lives on the Binders page / phase-3b container CRUD). ring: emerald
+  // not toggled here (that lives on each container's detail page — add/move/edit holdings). ring: emerald
   // = this exact printing owned somewhere, amber-dashed = "For Play" (owned under a different
   // printing, per oracle_id), grey = neither. Owned foils get the holographic sheen.
   // "For trade" = copies of this printing beyond one kept + what's committed to decks.
