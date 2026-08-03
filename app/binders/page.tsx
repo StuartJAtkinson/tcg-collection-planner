@@ -135,7 +135,6 @@ export default async function BindersPage({ searchParams }: { searchParams: Prom
             },
           ]}
           hidden={{ pct: String(threshold) }}
-          rowId="binders-game"
           clearHref={`/binders?game=${game}`}
         />
 

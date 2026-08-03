@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 // Standardized chip-row filter for surfaces that don't use the full FilterSidebar (the master
 // Sets page, advisor's Collection Aim, /binders and /search's game tabs). Each chip is a
@@ -33,13 +33,8 @@ export default function ChipFormSection({
   action,
   fields,
   hidden,
-  applyLabel = 'Apply',
   clearHref,
-  className = 'mb-4 flex flex-wrap items-center gap-1.5 text-sm',
-  optionClass = 'rounded-full border px-2.5 py-0.5 text-xs',
-  activeClass = 'border-emerald-500 bg-emerald-500/10 text-emerald-300',
-  inactiveClass = 'border-neutral-700 text-neutral-300 hover:border-neutral-500',
-  rowId,
+  className,
 }: {
   action?: string;
   fields: Field[];
@@ -47,15 +42,9 @@ export default function ChipFormSection({
   // matches `fields[].name` — collision with the per-field hidden below would cause the form
   // to post duplicate params and the page would never appear to change.
   hidden?: Record<string, string | undefined>;
-  applyLabel?: string;
   clearHref?: string;
-  className?: string;
-  optionClass?: string;
-  activeClass?: string;
-  inactiveClass?: string;
-  rowId?: string;
+  className: string;
 }) {
-  const formRef = useRef<HTMLFormElement>(null);
   const [sel, setSel] = useState<Record<string, Set<string>>>(() =>
     Object.fromEntries(fields.map((f) => [f.name, initSet(f.defaultValue)])),
   );
@@ -96,7 +85,7 @@ export default function ChipFormSection({
     setSel((prev) => ({ ...prev, [name]: new Set([value]) }));
 
   return (
-    <form ref={formRef} method="get" action={action} id={rowId} className={className}>
+    <form method="get" action={action} className={className}>
       {hidden && Object.entries(hidden).map(([k, v]) => (v ? <input key={k} type="hidden" name={k} value={v} /> : null))}
       {fields.map((f) => {
         const cur = sel[f.name] ?? new Set();
@@ -119,7 +108,11 @@ export default function ChipFormSection({
                     f.kind === 'radio' ? setRadio(f.name, o.value) : toggleMulti(f.name, o.value)
                   }
                   aria-pressed={f.kind === 'radio' ? on : undefined}
-                  className={`cursor-pointer ${optionClass} ${on ? activeClass : inactiveClass}`}
+                  className={`cursor-pointer rounded-full border px-2.5 py-0.5 text-xs ${
+                    on
+                      ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300'
+                      : 'border-neutral-700 text-neutral-300 hover:border-neutral-500'
+                  }`}
                 >
                   {o.label}
                   {o.n != null && o.n ? <span className="text-neutral-500"> {o.n}</span> : null}
@@ -134,7 +127,7 @@ export default function ChipFormSection({
         disabled={!dirty}
         className="rounded border border-neutral-700 px-2.5 py-0.5 text-xs text-neutral-300 hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-40"
       >
-        {applyLabel}
+        Apply
       </button>
       {clearHref && (
         <a

@@ -88,7 +88,6 @@ export default async function SearchPage({
           },
         ]}
         hidden={{ q: q || undefined }}
-        rowId="search-game"
         clearHref={q ? `/search?q=${encodeURIComponent(q)}` : '/search'}
       />
 
