@@ -3,43 +3,10 @@ import readline from 'node:readline';
 import { sql } from 'drizzle-orm';
 import { client, db } from '../db/index.ts';
 import { games, sets } from '../db/schema.ts';
-import { download, getJson, sortKey, upsertCards } from './util.ts';
+import { download, getJson, mtgRowsFor, refreshMtgSetMetadata, upsertCards } from './util.ts';
 import type { CardRow, FacetRow, PriceRow } from './util.ts';
 
-const RARITY_TIER: Record<string, number> = { common: 1, uncommon: 2, rare: 3, mythic: 4, special: 5, bonus: 5 };
-const WUBRG = 'WUBRG';
-// order matters: first match in type_line wins ("Artifact Creature" → Creature)
-const KINDS = ['Battle', 'Planeswalker', 'Creature', 'Sorcery', 'Instant', 'Artifact', 'Enchantment',
-  'Land', 'Kindred', 'Tribal', 'Conspiracy', 'Phenomenon', 'Plane', 'Scheme', 'Vanguard', 'Emblem',
-  'Token', 'Card'];
 const today = new Date().toISOString().slice(0, 10);
-
-function facetsFor(c: any): FacetRow[] {
-  const colors: string[] = c.colors ?? c.card_faces?.flatMap((f: any) => f.colors ?? []) ?? [];
-  const uniq = [...new Set(colors)].sort((a, b) => WUBRG.indexOf(a) - WUBRG.indexOf(b));
-  const rows: FacetRow[] = (uniq.length ? uniq : ['C']).map((v) => ({ cardId: c.id, facet: 'color', value: v }));
-  rows.push({ cardId: c.id, facet: 'color_combo', value: uniq.join('') || 'C' });
-  rows.push({ cardId: c.id, facet: 'kind', value: KINDS.find((k) => c.type_line?.includes(k)) ?? 'Other' });
-  return rows;
-}
-
-function attrsFor(c: any) {
-  const face = (f: any) => ({
-    name: f.name, mana_cost: f.mana_cost, type_line: f.type_line, oracle_text: f.oracle_text,
-    power: f.power, toughness: f.toughness, loyalty: f.loyalty, flavor_text: f.flavor_text,
-    security_stamp: f.security_stamp, promo_types: f.promo_types,
-    image_small: f.image_uris?.small, image_large: f.image_uris?.large,
-  });
-  return {
-    mana_cost: c.mana_cost, cmc: c.cmc, type_line: c.type_line, oracle_text: c.oracle_text,
-    power: c.power, toughness: c.toughness, loyalty: c.loyalty, flavor_text: c.flavor_text,
-    keywords: c.keywords?.length ? c.keywords : undefined,
-    card_faces: c.card_faces?.map(face),
-    legalities: c.legalities,
-    security_stamp: c.security_stamp, promo_types: c.promo_types,
-    frame: c.frame, border_color: c.border_color,
-  };
-}
 
 async function importSets(): Promise<Set<string>> {
   const ids = new Set<string>();
@@ -115,19 +82,10 @@ async function main() {
     if (c.security_stamp === 'triangle' || c.promo_types?.includes('universesbeyond')) sc.tri++;
     stampCounts.set(c.set_id, sc);
 
-    const img = c.image_uris ?? c.card_faces?.[0]?.image_uris;
-    cardBatch.push({
-      id: c.id, gameId: 'mtg', setId: c.set_id, name: c.name,
-      collectorNumber: c.collector_number, sortKey: sortKey(c.collector_number),
-      rarityRaw: c.rarity, rarityTier: RARITY_TIER[c.rarity] ?? 3,
-      imageSmall: img?.small ?? null, imageLarge: img?.large ?? img?.normal ?? null,
-      artist: c.artist ?? null, finishes: c.finishes ?? ['nonfoil'], attrs: attrsFor(c),
-      oracleId: c.oracle_id ?? c.card_faces?.[0]?.oracle_id ?? null,
-    });
-    facetBatch.push(...facetsFor(c));
-    for (const [key, finish] of [['usd', 'nonfoil'], ['usd_foil', 'foil'], ['usd_etched', 'etched']] as const) {
-      if (c.prices?.[key]) priceBatch.push({ cardId: c.id, finish, usd: c.prices[key], asOf: today });
-    }
+    const shaped = mtgRowsFor(c, today);
+    cardBatch.push(shaped.card);
+    facetBatch.push(...shaped.facets);
+    priceBatch.push(...shaped.prices);
 
     if (cardBatch.length >= 1000) {
       await flush();
@@ -138,32 +96,12 @@ async function main() {
 
   console.log(`  ${imported} paper cards (skipped ${skippedNonPaper} non-paper, ${skippedNoSet} in digital sets)`);
 
-  // a set is format-legal iff most of its cards are (banned singles don't disqualify a set)
   console.log('mtg: set legalities');
-  await client`
-    update sets s set legalities = l.leg
-    from (
-      select set_id, jsonb_object_agg(fmt, 'Legal') as leg
-      from (
-        select c.set_id, f.fmt
-        from cards c, jsonb_each_text(c.attrs->'legalities') as f(fmt, status)
-        where c.game_id = 'mtg'
-        group by c.set_id, f.fmt
-        having avg((f.status = 'legal')::int) > 0.5
-      ) x
-      group by set_id
-    ) l
-    where s.id = l.set_id`;
-
-  console.log('mtg: crossover flags');
   const crossoverIds = [...stampCounts]
     .filter(([, v]) => v.total > 0 && v.tri / v.total > 0.5)
     .map(([id]) => id);
-  await client`update sets set crossover = false where game_id = 'mtg'`;
-  if (crossoverIds.length) {
-    await client`update sets set crossover = true where id = any(${crossoverIds})`;
-  }
-  console.log(`  ${crossoverIds.length} crossover (Universes Beyond) sets flagged`);
+  const crossoverCount = await refreshMtgSetMetadata(crossoverIds);
+  console.log(`  ${crossoverCount} crossover (Universes Beyond) sets flagged`);
 
   // Scryfall has no set key-art, so the binder cover marquee falls back to the set's
   // highest-value card image (its most iconic/expensive card reads as the "face" of the set)

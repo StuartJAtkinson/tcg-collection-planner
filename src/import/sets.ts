@@ -10,75 +10,38 @@
 //
 // Side effects: pulls card data per code via /cards/search?q=set:CODE+game:paper (paginated),
 // fetches full set metadata via /sets/<uuid>, then upserts via the shared helpers in util.ts.
-// Run mtg: crossover flags afterwards by re-running src/import/mtg.ts (its crossover derivation
-// operates on freshly-imported cards and will pick these up automatically).
+// Re-derives MTG set legalities and crossover flags after the targeted import.
 
-import readline from 'node:readline';
-import { createReadStream } from 'node:fs';
+import { readFileSync } from 'node:fs';
+import { parseArgs } from 'node:util';
+import { sql } from 'drizzle-orm';
 import { client, db } from '../db/index.ts';
 import { sets, games } from '../db/schema.ts';
-import { getJson, sortKey, upsertCards, type CardRow, type FacetRow, type PriceRow } from './util.ts';
-
-const WUBRG = 'WUBRG';
-const RARITY_TIER: Record<string, number> = { common: 1, uncommon: 2, rare: 3, mythic: 4, special: 5, bonus: 5 };
-const KINDS = ['Battle', 'Planeswalker', 'Creature', 'Sorcery', 'Instant', 'Artifact', 'Enchantment',
-  'Land', 'Kindred', 'Tribal', 'Conspiracy', 'Phenomenon', 'Plane', 'Scheme', 'Vanguard', 'Emblem',
-  'Token', 'Card'];
+import { getJson, mtgRowsFor, refreshMtgSetMetadata, sortKey, upsertCards, type CardRow, type FacetRow, type PriceRow } from './util.ts';
 
 const today = new Date().toISOString().slice(0, 10);
 
-// --- argv parsing ----------------------------------------------------------------
-async function parseArgs() {
-  const args = process.argv.slice(2);
-  let i = 0;
-  const codes: string[] = [];
-  let file: string | null = null;
-  while (i < args.length) {
-    const a = args[i++];
-    if (a === '--codes') codes.push(...(args[i++] ?? '').split(',').filter(Boolean));
-    else if (a === '--file') file = args[i++] ?? null;
-    else if (a === '--help') {
-      console.log('Usage: node src/import/sets.ts --codes trk,ttrk,trc | --file file.txt');
-      process.exit(0);
-    }
+function parseCodes() {
+  const { values } = parseArgs({
+    options: {
+      codes: { type: 'string', multiple: true },
+      file: { type: 'string' },
+      help: { type: 'boolean', short: 'h' },
+    },
+  });
+  if (values.help) {
+    console.log('Usage: node src/import/sets.ts --codes trk,ttrk,trc | --file file.txt');
+    process.exit(0);
   }
-  if (!codes.length && !file) {
+  const codes = (values.codes ?? []).flatMap((v) => v.split(',').map((c) => c.trim()).filter(Boolean));
+  if (values.file) {
+    codes.push(...readFileSync(values.file, 'utf8').split(/\r?\n/).map((line) => line.trim()).filter((line) => line && !line.startsWith('#')));
+  }
+  if (!codes.length) {
     console.error('pass --codes x,y or --file list.txt (one code per line)');
     process.exit(1);
   }
-  if (file) {
-    const lines = (await import('node:fs')).readFileSync(file, 'utf8').split(/\r?\n/);
-    for (const l of lines) {
-      const c = l.trim();
-      if (c && !c.startsWith('#')) codes.push(c);
-    }
-  }
   return codes;
-}
-
-function facetsFor(c: any): FacetRow[] {
-  const colors: string[] = c.colors ?? c.card_faces?.flatMap((f: any) => f.colors ?? []) ?? [];
-  const uniq = [...new Set(colors)].sort((a, b) => WUBRG.indexOf(a) - WUBRG.indexOf(b));
-  const rows: FacetRow[] = (uniq.length ? uniq : ['C']).map((v) => ({ cardId: c.id, facet: 'color', value: v }));
-  rows.push({ cardId: c.id, facet: 'color_combo', value: uniq.join('') || 'C' });
-  rows.push({ cardId: c.id, facet: 'kind', value: KINDS.find((k) => c.type_line?.includes(k)) ?? 'Other' });
-  return rows;
-}
-
-function attrsFor(c: any) {
-  const face = (f: any) => ({
-    name: f.name, mana_cost: f.mana_cost, type_line: f.type_line, oracle_text: f.oracle_text,
-    power: f.power, toughness: f.toughness, loyalty: f.loyalty, flavor_text: f.flavor_text,
-    image_small: f.image_uris?.small, image_large: f.image_uris?.large,
-  });
-  return {
-    mana_cost: c.mana_cost, cmc: c.cmc, type_line: c.type_line, oracle_text: c.oracle_text,
-    power: c.power, toughness: c.toughness, loyalty: c.loyalty, flavor_text: c.flavor_text,
-    keywords: c.keywords?.length ? c.keywords : undefined,
-    card_faces: c.card_faces?.map(face),
-    legalities: c.legalities, security_stamp: c.security_stamp, promo_types: c.promo_types,
-    frame: c.frame, border_color: c.border_color,
-  };
 }
 
 // --- per-code import ------------------------------------------------------------
@@ -95,19 +58,10 @@ async function importSet(code: string) {
     for (const card of page.data ?? []) {
       if (!card.games?.includes('paper')) continue;
       if (!setMeta) setMeta = await getJson(card.set_uri); // first card carries the set reference
-      const img = card.image_uris ?? card.card_faces?.[0]?.image_uris;
-      c.push({
-        id: card.id, gameId: 'mtg', setId: card.set_id, name: card.name,
-        collectorNumber: card.collector_number, sortKey: sortKey(card.collector_number),
-        rarityRaw: card.rarity, rarityTier: RARITY_TIER[card.rarity] ?? 3,
-        imageSmall: img?.small ?? null, imageLarge: img?.large ?? img?.normal ?? null,
-        artist: card.artist ?? null, finishes: card.finishes ?? ['nonfoil'],
-        attrs: attrsFor(card), oracleId: card.oracle_id ?? card.card_faces?.[0]?.oracle_id ?? null,
-      });
-      f.push(...facetsFor(card));
-      for (const [k, finish] of [['usd', 'nonfoil'], ['usd_foil', 'foil'], ['usd_etched', 'etched']] as const) {
-        if (card.prices?.[k]) p.push({ cardId: card.id, finish, usd: card.prices[k], asOf: today });
-      }
+      const shaped = mtgRowsFor(card, today);
+      c.push(shaped.card);
+      f.push(...shaped.facets);
+      p.push(...shaped.prices);
     }
     url = page.has_more ? page.next_page : null;
   }
@@ -126,11 +80,11 @@ async function importSet(code: string) {
   }).onConflictDoUpdate({
     target: sets.id,
     set: {
-      name: (await import('drizzle-orm')).sql`excluded.name`,
-      releaseDate: (await import('drizzle-orm')).sql`excluded.release_date`,
-      setType: (await import('drizzle-orm')).sql`excluded.set_type`,
-      cardCount: (await import('drizzle-orm')).sql`excluded.card_count`,
-      iconUrl: (await import('drizzle-orm')).sql`excluded.icon_url`,
+      name: sql`excluded.name`,
+      releaseDate: sql`excluded.release_date`,
+      setType: sql`excluded.set_type`,
+      cardCount: sql`excluded.card_count`,
+      iconUrl: sql`excluded.icon_url`,
     },
   });
 
@@ -140,47 +94,16 @@ async function importSet(code: string) {
 }
 
 async function main() {
-  const codes = await parseArgs();
+  const codes = parseCodes();
   let total = 0;
   for (const code of codes) total += await importSet(code);
   console.log(`\nDone. Imported ${total} cards across ${codes.length} set(s).`);
 
   // Re-derive set legalities + crossover flags after a fresh import, mirroring mtg.ts.
   console.log('\nmtg: set legalities (post-targeted-import)');
-  await client`
-    update sets s set legalities = l.leg from (
-      select set_id, jsonb_object_agg(fmt, 'Legal') as leg
-      from (select c.set_id, f.fmt from cards c, jsonb_each_text(c.attrs->'legalities') as f(fmt, status)
-            where c.game_id='mtg' group by c.set_id, f.fmt
-            having avg((f.status='legal')::int) > 0.5) x
-      group by set_id) l where s.id = l.set_id`;
-
   console.log('mtg: crossover flags (post-targeted-import)');
-  // Crossover = the SET where most cards carry the triangle stamp or the `universesbeyond`
-  // promo signal. This is the only signal that gets used. It picks up every UB set as long as
-  // Scryfall tags the cards (which they have done since the UB program began in 2022). Name
-  // heuristics are too imprecise — see "Legends" matching "Marvel Legends" — so we don't add
-  // a name fallback. (Ponytail note: leave a signal alone once it works; the 2022 stamp-based
-  // detection also covers the 2025+ UB Standard sets that dropped the triangle in favour of a
-  // promo_types: universesbeyond flag, since both bits are checked here.)
-  const crossoverIds = (await client`
-    select set_id
-    from (
-      select c.set_id,
-             (count(*) filter (
-                where c.attrs->>'security_stamp' = 'triangle'
-                   or c.attrs->'promo_types' ? 'universesbeyond'
-             ))::float / nullif(count(*),0) as ratio
-      from cards c
-      where c.game_id='mtg'
-      group by c.set_id
-    ) x
-    where ratio > 0.5
-  `).map((r: any) => r.set_id);
-
-  await client`update sets set crossover = false where game_id = 'mtg'`;
-  if (crossoverIds.length) await client`update sets set crossover = true where id = any(${crossoverIds})`;
-  console.log(`  ${crossoverIds.length} crossover sets flagged`);
+  const crossoverCount = await refreshMtgSetMetadata();
+  console.log(`  ${crossoverCount} crossover sets flagged`);
 
   await client.end();
   await db.$client.end();
