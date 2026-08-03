@@ -27,6 +27,7 @@ export type SearchCard = {
   set_nonfoil: number; set_foil: number;
   // oracle-level ownership rollup, for the at-a-glance sidebar
   func_total: number; deck_nonfoil: number; deck_foil: number; any_foil: boolean;
+  usd: number | null;
 };
 
 // Shared global-search query, used by the Search page (initial render) and /api/search
@@ -56,14 +57,14 @@ export async function searchCards(p: SearchParams): Promise<SearchCard[]> {
       )
     select id, name, image_small, set_code, game_id, set_icon_url,
            func_total > 0 as owned, set_nonfoil, set_foil,
-           func_total, deck_nonfoil, deck_foil, any_foil
+           func_total, deck_nonfoil, deck_foil, any_foil, usd
     from (
       select distinct on (coalesce(c.oracle_id, c.id))
              c.id, c.name, c.image_small, s.code as set_code, c.game_id, s.icon_url as set_icon_url,
              coalesce(hd.set_nonfoil, 0) as set_nonfoil, coalesce(hd.set_foil, 0) as set_foil,
              g.func_total, g.deck_nonfoil, g.deck_foil, g.any_foil, c.name as sort_name,
              c.sort_key, c.rarity_tier, s.release_date, (c.attrs->>'cmc')::numeric as cmc_num,
-             cc.value as color_combo, p.usd
+             cc.value as color_combo, p.usd::float as usd
       from cards c
       join sets s on s.id = c.set_id
       join grp g on g.gid = coalesce(c.oracle_id, c.id)

@@ -49,6 +49,7 @@ export default function SearchResults({ initial, query }: { initial: SearchCard[
             key={c.id}
             card={{ id: c.id, name: c.name, imageSmall: c.image_small, owned: c.owned, foil: c.any_foil }}
             metaLeft={<span className="uppercase">{c.set_code}</span>}
+            metaRight={c.usd != null ? `$${c.usd.toFixed(2)}` : undefined}
             ownership={c.owned ? { funcTotal: c.func_total, totalFoil: c.any_foil, setNonfoil: c.set_nonfoil, setFoil: c.set_foil, deckNonfoil: c.deck_nonfoil, deckFoil: c.deck_foil } : undefined}
             setIconUrl={c.set_icon_url}
             game={c.game_id}
