@@ -75,7 +75,7 @@ export default async function DecksPage() {
         </h2>
         {myDecks.length === 0 ? (
           <p className="text-sm text-neutral-500">
-            No decks yet — import a Collectr export with portfolio names, or create decks in phase 3b.
+            No decks yet — click "+ New deck" above, or import a Collectr export with portfolio names.
           </p>
         ) : (
           deckGames.map((gameName) => (
