@@ -91,7 +91,7 @@ export default function BinderBuilder({ cards, defaultName }: { cards: BinderCan
   return (
     <div className="grid gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
       <form action={createFunctionalBinder} className="self-start rounded-xl border border-neutral-800 bg-neutral-900 p-4 xl:sticky xl:top-4">
-        <h2 className="text-lg font-semibold">Functional binder</h2>
+        <h2 className="border-b border-neutral-800 pb-1 text-lg font-semibold text-neutral-300">Functional binder</h2>
         <p className="mt-1 text-sm text-neutral-400">Drag fields into priority order. Remove any grouping you do not need.</p>
 
         <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-neutral-500">
@@ -154,8 +154,8 @@ export default function BinderBuilder({ cards, defaultName }: { cards: BinderCan
       </form>
 
       <section className="min-w-0">
-        <div className="mb-3 flex items-baseline justify-between">
-          <h2 className="text-lg font-semibold">Page preview</h2>
+        <div className="mb-3 flex items-baseline justify-between border-b border-neutral-800 pb-1">
+          <h2 className="text-lg font-semibold text-neutral-300">Page preview</h2>
           <span className="text-xs text-neutral-500">Only loose cards in Unsorted Collection are included</span>
         </div>
         {pages.length === 0 ? <p className="text-sm text-neutral-500">There are no unsorted cards to file.</p> : (
