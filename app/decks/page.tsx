@@ -71,7 +71,7 @@ export default async function DecksPage() {
 
       <section className="mb-10">
         <h2 className="mb-3 border-b border-neutral-800 pb-1 text-lg font-semibold text-neutral-300">
-          My decks <span className="text-sm font-normal text-neutral-500">{myDecks.length}</span>
+          Your decks <span className="text-sm font-normal text-neutral-500">{myDecks.length}</span>
         </h2>
         {myDecks.length === 0 ? (
           <p className="text-sm text-neutral-500">
