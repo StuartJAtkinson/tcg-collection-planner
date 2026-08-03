@@ -10,10 +10,13 @@ analytics.
 - **Postgres catalogue** (`src/db/schema.ts`) — Scryfall `default_cards` for MTG
   and the pokemon-tcg-data GitHub repo for Pokémon, both bulk-imported. The web
   app never calls an external card API at runtime; importers do, and only they.
-- **Master Sets / Sets / Cards pages** — `/g/mtg` and `/g/pokemon` show sets by
-  release year with completion bars; `/set/[id]` is the binder checklist (Binder
-  / Print / Grid views, filter bar, cost-to-complete). `/card/[id]` is the
-  Gatherer-style single card page (all printings, ownership per finish).
+- **Master Sets / Sets / Cards pages** — `/g/mtg` shows sets by release year with
+  completion bars (Pokémon is hidden behind `ENABLED_GAMES` in `src/games.ts`
+  until its import path is fully in place — catalogue data is untouched, so
+  re-enabling is a one-line change); `/set/[id]` is the set checklist (Print /
+  Grid views, filter bar, cost-to-complete — the physical binder-book view now
+  lives per-container on `/binders/[id]`). `/card/[id]` is the Gatherer-style
+  single card page (all printings, ownership per finish).
 - **Containers** (`/binders`, `/decks`) — `containers` table holds binders and
   decks; the unfiled import pool lives in the `unsorted` container rather than a
   fake binder. Per-holding editor (move between containers, qty/condition/paid),
@@ -36,10 +39,9 @@ analytics.
   download; only re-downloads when Scryfall's `updated_at` actually moves. Run
   via cron / Windows Task Scheduler.
 - **Collection value** (`/value`) — today's owned-portfolio USD total + per-game
-  split + 90-day SVG sparkline from the `prices` time series. The sparkline is
-  "static collection × historical prices" because holdings don't track an
-  acquisition date; the next step is to record `held_since` on holdings for
-  retroactive accuracy.
+  split + 90-day SVG sparkline from the `prices` time series. Holdings carry a
+  `held_since` acquisition date (from the import CSV, or today for manual adds),
+  so the series only counts a card on days you actually owned it.
 
 ## Run
 

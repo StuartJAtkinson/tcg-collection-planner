@@ -1,5 +1,5 @@
-// A single deck's contents — the holdings physically sitting in this container. Read-only
-// for now: moving cards between containers / editing quantities is phase 3b's container CRUD.
+// A single deck's contents — the holdings physically sitting in this container. Per-holding
+// editing (move between containers, qty/condition/paid) is the HoldingEditor overlay below.
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { client } from '../../../src/db/index.ts';
