@@ -47,4 +47,9 @@
 
 ## Needs input (Auto Continue)
 *Left by Auto Continue 2026-08-03 — decide these, then clear CONSIDERATIONS.md.*
-- **Two visually unrelated "Apply" button styles for the same dirty-tracked-form-submit action shown together on the same page. `app/components/FilterApply.tsx:71` and `app/components/ChipFormSection.tsx:135` implement identical logic for submitting a form that differs from the URL, but with different styles (emerald filled primary and neutral outlined). Both buttons are rendered on the same page (`app/search/page.tsx`), leading to two visually distinct "Apply" buttons performing the same action. Stuart will determine which style should be canonical in-app.**
+- Two visually unrelated "Apply" button styles for the same dirty-tracked-form-submit action are present on the same page: an emerald filled primary button (`bg-emerald-600 ... text-white`) and a neutral outlined button (`border border-neutral-700 text-neutral-300`). Both implement identical logic and are rendered on the same page, causing confusion. Stuart will decide which style is canonical in-app.
+
+Additionally, there is no shared convention for formatting aggregate dollar totals: cents vs whole dollars, comma-separated vs not. The four *aggregate* totals disagree with each other:
+- `app/set/[id]/page.tsx:162` and `app/decks/[id]/page.tsx:73` "cost to complete" and "value ≈" keep `.toFixed(2)` (cents, no separator).
+- `app/advisor/page.tsx:214` "cost_missing" uses `.toFixed(0)` (whole dollars, no separator).
+- `app/value/page.tsx:62`'s `fmt()` uses `toLocaleString('en-US', { maximumFractionDigits: 0 })` (whole dollars, comma-separated). Stuart will decide which convention aggregate totals should use.
