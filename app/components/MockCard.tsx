@@ -73,13 +73,6 @@ function frameColor(colors?: string[]) {
 // frame colour itself. Real card text boxes/name plates are a darker shade of the frame, not
 // an identical fill; it also has to stay visually distinct from the frame when there's no art
 // to mask (a plate the exact same colour as its background is just invisible).
-function darken(hex: string, factor = 0.45): string {
-  const n = parseInt(hex.slice(1), 16);
-  const r = Math.round(((n >> 16) & 255) * factor);
-  const g = Math.round(((n >> 8) & 255) * factor);
-  const b = Math.round((n & 255) * factor);
-  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
-}
 
 // crude "shrink to fit" without measuring the DOM (this renders server-side, no client JS):
 // pick a smaller font size as the total text volume grows, same way paper Magic cards do.
@@ -124,7 +117,7 @@ function Face({ face, rotated }: { face: MockFace; rotated?: boolean }) {
   const bg = frameColor(face.colors);
   const dark = face.colors?.some((c) => DARK_FRAMES.has(c));
   const fg = dark ? '#f0f0f0' : '#1a1a1a';
-  const plateBg = darken(bg);
+  const plateBg = `color-mix(in srgb, ${bg} 45%, #000)`;
 
   const attacksText = face.attacks?.map((a) => `${a.name} ${a.text ?? ''}`).join(' ') ?? '';
   const bodyChars = (face.rulesText?.length ?? 0) + attacksText.length + (face.flavorText?.length ?? 0);
