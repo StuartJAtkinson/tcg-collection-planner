@@ -55,7 +55,7 @@ export default function SortBar({ price = false }: { price?: boolean }) {
               apply(terms.filter((t) => t.f !== f));
             }}
             title="Click: add / flip direction · Right-click: remove"
-            className={`rounded-full border px-2 py-0.5 ${on ? 'border-emerald-500 bg-emerald-600/20 text-emerald-100' : 'border-neutral-700 text-neutral-400 hover:bg-neutral-800'}`}
+            className={`rounded-full border px-2 py-0.5 ${on ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300' : 'border-neutral-700 text-neutral-400 hover:bg-neutral-800'}`}
           >
             {on && <span className="mr-1 text-emerald-400">{i + 1}</span>}
             {label}
