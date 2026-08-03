@@ -52,6 +52,7 @@ export const cards = pgTable(
     rarityTier: smallint('rarity_tier'), // 1–5, cross-game sortable
     imageSmall: text('image_small'),
     imageLarge: text('image_large'),
+    imageArtCrop: text('image_art_crop'), // Scryfall art_crop: just the illustration, no frame — used for the MockCard art window and binder cover marquee so the frame doesn't bleed through transparent plates
     artist: text('artist'),
     finishes: text('finishes').array().notNull(),
     attrs: jsonb('attrs'), // tier 3: display-only, game-specific

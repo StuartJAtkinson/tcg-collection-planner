@@ -131,15 +131,6 @@ function Face({ face, rotated }: { face: MockFace; rotated?: boolean }) {
       // w-56 = 224px, so 224 * 0.035 = 7.84px — keep this in sync if the width ever changes
       className={`relative flex aspect-[5/7] w-56 shrink-0 flex-col overflow-hidden rounded-lg border-[7.84px] border-black/70 p-1.5 text-[11px] shadow-lg ${rotated ? 'rotate-180' : ''}`}
     >
-      {/* 1) no separate art-only crop is available, so the whole card photo is stretched to
-          the mock's own frame size and sits behind everything as a mask — the art window
-          below is just a transparent gap in the opaque chrome that reveals it. Layout is
-          close enough to a real card's that the art lines up in roughly the right place. */}
-      {face.imageUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={face.imageUrl} alt="" className="absolute inset-0 h-full w-full object-fill" />
-      )}
-
       <div className="relative z-10 flex h-full flex-col">
         {/* a) name/cost plate — rounded rectangle, name left, mana cost/hp right. Solid frame
             colour (not translucent black) so it stays on-brand with the card's colour identity
@@ -156,11 +147,14 @@ function Face({ face, rotated }: { face: MockFace; rotated?: boolean }) {
           </span>
         </div>
 
-        {/* b) art window: transparent — reveals the masked card image behind at roughly the
-            right spot. +10% taller than the previous pass. No image at all: shows the honest
-            placeholder instead, same footprint. */}
+        {/* b) art window: Scryfall's art_crop is the illustration only — no frame, no text,
+            transparent corners — so it slots directly into the art window without any masking
+            shenanigans. Falls back to the honest placeholder if no URL is known. */}
         <div className="my-1 aspect-[5/3.52] w-full shrink-0 overflow-hidden rounded border border-black/20">
-          {!face.imageUrl && (
+          {face.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={face.imageUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
             <div className="flex h-full w-full items-center justify-center bg-black/10">
               <span className="px-2 text-center text-[9px] italic opacity-50">no art loaded</span>
             </div>
@@ -225,10 +219,7 @@ function Face({ face, rotated }: { face: MockFace; rotated?: boolean }) {
 
         {/* e) collector number + illustrator, one line only — rarity text dropped (the type
             line's symbol already covers it); P/T sized up now that a full second line isn't
-            competing for space. mt-0 (flush against the text box, not mt-1): any gap between
-            two opaque plates isn't actually empty — it's a sliver of the masked card image
-            showing through underneath, which usually reads as a stray black line since that's
-            typically the real card's own bottom border/legal-text strip. */}
+            competing for space. */}
         <div style={{ backgroundColor: plateBg }} className="mt-0 flex items-center justify-between gap-1 rounded-sm px-1 py-0.5 text-[8px]">
           <span className="truncate">
             <span className="uppercase">

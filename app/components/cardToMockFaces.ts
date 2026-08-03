@@ -14,6 +14,7 @@ export type MockCardSource = {
   rarity_tier: number | null;
   image_small: string | null;
   image_large: string | null;
+  image_art_crop: string | null;
   set_code: string;
   set_icon_url: string | null;
   game_id: string;
@@ -52,7 +53,7 @@ export function cardToMockFaces(card: MockCardSource): MockFace[] {
         colors: card.colors,
         rulesText: f.oracle_text ?? null,
         flavorText: f.flavor_text ?? null,
-        imageUrl: f.image_small ?? f.image_large ?? null,
+        imageUrl: f.image_art_crop ?? f.image_large ?? card.image_art_crop ?? card.image_large ?? null,
       }));
     }
     return [{
@@ -65,7 +66,7 @@ export function cardToMockFaces(card: MockCardSource): MockFace[] {
       colors: card.colors,
       rulesText: attrs.oracle_text ?? null,
       flavorText: attrs.flavor_text ?? null,
-      imageUrl: card.image_small ?? card.image_large ?? null,
+      imageUrl: card.image_art_crop ?? card.image_large ?? null,
     }];
   }
 

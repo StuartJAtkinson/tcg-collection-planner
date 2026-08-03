@@ -69,7 +69,7 @@ const mtgAttrsFor = (c: any) => {
     name: f.name, mana_cost: f.mana_cost, type_line: f.type_line, oracle_text: f.oracle_text,
     power: f.power, toughness: f.toughness, loyalty: f.loyalty, flavor_text: f.flavor_text,
     security_stamp: f.security_stamp, promo_types: f.promo_types,
-    image_small: f.image_uris?.small, image_large: f.image_uris?.large,
+    image_small: f.image_uris?.small, image_large: f.image_uris?.large, image_art_crop: f.image_uris?.art_crop,
   });
   return {
     mana_cost: c.mana_cost, cmc: c.cmc, type_line: c.type_line, oracle_text: c.oracle_text,
@@ -88,7 +88,7 @@ export function mtgRowsFor(c: any, asOf: string): { card: CardRow; facets: Facet
     id: c.id, gameId: 'mtg', setId: c.set_id, name: c.name,
     collectorNumber: c.collector_number, sortKey: sortKey(c.collector_number),
     rarityRaw: c.rarity, rarityTier: MTG_RARITY_TIER[c.rarity] ?? 3,
-    imageSmall: img?.small ?? null, imageLarge: img?.large ?? img?.normal ?? null,
+    imageSmall: img?.small ?? null, imageLarge: img?.large ?? img?.normal ?? null, imageArtCrop: img?.art_crop ?? null,
     artist: c.artist ?? null, finishes: c.finishes ?? ['nonfoil'], attrs: mtgAttrsFor(c),
     oracleId: c.oracle_id ?? c.card_faces?.[0]?.oracle_id ?? null,
   };
@@ -143,6 +143,7 @@ export async function upsertCards(cardRows: CardRow[], facetRows: FacetRow[], pr
       name: sql`excluded.name`,
       imageSmall: sql`excluded.image_small`,
       imageLarge: sql`excluded.image_large`,
+      imageArtCrop: sql`excluded.image_art_crop`,
       finishes: sql`excluded.finishes`,
       attrs: sql`excluded.attrs`,
       rarityRaw: sql`excluded.rarity_raw`,
