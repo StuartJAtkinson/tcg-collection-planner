@@ -1,5 +1,6 @@
 import { createReadStream } from 'node:fs';
 import readline from 'node:readline';
+import { createGunzip } from 'node:zlib';
 import { sql } from 'drizzle-orm';
 import { client, db } from '../db/index.ts';
 import { games, sets } from '../db/schema.ts';
@@ -47,7 +48,10 @@ async function main() {
   console.log('mtg: cards');
   const bulk: any = await getJson('https://api.scryfall.com/bulk-data');
   const entry = bulk.data.find((d: any) => d.type === 'default_cards');
-  const file = await download(entry.download_uri, 'scryfall-default-cards.json');
+  // ponytail: Scryfall renamed download_uri → jsonl_download_uri (and gzipped the payload) sometime
+  // after this script was first written — fall back to the legacy field for older snapshots.
+  const url = entry.jsonl_download_uri ?? entry.download_uri;
+  const file = await download(url, 'scryfall-default-cards.jsonl.gz');
 
   let cardBatch: CardRow[] = [];
   let facetBatch: FacetRow[] = [];
@@ -68,8 +72,8 @@ async function main() {
   // A set where most cards match either signal is a crossover set.
   const stampCounts = new Map<string, { tri: number; total: number }>();
 
-  // scryfall bulk files put one card object per line inside a JSON array
-  const rl = readline.createInterface({ input: createReadStream(file, { encoding: 'utf8' }) });
+  // scryfall bulk file: gzipped JSONL, one card object per line
+  const rl = readline.createInterface({ input: createReadStream(file).pipe(createGunzip()) });
   for await (const raw of rl) {
     const line = raw.trim().replace(/,$/, '');
     if (!line || line === '[' || line === ']') continue;
