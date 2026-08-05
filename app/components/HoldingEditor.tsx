@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { moveHolding, updateHolding } from '../../src/actions.ts';
+import { BTN_PRIMARY, BTN_SECONDARY } from './chip.ts';
 
 export type ContainerOption = { id: string; name: string; kind: string };
 
@@ -53,7 +54,7 @@ export default function HoldingEditor({
                 Paid
                 <input name="paid" defaultValue={paid ?? ''} placeholder="—" className="w-20 rounded border border-neutral-700 bg-neutral-950 px-1.5 py-1" />
               </label>
-              <button className="rounded bg-emerald-600 px-2 py-1 font-semibold text-white hover:bg-emerald-500">Save</button>
+              <button className={BTN_PRIMARY}>Save</button>
               <span className="text-[10px] text-neutral-500">Qty 0 removes it from this container.</span>
             </form>
 
@@ -69,7 +70,7 @@ export default function HoldingEditor({
                     </option>
                   ))}
                 </select>
-                <button className="rounded border border-neutral-700 px-2 py-1 hover:bg-neutral-800">Move here</button>
+                <button className={BTN_SECONDARY}>Move here</button>
               </form>
             ) : (
               <p className="text-neutral-500">No other container to move to.</p>

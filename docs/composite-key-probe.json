@@ -1,0 +1,858 @@
+{
+  "scryfall": {
+    "totalLines": 538675,
+    "paperCards": 529318,
+    "nonPaperSkipped": 9357,
+    "langHistogram": {
+      "en": 104577,
+      "fr": 58330,
+      "pt": 39593,
+      "ja": 61628,
+      "ru": 21760,
+      "de": 57996,
+      "es": 53077,
+      "ko": 15382,
+      "it": 52455,
+      "zhs": 40870,
+      "zht": 23582,
+      "ph": 49,
+      "qya": 7,
+      "sa": 1,
+      "grc": 3,
+      "he": 1,
+      "dw": 5,
+      "ar": 1,
+      "la": 1
+    },
+    "keyA": {
+      "total": 529318,
+      "distinct": 107211,
+      "dupCount": 63990,
+      "top5": [
+        {
+          "key": "fe0dad85-54bc-4151-9200-d68da84dd0f2|78",
+          "count": 11,
+          "sample": [
+            {
+              "scryfallId": "0000cd57-91fe-411f-b798-646e965eec37",
+              "set": "fe0dad85-54bc-4151-9200-d68da84dd0f2",
+              "num": "78",
+              "lang": "en",
+              "finishes": [
+                "nonfoil",
+                "foil"
+              ]
+            },
+            {
+              "scryfallId": "0ce3c314-8360-40b7-bce5-b212deb54857",
+              "set": "fe0dad85-54bc-4151-9200-d68da84dd0f2",
+              "num": "78",
+              "lang": "ko",
+              "finishes": [
+                "nonfoil",
+                "foil"
+              ]
+            },
+            {
+              "scryfallId": "1f7f4d4b-87d1-487b-b320-48bb244150c5",
+              "set": "fe0dad85-54bc-4151-9200-d68da84dd0f2",
+              "num": "78",
+              "lang": "es",
+              "finishes": [
+                "nonfoil",
+                "foil"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "c1d109bc-ffd8-428f-8d7d-3f8d7e648046|157",
+          "count": 9,
+          "sample": [
+            {
+              "scryfallId": "0000579f-7b35-4ed3-b44c-db2a538066fe",
+              "set": "c1d109bc-ffd8-428f-8d7d-3f8d7e648046",
+              "num": "157",
+              "lang": "en",
+              "finishes": [
+                "nonfoil",
+                "foil"
+              ]
+            },
+            {
+              "scryfallId": "59fa339a-cb13-40b7-af57-9ef63003804e",
+              "set": "c1d109bc-ffd8-428f-8d7d-3f8d7e648046",
+              "num": "157",
+              "lang": "ja",
+              "finishes": [
+                "nonfoil",
+                "foil"
+              ]
+            },
+            {
+              "scryfallId": "6604cb23-dcfc-49b6-adef-092b08ec9610",
+              "set": "c1d109bc-ffd8-428f-8d7d-3f8d7e648046",
+              "num": "157",
+              "lang": "it",
+              "finishes": [
+                "nonfoil",
+                "foil"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "eb16a2bd-a218-4e4e-8339-4aa1afc0c8d2|21",
+          "count": 9,
+          "sample": [
+            {
+              "scryfallId": "00006596-1166-4a79-8443-ca9f82e6db4e",
+              "set": "eb16a2bd-a218-4e4e-8339-4aa1afc0c8d2",
+              "num": "21",
+              "lang": "en",
+              "finishes": [
+                "nonfoil",
+                "foil"
+              ]
+            },
+            {
+              "scryfallId": "14adc076-4ceb-469a-aa9c-936ab950ca37",
+              "set": "eb16a2bd-a218-4e4e-8339-4aa1afc0c8d2",
+              "num": "21",
+              "lang": "fr",
+              "finishes": [
+                "nonfoil",
+                "foil"
+              ]
+            },
+            {
+              "scryfallId": "238e97c5-d31e-4aa5-8331-9aa8fc5fd6ba",
+              "set": "eb16a2bd-a218-4e4e-8339-4aa1afc0c8d2",
+              "num": "21",
+              "lang": "pt",
+              "finishes": [
+                "nonfoil",
+                "foil"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "cd82de1a-36fd-4618-bfe8-b45532a582d9|57",
+          "count": 9,
+          "sample": [
+            {
+              "scryfallId": "00011897-9c8b-482f-8d64-9f2cd8403b6a",
+              "set": "cd82de1a-36fd-4618-bfe8-b45532a582d9",
+              "num": "57",
+              "lang": "pt",
+              "finishes": [
+                "nonfoil",
+                "foil"
+              ]
+            },
+            {
+              "scryfallId": "01b996e7-db56-4920-87c8-776a622c1a06",
+              "set": "cd82de1a-36fd-4618-bfe8-b45532a582d9",
+              "num": "57",
+              "lang": "de",
+              "finishes": [
+                "nonfoil",
+                "foil"
+              ]
+            },
+            {
+              "scryfallId": "7cac7560-199f-4550-b5b2-f44518afb05f",
+              "set": "cd82de1a-36fd-4618-bfe8-b45532a582d9",
+              "num": "57",
+              "lang": "ja",
+              "finishes": [
+                "nonfoil",
+                "foil"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "5caec427-0c78-4c37-b4ec-30f7e0ba9abf|73",
+          "count": 7,
+          "sample": [
+            {
+              "scryfallId": "00009878-d086-46f0-a964-15734d8368ac",
+              "set": "5caec427-0c78-4c37-b4ec-30f7e0ba9abf",
+              "num": "73",
+              "lang": "fr",
+              "finishes": [
+                "nonfoil"
+              ]
+            },
+            {
+              "scryfallId": "11c2b0a5-d2a8-4ac0-bfb4-62913b7d0582",
+              "set": "5caec427-0c78-4c37-b4ec-30f7e0ba9abf",
+              "num": "73",
+              "lang": "ja",
+              "finishes": [
+                "nonfoil"
+              ]
+            },
+            {
+              "scryfallId": "8882765e-c37f-424d-a2e8-ec82e49bed74",
+              "set": "5caec427-0c78-4c37-b4ec-30f7e0ba9abf",
+              "num": "73",
+              "lang": "pt",
+              "finishes": [
+                "nonfoil"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "keyB": {
+      "total": 529318,
+      "distinct": 529318,
+      "dupCount": 0,
+      "top5": []
+    },
+    "keyC": {
+      "total": 887508,
+      "distinct": 162760,
+      "dupCount": 106309,
+      "top5": [
+        {
+          "key": "c1d109bc-ffd8-428f-8d7d-3f8d7e648046|157|nonfoil",
+          "count": 9,
+          "sample": [
+            {
+              "scryfallId": "0000579f-7b35-4ed3-b44c-db2a538066fe",
+              "set": "c1d109bc-ffd8-428f-8d7d-3f8d7e648046",
+              "num": "157",
+              "lang": "en",
+              "finishes": [
+                "nonfoil",
+                "foil"
+              ]
+            },
+            {
+              "scryfallId": "59fa339a-cb13-40b7-af57-9ef63003804e",
+              "set": "c1d109bc-ffd8-428f-8d7d-3f8d7e648046",
+              "num": "157",
+              "lang": "ja",
+              "finishes": [
+                "nonfoil",
+                "foil"
+              ]
+            },
+            {
+              "scryfallId": "6604cb23-dcfc-49b6-adef-092b08ec9610",
+              "set": "c1d109bc-ffd8-428f-8d7d-3f8d7e648046",
+              "num": "157",
+              "lang": "it",
+              "finishes": [
+                "nonfoil",
+                "foil"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "c1d109bc-ffd8-428f-8d7d-3f8d7e648046|157|foil",
+          "count": 9,
+          "sample": [
+            {
+              "scryfallId": "0000579f-7b35-4ed3-b44c-db2a538066fe",
+              "set": "c1d109bc-ffd8-428f-8d7d-3f8d7e648046",
+              "num": "157",
+              "lang": "en",
+              "finishes": [
+                "nonfoil",
+                "foil"
+              ]
+            },
+            {
+              "scryfallId": "59fa339a-cb13-40b7-af57-9ef63003804e",
+              "set": "c1d109bc-ffd8-428f-8d7d-3f8d7e648046",
+              "num": "157",
+              "lang": "ja",
+              "finishes": [
+                "nonfoil",
+                "foil"
+              ]
+            },
+            {
+              "scryfallId": "6604cb23-dcfc-49b6-adef-092b08ec9610",
+              "set": "c1d109bc-ffd8-428f-8d7d-3f8d7e648046",
+              "num": "157",
+              "lang": "it",
+              "finishes": [
+                "nonfoil",
+                "foil"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "eb16a2bd-a218-4e4e-8339-4aa1afc0c8d2|21|nonfoil",
+          "count": 9,
+          "sample": [
+            {
+              "scryfallId": "00006596-1166-4a79-8443-ca9f82e6db4e",
+              "set": "eb16a2bd-a218-4e4e-8339-4aa1afc0c8d2",
+              "num": "21",
+              "lang": "en",
+              "finishes": [
+                "nonfoil",
+                "foil"
+              ]
+            },
+            {
+              "scryfallId": "14adc076-4ceb-469a-aa9c-936ab950ca37",
+              "set": "eb16a2bd-a218-4e4e-8339-4aa1afc0c8d2",
+              "num": "21",
+              "lang": "fr",
+              "finishes": [
+                "nonfoil",
+                "foil"
+              ]
+            },
+            {
+              "scryfallId": "238e97c5-d31e-4aa5-8331-9aa8fc5fd6ba",
+              "set": "eb16a2bd-a218-4e4e-8339-4aa1afc0c8d2",
+              "num": "21",
+              "lang": "pt",
+              "finishes": [
+                "nonfoil",
+                "foil"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "eb16a2bd-a218-4e4e-8339-4aa1afc0c8d2|21|foil",
+          "count": 9,
+          "sample": [
+            {
+              "scryfallId": "00006596-1166-4a79-8443-ca9f82e6db4e",
+              "set": "eb16a2bd-a218-4e4e-8339-4aa1afc0c8d2",
+              "num": "21",
+              "lang": "en",
+              "finishes": [
+                "nonfoil",
+                "foil"
+              ]
+            },
+            {
+              "scryfallId": "14adc076-4ceb-469a-aa9c-936ab950ca37",
+              "set": "eb16a2bd-a218-4e4e-8339-4aa1afc0c8d2",
+              "num": "21",
+              "lang": "fr",
+              "finishes": [
+                "nonfoil",
+                "foil"
+              ]
+            },
+            {
+              "scryfallId": "238e97c5-d31e-4aa5-8331-9aa8fc5fd6ba",
+              "set": "eb16a2bd-a218-4e4e-8339-4aa1afc0c8d2",
+              "num": "21",
+              "lang": "pt",
+              "finishes": [
+                "nonfoil",
+                "foil"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "5caec427-0c78-4c37-b4ec-30f7e0ba9abf|73|nonfoil",
+          "count": 7,
+          "sample": [
+            {
+              "scryfallId": "00009878-d086-46f0-a964-15734d8368ac",
+              "set": "5caec427-0c78-4c37-b4ec-30f7e0ba9abf",
+              "num": "73",
+              "lang": "fr",
+              "finishes": [
+                "nonfoil"
+              ]
+            },
+            {
+              "scryfallId": "11c2b0a5-d2a8-4ac0-bfb4-62913b7d0582",
+              "set": "5caec427-0c78-4c37-b4ec-30f7e0ba9abf",
+              "num": "73",
+              "lang": "ja",
+              "finishes": [
+                "nonfoil"
+              ]
+            },
+            {
+              "scryfallId": "8882765e-c37f-424d-a2e8-ec82e49bed74",
+              "set": "5caec427-0c78-4c37-b4ec-30f7e0ba9abf",
+              "num": "73",
+              "lang": "pt",
+              "finishes": [
+                "nonfoil"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "mtgjson": {
+    "sets": 868,
+    "cards": 112605,
+    "tokens": 9072,
+    "missingScryfallId": 0,
+    "missingUuid": 0,
+    "uuidDistinct": 121677,
+    "langHistogram": {
+      "Chinese Simplified": 37298,
+      "French": 59231,
+      "German": 58898,
+      "Italian": 52969,
+      "Japanese": 62285,
+      "Portuguese (Brazil)": 39987,
+      "Russian": 22114,
+      "Spanish": 53932,
+      "English": 55894,
+      "Ancient Greek": 3,
+      "Chinese Traditional": 17173,
+      "Korean": 13540,
+      "Phyrexian": 49,
+      "Quenya": 7,
+      "Sanskrit": 1,
+      "Latin": 1,
+      "Hebrew": 1,
+      "Arabic": 1
+    },
+    "keyA": {
+      "total": 121677,
+      "distinct": 113704,
+      "dupCount": 7838,
+      "top5": [
+        {
+          "key": "10E|1",
+          "count": 2,
+          "sample": [
+            {
+              "uuid": "5f8287b1-5bb6-5f4c-ad17-316a40d5bb0c",
+              "scryfallId": "7a5cd03c-4227-4551-aa4b-7d119f0468b5",
+              "set": "10E",
+              "num": "1",
+              "langs": [
+                "Chinese Simplified",
+                "French",
+                "German",
+                "Italian",
+                "Japanese",
+                "Portuguese (Brazil)",
+                "Russian",
+                "Spanish"
+              ]
+            },
+            {
+              "uuid": "5aea21ce-bd08-5cd4-87f1-991f8f708d7c",
+              "scryfallId": "c8ae31d1-9a6e-43f3-9b04-bd15699f73d6",
+              "set": "10E",
+              "num": "1",
+              "langs": [
+                "English"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "10E|2",
+          "count": 2,
+          "sample": [
+            {
+              "uuid": "57aaebc1-850c-503d-9f6e-bb8d00d8bf7c",
+              "scryfallId": "8f7980d4-da43-4d6d-ad16-14b8a34ae91d",
+              "set": "10E",
+              "num": "2",
+              "langs": [
+                "Chinese Simplified",
+                "French",
+                "German",
+                "Italian",
+                "Japanese",
+                "Portuguese (Brazil)",
+                "Russian",
+                "Spanish"
+              ]
+            },
+            {
+              "uuid": "63ac47ed-3457-5af8-9a33-1bb5dcb9ca9f",
+              "scryfallId": "8a73e348-5bf1-4465-978b-3f31408bade9",
+              "set": "10E",
+              "num": "2",
+              "langs": [
+                "English"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "10E|3",
+          "count": 2,
+          "sample": [
+            {
+              "uuid": "55bd38ca-dc73-5c06-8f80-a6ddd2f44382",
+              "scryfallId": "a285aa3f-bcfb-4fc3-8441-85a56c72a3e4",
+              "set": "10E",
+              "num": "3",
+              "langs": [
+                "Chinese Simplified",
+                "French",
+                "German",
+                "Italian",
+                "Japanese",
+                "Portuguese (Brazil)",
+                "Russian",
+                "Spanish"
+              ]
+            },
+            {
+              "uuid": "7decf258-eb10-50da-83f7-c7eba74adbfb",
+              "scryfallId": "993b3b90-74c3-479b-b3e6-3f1cd8f1da04",
+              "set": "10E",
+              "num": "3",
+              "langs": [
+                "English"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "10E|4",
+          "count": 2,
+          "sample": [
+            {
+              "uuid": "3b77bb52-4181-57f5-b3cd-f3a15b95aa29",
+              "scryfallId": "f835ff5d-e03d-4a93-98bb-704eaa1e2b64",
+              "set": "10E",
+              "num": "4",
+              "langs": [
+                "Chinese Simplified",
+                "French",
+                "German",
+                "Italian",
+                "Japanese",
+                "Portuguese (Brazil)",
+                "Russian",
+                "Spanish"
+              ]
+            },
+            {
+              "uuid": "8b44e4ca-fb3a-5ef1-a607-6ed5b98cb216",
+              "scryfallId": "e9577d3c-ee19-4b53-adac-b304287a066f",
+              "set": "10E",
+              "num": "4",
+              "langs": [
+                "English"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "10E|5",
+          "count": 2,
+          "sample": [
+            {
+              "uuid": "fadda48c-6226-5ac5-a2b9-e9170d2017cd",
+              "scryfallId": "6fa1f42f-1729-46ea-99c6-015d66c627d4",
+              "set": "10E",
+              "num": "5",
+              "langs": [
+                "Chinese Simplified",
+                "French",
+                "German",
+                "Italian",
+                "Japanese",
+                "Portuguese (Brazil)",
+                "Russian",
+                "Spanish"
+              ]
+            },
+            {
+              "uuid": "e5f8bf25-2f3e-59c6-a59e-313184ee43db",
+              "scryfallId": "698d48fa-d6c1-44b9-8aa2-bb03e0e53788",
+              "set": "10E",
+              "num": "5",
+              "langs": [
+                "English"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "keyB": {
+      "total": 473384,
+      "distinct": 462077,
+      "dupCount": 11278,
+      "top5": [
+        {
+          "key": "30A|1|English",
+          "count": 2,
+          "sample": [
+            {
+              "uuid": "91a98a4d-f55c-5acf-b088-6d425ba96e0f",
+              "scryfallId": "8102657a-bdb1-49e7-94f2-ab885f9ff35a",
+              "set": "30A",
+              "num": "1",
+              "langs": [
+                "English"
+              ]
+            },
+            {
+              "uuid": "835746f4-de9f-5e32-9ada-db12ea22449f",
+              "scryfallId": "147dd1c4-3f07-4e82-896d-08f182f436ac",
+              "set": "30A",
+              "num": "1",
+              "langs": [
+                "English"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "30A|2|English",
+          "count": 2,
+          "sample": [
+            {
+              "uuid": "50a26099-9dd2-54c6-a9a8-86bad72aa6f4",
+              "scryfallId": "565fc4d4-4c17-44d5-a5bc-31bc99018e5d",
+              "set": "30A",
+              "num": "2",
+              "langs": [
+                "English"
+              ]
+            },
+            {
+              "uuid": "f1b671ae-b6e9-5bd5-aab5-6605a16a9ae1",
+              "scryfallId": "3fadcf72-8ea2-40d8-af80-298fa61a573d",
+              "set": "30A",
+              "num": "2",
+              "langs": [
+                "English"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "30A|3|English",
+          "count": 2,
+          "sample": [
+            {
+              "uuid": "c9464306-a09e-5d25-aee3-194ddd747a3d",
+              "scryfallId": "5086b4dc-8066-4487-bd09-a04432291a54",
+              "set": "30A",
+              "num": "3",
+              "langs": [
+                "English"
+              ]
+            },
+            {
+              "uuid": "b4d0d7dc-117e-5096-a2f4-9acd98730c21",
+              "scryfallId": "60ad059d-2003-4873-90fb-1737565c2f78",
+              "set": "30A",
+              "num": "3",
+              "langs": [
+                "English"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "30A|4|English",
+          "count": 2,
+          "sample": [
+            {
+              "uuid": "b53b2d74-69a0-5b39-aeaf-93edc765804b",
+              "scryfallId": "4b22eafa-c414-4eed-8dc1-d26b987b341c",
+              "set": "30A",
+              "num": "4",
+              "langs": [
+                "English"
+              ]
+            },
+            {
+              "uuid": "0bbe6e7e-b4a0-5036-90ae-cff04abb921f",
+              "scryfallId": "87f13921-0eba-40ee-a4d5-8c4cf8411fa9",
+              "set": "30A",
+              "num": "4",
+              "langs": [
+                "English"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "30A|5|English",
+          "count": 2,
+          "sample": [
+            {
+              "uuid": "7fbfcf7b-9e79-59d3-b290-7c558316d8a7",
+              "scryfallId": "7b298f64-b912-47ae-87f2-ef2a944b8ce2",
+              "set": "30A",
+              "num": "5",
+              "langs": [
+                "English"
+              ]
+            },
+            {
+              "uuid": "870a02f0-5f76-5691-b79e-61fd08d258b0",
+              "scryfallId": "b3c14ab4-339b-4be2-a907-b3360bc73aee",
+              "set": "30A",
+              "num": "5",
+              "langs": [
+                "English"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "keyD": {
+      "total": 121677,
+      "distinct": 121677,
+      "dupCount": 0,
+      "top5": []
+    },
+    "keyE": {
+      "total": 121677,
+      "distinct": 116490,
+      "dupCount": 5178,
+      "top5": [
+        {
+          "key": "A25|5★|8ce300b8-ab50-4c96-ba05-30701a249230",
+          "count": 2,
+          "sample": [
+            {
+              "uuid": "dc740497-2711-5203-b204-272381eae905",
+              "scryfallId": "8ce300b8-ab50-4c96-ba05-30701a249230",
+              "set": "A25",
+              "num": "5★",
+              "langs": [
+                "English"
+              ]
+            },
+            {
+              "uuid": "5aac3b9e-2b4f-577d-8cac-47dcfbf2aa3a",
+              "scryfallId": "8ce300b8-ab50-4c96-ba05-30701a249230",
+              "set": "A25",
+              "num": "5★",
+              "langs": [
+                "English"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "AA2|17|e1aa4b5b-e5fa-4ba5-9012-9313c0f49b83",
+          "count": 2,
+          "sample": [
+            {
+              "uuid": "3a1fa54f-8118-5e11-a130-13dd8c86843a",
+              "scryfallId": "e1aa4b5b-e5fa-4ba5-9012-9313c0f49b83",
+              "set": "AA2",
+              "num": "17",
+              "langs": [
+                "English"
+              ]
+            },
+            {
+              "uuid": "c079bad8-3e17-5829-ae04-c5bfdf5c51f7",
+              "scryfallId": "e1aa4b5b-e5fa-4ba5-9012-9313c0f49b83",
+              "set": "AA2",
+              "num": "17",
+              "langs": [
+                "English"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "AACR|1|faeed7f4-b444-4cf5-ba7a-dcd99de54d61",
+          "count": 2,
+          "sample": [
+            {
+              "uuid": "313bfcae-d2a2-5e4b-99b2-34b8836a0627",
+              "scryfallId": "faeed7f4-b444-4cf5-ba7a-dcd99de54d61",
+              "set": "AACR",
+              "num": "1",
+              "langs": [
+                "English"
+              ]
+            },
+            {
+              "uuid": "d81ec327-09bb-588e-b8ef-cc7f15c433aa",
+              "scryfallId": "faeed7f4-b444-4cf5-ba7a-dcd99de54d61",
+              "set": "AACR",
+              "num": "1",
+              "langs": [
+                "English"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "AACR|2|a979a548-e0bb-4c79-ae8b-0ed2e1c1f4e4",
+          "count": 2,
+          "sample": [
+            {
+              "uuid": "56f5f9cb-212c-5edb-b6b1-556a68bb281d",
+              "scryfallId": "a979a548-e0bb-4c79-ae8b-0ed2e1c1f4e4",
+              "set": "AACR",
+              "num": "2",
+              "langs": [
+                "English"
+              ]
+            },
+            {
+              "uuid": "65616d62-0b0b-5bcf-94c4-cbc981146c26",
+              "scryfallId": "a979a548-e0bb-4c79-ae8b-0ed2e1c1f4e4",
+              "set": "AACR",
+              "num": "2",
+              "langs": [
+                "English"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "AACR|3|7ff7c58b-37e5-4ff2-b4f7-56c806c00738",
+          "count": 2,
+          "sample": [
+            {
+              "uuid": "3556691f-ca71-5ded-bbfd-0246ad5cba54",
+              "scryfallId": "7ff7c58b-37e5-4ff2-b4f7-56c806c00738",
+              "set": "AACR",
+              "num": "3",
+              "langs": [
+                "English"
+              ]
+            },
+            {
+              "uuid": "55f00516-3249-52b8-bfb1-ba71fe94f5f2",
+              "scryfallId": "7ff7c58b-37e5-4ff2-b4f7-56c806c00738",
+              "set": "AACR",
+              "num": "3",
+              "langs": [
+                "English"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "crossSide": {
+    "mtjWithScryfallId": 116490,
+    "matchedByScryfallId": 107136,
+    "matchedByComposite": 0,
+    "unmatched": 9354
+  }
+}

@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { createContainer } from '../../src/actions.ts';
+import { BTN_PRIMARY } from './chip.ts';
 
 // "New binder" / "New deck" button for the top of the Binders / Decks pages. Click reveals a
 // small inline name field (same popover feel as DeleteContainer); submitting creates the empty
@@ -13,7 +14,7 @@ export default function NewContainer({ kind }: { kind: 'binder' | 'deck' }) {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="rounded bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-500"
+        className={BTN_PRIMARY}
       >
         + New {label}
       </button>
@@ -31,7 +32,7 @@ export default function NewContainer({ kind }: { kind: 'binder' | 'deck' }) {
                 placeholder={`${label[0].toUpperCase() + label.slice(1)} name`}
                 className="w-full rounded border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-sm text-neutral-100 placeholder:text-neutral-600"
               />
-              <button className="rounded bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-500">
+              <button className={BTN_PRIMARY}>
                 Create {label}
               </button>
             </form>

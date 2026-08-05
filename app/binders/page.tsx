@@ -14,6 +14,7 @@ import { ENABLED_GAMES } from '../../src/games.ts';
 import DeleteContainer from '../components/DeleteContainer.tsx';
 import NewContainer from '../components/NewContainer.tsx';
 import ChipFormSection from '../components/ChipFormSection.tsx';
+import { BTN_PRIMARY, BTN_SECONDARY } from '../components/chip.ts';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,7 +81,7 @@ export default async function BindersPage({ searchParams }: { searchParams: Prom
   return (
     <div>
       <div className="mb-1 flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Binders</h1>
+        <h1 className="sr-only">Binders</h1>
         <NewContainer kind="binder" />
       </div>
 
@@ -111,7 +112,7 @@ export default async function BindersPage({ searchParams }: { searchParams: Prom
       <section>
         <div className="mb-1 flex items-center justify-between border-b border-neutral-800 pb-1">
           <h2 className="text-lg font-semibold text-neutral-300">Create binders</h2>
-          <Link href="/binders/build" className="rounded bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-500">
+          <Link href="/binders/build" className={BTN_PRIMARY}>
             Build functional binder
           </Link>
         </div>
@@ -151,7 +152,7 @@ export default async function BindersPage({ searchParams }: { searchParams: Prom
               className="w-16 rounded border border-neutral-700 bg-neutral-900 px-2 py-1"
             />
           </label>
-          <button className="rounded border border-neutral-700 px-3 py-1 hover:bg-neutral-800">Apply</button>
+          <button className={BTN_SECONDARY}>Apply</button>
         </form>
 
         {/* frequency analysis histogram — the step jump from scatter to worthwhile sets */}
@@ -193,7 +194,7 @@ export default async function BindersPage({ searchParams }: { searchParams: Prom
                   <form action={createSetBinder}>
                     <input type="hidden" name="set_id" value={s.set_id} />
                     <input type="hidden" name="set_name" value={s.name} />
-                    <button className="rounded bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-500">Create binder</button>
+                    <button className={BTN_PRIMARY}>Create binder</button>
                   </form>
                 </div>
               );

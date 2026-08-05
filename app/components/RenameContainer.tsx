@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { renameContainer } from '../../src/actions.ts';
+import { BTN_PRIMARY } from './chip.ts';
 
 // Inline rename for a container detail page: the title stays server-rendered; this adds a small
 // ✎ button beside it that pops a name field (same popover feel as NewContainer/DeleteContainer).
@@ -30,7 +31,7 @@ export default function RenameContainer({ id, name }: { id: string; name: string
                 defaultValue={name}
                 className="w-full rounded border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-sm text-neutral-100"
               />
-              <button className="rounded bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-500">Save</button>
+              <button className={BTN_PRIMARY}>Save</button>
             </form>
           </div>
         </>

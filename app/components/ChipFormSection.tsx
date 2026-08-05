@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { CHIP_NEUTRAL, CHIP_PLUS } from './chip.ts';
 
 // Standardized chip-row filter for surfaces that don't use the full FilterSidebar (the master
 // Sets page, advisor's Collection Aim, /binders and /search's game tabs). Each chip is a
@@ -108,11 +109,7 @@ export default function ChipFormSection({
                     f.kind === 'radio' ? setRadio(f.name, o.value) : toggleMulti(f.name, o.value)
                   }
                   aria-pressed={f.kind === 'radio' ? on : undefined}
-                  className={`cursor-pointer rounded-full border px-2.5 py-0.5 text-xs ${
-                    on
-                      ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300'
-                      : 'border-neutral-700 text-neutral-300 hover:border-neutral-500'
-                  }`}
+                  className={on ? CHIP_PLUS : CHIP_NEUTRAL}
                 >
                   {o.label}
                   {o.n != null && o.n ? <span className="text-neutral-500"> {o.n}</span> : null}
@@ -125,14 +122,14 @@ export default function ChipFormSection({
       <button
         type="submit"
         disabled={!dirty}
-        className="rounded border border-neutral-700 px-2.5 py-0.5 text-xs text-neutral-300 hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-40"
+        className={CHIP_NEUTRAL}
       >
         Apply
       </button>
       {clearHref && (
         <a
           href={clearHref}
-          className="rounded border border-neutral-700 px-2.5 py-0.5 text-xs text-neutral-400 hover:bg-neutral-800"
+          className={CHIP_NEUTRAL}
         >
           Clear
         </a>

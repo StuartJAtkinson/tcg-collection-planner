@@ -1,0 +1,702 @@
+{
+  "totalScryfall": 116568,
+  "totalMtgjson": 112605,
+  "counts": {
+    "Identity::Primary UUID": {
+      "scryfall": 116568,
+      "mtgjson": 121677
+    },
+    "Identity::Oracle UUID": {
+      "scryfall": 116487,
+      "mtgjson": null
+    },
+    "Identity::Card name": {
+      "scryfall": 116568,
+      "mtgjson": 121677
+    },
+    "Identity::ASCII name": {
+      "scryfall": null,
+      "mtgjson": 350
+    },
+    "Identity::Layout": {
+      "scryfall": 116568,
+      "mtgjson": 121677
+    },
+    "Identity::Collector number": {
+      "scryfall": 116568,
+      "mtgjson": 121677
+    },
+    "Identity::Sort key": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Identity::Language": {
+      "scryfall": 116568,
+      "mtgjson": 121677
+    },
+    "Identity::Card release date": {
+      "scryfall": 116568,
+      "mtgjson": null
+    },
+    "Card text::Oracle text (card-level)": {
+      "scryfall": 108880,
+      "mtgjson": 113755
+    },
+    "Card text::Flavor text (card-level)": {
+      "scryfall": 54896,
+      "mtgjson": 56095
+    },
+    "Card text::Printed name (foreign/localised)": {
+      "scryfall": 2576,
+      "mtgjson": 10437
+    },
+    "Card text::Printed text (foreign/localised)": {
+      "scryfall": 696,
+      "mtgjson": null
+    },
+    "Card text::Printed type line (foreign/localised)": {
+      "scryfall": 427,
+      "mtgjson": null
+    },
+    "Card text::Foreign / localised data": {
+      "scryfall": null,
+      "mtgjson": 65783
+    },
+    "Card text::Rulings (date)": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Card text::Rulings (text)": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Picture::Thumbnail": {
+      "scryfall": 112324,
+      "mtgjson": null
+    },
+    "Picture::Default size": {
+      "scryfall": 112324,
+      "mtgjson": null
+    },
+    "Picture::Large": {
+      "scryfall": 112324,
+      "mtgjson": null
+    },
+    "Picture::PNG (transparent)": {
+      "scryfall": 112324,
+      "mtgjson": null
+    },
+    "Picture::Art crop": {
+      "scryfall": 112324,
+      "mtgjson": null
+    },
+    "Picture::Border crop": {
+      "scryfall": 112324,
+      "mtgjson": null
+    },
+    "Picture::Illustration id": {
+      "scryfall": 111591,
+      "mtgjson": null
+    },
+    "Gameplay::Mana cost": {
+      "scryfall": 95291,
+      "mtgjson": 97718
+    },
+    "Gameplay::Converted mana cost": {
+      "scryfall": 116487,
+      "mtgjson": 112605
+    },
+    "Gameplay::Type line": {
+      "scryfall": 116487,
+      "mtgjson": 121677
+    },
+    "Gameplay::Power": {
+      "scryfall": 54864,
+      "mtgjson": 56736
+    },
+    "Gameplay::Toughness": {
+      "scryfall": 54864,
+      "mtgjson": 56736
+    },
+    "Gameplay::Loyalty": {
+      "scryfall": 1572,
+      "mtgjson": 1700
+    },
+    "Gameplay::Defense (battle)": {
+      "scryfall": 54,
+      "mtgjson": 56
+    },
+    "Gameplay::Life modifier (Vanguard)": {
+      "scryfall": 119,
+      "mtgjson": 119
+    },
+    "Gameplay::Hand modifier (Vanguard)": {
+      "scryfall": 119,
+      "mtgjson": 119
+    },
+    "Gameplay::Keywords": {
+      "scryfall": 116568,
+      "mtgjson": 50621
+    },
+    "Gameplay::Produced mana": {
+      "scryfall": 18152,
+      "mtgjson": null
+    },
+    "Gameplay::EDHREC rank": {
+      "scryfall": null,
+      "mtgjson": 103996
+    },
+    "Gameplay::Per-face CMC": {
+      "scryfall": 81,
+      "mtgjson": 4645
+    },
+    "Faces::Face container": {
+      "scryfall": 5178,
+      "mtgjson": null
+    },
+    "Faces::Face 1 UUID": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Faces::Face 2 UUID": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Faces::Per-face name": {
+      "scryfall": 5178,
+      "mtgjson": null
+    },
+    "Faces::Per-face flavor name": {
+      "scryfall": 15,
+      "mtgjson": null
+    },
+    "Faces::Per-face mana cost": {
+      "scryfall": 2310,
+      "mtgjson": null
+    },
+    "Faces::Per-face type line": {
+      "scryfall": 5178,
+      "mtgjson": null
+    },
+    "Faces::Per-face oracle text": {
+      "scryfall": 2506,
+      "mtgjson": null
+    },
+    "Faces::Per-face power/toughness/loyalty": {
+      "scryfall": 1733,
+      "mtgjson": null
+    },
+    "Faces::Per-face flavor text": {
+      "scryfall": 885,
+      "mtgjson": null
+    },
+    "Faces::Per-face color indicator": {
+      "scryfall": 884,
+      "mtgjson": null
+    },
+    "Faces::Per-face image_uris": {
+      "scryfall": 4082,
+      "mtgjson": null
+    },
+    "Faces::Per-face defense": {
+      "scryfall": 54,
+      "mtgjson": null
+    },
+    "Faces::Other face ids": {
+      "scryfall": null,
+      "mtgjson": 10401
+    },
+    "Faces::Side (split)": {
+      "scryfall": null,
+      "mtgjson": 10437
+    },
+    "Colors & colour identity::Card colours": {
+      "scryfall": 112324,
+      "mtgjson": 121677
+    },
+    "Colors & colour identity::Colour identity (Commander)": {
+      "scryfall": 112324,
+      "mtgjson": 121677
+    },
+    "Colors & colour identity::Colour indicator": {
+      "scryfall": 884,
+      "mtgjson": 1013
+    },
+    "Colors & colour identity::WUBRG order": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Types & tribes::Types[]": {
+      "scryfall": null,
+      "mtgjson": 121677
+    },
+    "Types & tribes::Subtypes[]": {
+      "scryfall": null,
+      "mtgjson": 121677
+    },
+    "Types & tribes::Supertypes[]": {
+      "scryfall": null,
+      "mtgjson": 121677
+    },
+    "Frame & finish::Frame": {
+      "scryfall": 116568,
+      "mtgjson": 121677
+    },
+    "Frame & finish::Security stamp": {
+      "scryfall": 42219,
+      "mtgjson": 43657
+    },
+    "Frame & finish::Border colour": {
+      "scryfall": 116568,
+      "mtgjson": 121677
+    },
+    "Frame & finish::Watermark": {
+      "scryfall": 7295,
+      "mtgjson": 7607
+    },
+    "Frame & finish::Finishes": {
+      "scryfall": 116568,
+      "mtgjson": 121677
+    },
+    "Frame & finish::Has foil": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Frame & finish::Has nonfoil": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Print::Set code": {
+      "scryfall": 116568,
+      "mtgjson": 121677
+    },
+    "Print::Set UUID": {
+      "scryfall": 116568,
+      "mtgjson": null
+    },
+    "Print::Set name": {
+      "scryfall": 116568,
+      "mtgjson": 121677
+    },
+    "Print::Set type": {
+      "scryfall": 116568,
+      "mtgjson": 121677
+    },
+    "Print::Set URI (Scryfall)": {
+      "scryfall": 116568,
+      "mtgjson": null
+    },
+    "Print::Set search URI": {
+      "scryfall": 116568,
+      "mtgjson": null
+    },
+    "Print::Scryfall set web URL": {
+      "scryfall": 116568,
+      "mtgjson": null
+    },
+    "Print::Rulings URI": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Print::Prints search URI": {
+      "scryfall": 116568,
+      "mtgjson": null
+    },
+    "Print::Collector number": {
+      "scryfall": 116568,
+      "mtgjson": 121677
+    },
+    "Print::Story spotlight": {
+      "scryfall": 429,
+      "mtgjson": 435
+    },
+    "Print::Time-shifted": {
+      "scryfall": null,
+      "mtgjson": 364
+    },
+    "Print::Oversized": {
+      "scryfall": null,
+      "mtgjson": 732
+    },
+    "Promo & content::Promo types": {
+      "scryfall": 32428,
+      "mtgjson": 34066
+    },
+    "Promo & content::Booster (draft)": {
+      "scryfall": 53295,
+      "mtgjson": null
+    },
+    "Promo & content::Variation flag": {
+      "scryfall": 97,
+      "mtgjson": null
+    },
+    "Promo & content::Variation of (UUID)": {
+      "scryfall": 97,
+      "mtgjson": null
+    },
+    "Promo & content::Content warning": {
+      "scryfall": 29,
+      "mtgjson": null
+    },
+    "Promo & content::Starter card": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Identifiers (cross-source)::TCGplayer product id": {
+      "scryfall": 100138,
+      "mtgjson": 102341
+    },
+    "Identifiers (cross-source)::TCGplayer etched id": {
+      "scryfall": 1225,
+      "mtgjson": null
+    },
+    "Identifiers (cross-source)::Cardmarket id": {
+      "scryfall": 98834,
+      "mtgjson": 101282
+    },
+    "Identifiers (cross-source)::Cardmarket meta id": {
+      "scryfall": null,
+      "mtgjson": 65787
+    },
+    "Identifiers (cross-source)::MTGO id": {
+      "scryfall": 61795,
+      "mtgjson": 63214
+    },
+    "Identifiers (cross-source)::MTGO foil id": {
+      "scryfall": 24341,
+      "mtgjson": null
+    },
+    "Identifiers (cross-source)::Arena id": {
+      "scryfall": 19693,
+      "mtgjson": 20459
+    },
+    "Identifiers (cross-source)::Multiverse id": {
+      "scryfall": 116568,
+      "mtgjson": 70737
+    },
+    "Identifiers (cross-source)::Card Kingdom id": {
+      "scryfall": null,
+      "mtgjson": 87926
+    },
+    "Identifiers (cross-source)::Cardsphere id": {
+      "scryfall": null,
+      "mtgjson": 83804
+    },
+    "Identifiers (cross-source)::Artist ids": {
+      "scryfall": null,
+      "mtgjson": 120816
+    },
+    "Prices::Prices table": {
+      "scryfall": 97912,
+      "mtgjson": null
+    },
+    "Prices::as_of": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Prices::USD (nonfoil)": {
+      "scryfall": 85115,
+      "mtgjson": null
+    },
+    "Prices::USD (foil)": {
+      "scryfall": 58559,
+      "mtgjson": null
+    },
+    "Prices::USD (etched)": {
+      "scryfall": 1218,
+      "mtgjson": null
+    },
+    "Prices::EUR": {
+      "scryfall": 86709,
+      "mtgjson": null
+    },
+    "Prices::EUR (foil)": {
+      "scryfall": 58645,
+      "mtgjson": null
+    },
+    "Prices::TIX": {
+      "scryfall": 60146,
+      "mtgjson": null
+    },
+    "Legalities::Card legalities object": {
+      "scryfall": 116568,
+      "mtgjson": 112605
+    },
+    "Legalities::Standard": {
+      "scryfall": 18470,
+      "mtgjson": 18623
+    },
+    "Legalities::Pioneer": {
+      "scryfall": 51866,
+      "mtgjson": 53173
+    },
+    "Legalities::Modern": {
+      "scryfall": 80128,
+      "mtgjson": 80901
+    },
+    "Legalities::Legacy": {
+      "scryfall": 106099,
+      "mtgjson": 105680
+    },
+    "Legalities::Vintage": {
+      "scryfall": 106099,
+      "mtgjson": 105680
+    },
+    "Legalities::Commander": {
+      "scryfall": 106234,
+      "mtgjson": 105815
+    },
+    "Legalities::Pauper": {
+      "scryfall": 34865,
+      "mtgjson": 34049
+    },
+    "Legalities::Oathbreaker": {
+      "scryfall": 106233,
+      "mtgjson": 105814
+    },
+    "Legalities::Brawl": {
+      "scryfall": 59890,
+      "mtgjson": 60976
+    },
+    "Legalities::Historic": {
+      "scryfall": 59890,
+      "mtgjson": 60976
+    },
+    "Legalities::Alchemy": {
+      "scryfall": 17068,
+      "mtgjson": 17003
+    },
+    "Legalities::Explorer": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Legalities::Gladiator": {
+      "scryfall": 60555,
+      "mtgjson": 61643
+    },
+    "Legalities::Standardbrawl": {
+      "scryfall": 18671,
+      "mtgjson": 18825
+    },
+    "Legalities::Timeless": {
+      "scryfall": 60324,
+      "mtgjson": 61431
+    },
+    "Legalities::Predh": {
+      "scryfall": 47681,
+      "mtgjson": 45200
+    },
+    "Legalities::Premodern": {
+      "scryfall": 26842,
+      "mtgjson": 24704
+    },
+    "Related cards::All parts (combo/meld)": {
+      "scryfall": 21549,
+      "mtgjson": null
+    },
+    "Related cards::Preview date": {
+      "scryfall": 16747,
+      "mtgjson": null
+    },
+    "Related cards::Preview source URI": {
+      "scryfall": 16747,
+      "mtgjson": null
+    },
+    "Related cards::Preview source name": {
+      "scryfall": 16747,
+      "mtgjson": null
+    },
+    "Leadership & roles::Leadership skills object": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Leadership & roles::Is Reserved": {
+      "scryfall": 1477,
+      "mtgjson": null
+    },
+    "Games & platforms::Games": {
+      "scryfall": 116568,
+      "mtgjson": null
+    },
+    "Games & platforms::Online-only": {
+      "scryfall": null,
+      "mtgjson": 9606
+    },
+    "Sets::Set UUID": {
+      "scryfall": 116568,
+      "mtgjson": 121677
+    },
+    "Sets::Set code": {
+      "scryfall": 116568,
+      "mtgjson": 121677
+    },
+    "Sets::Set name": {
+      "scryfall": 116568,
+      "mtgjson": 121677
+    },
+    "Sets::Set release date": {
+      "scryfall": 116568,
+      "mtgjson": 121677
+    },
+    "Sets::Set block (we call it series)": {
+      "scryfall": 116568,
+      "mtgjson": 121677
+    },
+    "Sets::Set type": {
+      "scryfall": 116568,
+      "mtgjson": 121677
+    },
+    "Sets::Card count": {
+      "scryfall": 116568,
+      "mtgjson": 121677
+    },
+    "Sets::Parent set code": {
+      "scryfall": null,
+      "mtgjson": 121677
+    },
+    "Sets::Digital": {
+      "scryfall": null,
+      "mtgjson": 121677
+    },
+    "Sets::Foil-only": {
+      "scryfall": null,
+      "mtgjson": 121677
+    },
+    "Sets::Set icon (SVG)": {
+      "scryfall": 116568,
+      "mtgjson": 121677
+    },
+    "Sets::Set search URI": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Sets::Set scry URI": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Sets::Set URI (Scryfall)": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Sets::Printed size": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Sets::TCGplayer set id": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Sets::MTGO code": {
+      "scryfall": null,
+      "mtgjson": 121677
+    },
+    "Sets::Arena code": {
+      "scryfall": null,
+      "mtgjson": 121677
+    },
+    "Sets::Set legalities (aggregated)": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Sets::Set crossover flag": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Sets::Set logo URL": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Sets::Purchase URLs": {
+      "scryfall": null,
+      "mtgjson": 102380
+    },
+    "Taxonomy (app)::games table": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Taxonomy (app)::ENABLED_GAMES": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Taxonomy (app)::MTG_DECK_TYPES": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Taxonomy (app)::MTG_BUCKETS": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Taxonomy (app)::HIDDEN_TYPES (advisor)": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Taxonomy (app)::FORMAT_LIST (mtg)": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Taxonomy (app)::FORMAT_LIST (pokemon)": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Taxonomy (app)::POKEMON_AIM": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Taxonomy (app)::DEFAULT_AIM (mtg)": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Facets (derived)::color facet": {
+      "scryfall": null,
+      "mtgjson": 121677
+    },
+    "Facets (derived)::color_combo facet": {
+      "scryfall": null,
+      "mtgjson": 121677
+    },
+    "Facets (derived)::kind facet": {
+      "scryfall": null,
+      "mtgjson": 121677
+    },
+    "Constants (app)::WUBRG order": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Constants (app)::MTG_KINDS list": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Constants (app)::MTG_RARITY_TIER map": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Constants (app)::sortKey() heuristic": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "UX knobs (app)::min set size default": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "UX knobs (app)::binder cover marquee rule": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "UX knobs (app)::download() cache TTL": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "UX knobs (app)::Batch sizes (bulk import)": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Not imported::Rulings": {
+      "scryfall": null,
+      "mtgjson": null
+    },
+    "Not imported::Scryfall API URIs": {
+      "scryfall": 116568,
+      "mtgjson": null
+    }
+  }
+}

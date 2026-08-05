@@ -7,6 +7,7 @@ import { client } from '../../src/db/index.ts';
 import { commitImport, discardImport, resolveImportRows, runImport } from '../../src/actions.ts';
 import { findCandidates } from '../../src/import/candidates.ts';
 import { GAME_MAP, norm } from '../../src/import/csv.ts';
+import { BTN_PRIMARY, BTN_SECONDARY, CHIP_NEUTRAL, CHIP_PLUS } from '../components/chip.ts';
 import type { StagedContainer } from '../../src/import/run.ts';
 
 export const dynamic = 'force-dynamic';
@@ -49,7 +50,7 @@ export default async function ImportPage({ searchParams }: { searchParams: Promi
     if (!stage) {
       return (
         <div>
-          <h1 className="mb-1 text-2xl font-bold">Import</h1>
+          <h1 className="sr-only">Import</h1>
           <p className="text-amber-400">That staged import is gone (committed, discarded, or expired). <a href="/resolve" className="underline">Start a new import.</a></p>
         </div>
       );
@@ -57,7 +58,7 @@ export default async function ImportPage({ searchParams }: { searchParams: Promi
 
     return (
       <div>
-        <h1 className="mb-1 text-2xl font-bold">Import locations</h1>
+        <h1 className="sr-only">Import locations</h1>
         <p className="mb-6 max-w-3xl text-sm text-neutral-400">
           {stage.matched.length} cards matched, staged in {stage.containers.length} portfolio{stage.containers.length === 1 ? '' : 's'}. Each was
           presumed a <span className="text-emerald-300">Binder</span> (&gt;100 cards) or <span className="text-sky-300">Deck</span> (≤100) — override
@@ -74,7 +75,7 @@ export default async function ImportPage({ searchParams }: { searchParams: Promi
                 <span className="w-20 shrink-0 text-xs text-neutral-500">{c.count} cards</span>
                 <div className="flex gap-1.5">
                   {(['binder', 'deck'] as const).map((k) => (
-                    <label key={k} className="cursor-pointer rounded-full border border-neutral-700 px-2 py-0.5 text-xs text-neutral-300 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-500/10 has-[:checked]:text-emerald-300">
+                    <label key={k} className={c.presumedKind === k ? CHIP_PLUS : CHIP_NEUTRAL}>
                       <DeselectableRadio name={`kind_${c.id}`} value={k} defaultChecked={c.presumedKind === k} className="sr-only" />
                       {k[0].toUpperCase() + k.slice(1)}
                     </label>
@@ -87,8 +88,8 @@ export default async function ImportPage({ searchParams }: { searchParams: Promi
             )}
           </div>
           <div className="flex items-center gap-3">
-            <button className="rounded bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-500">Import</button>
-            <button formAction={discardImport} className="rounded border border-neutral-700 px-4 py-2 text-sm text-neutral-300 hover:bg-neutral-800">Discard</button>
+            <button className={BTN_PRIMARY}>Import</button>
+            <button formAction={discardImport} className={BTN_SECONDARY}>Discard</button>
           </div>
         </form>
       </div>
@@ -115,7 +116,7 @@ export default async function ImportPage({ searchParams }: { searchParams: Promi
           CSV export
           <input type="file" name="file" accept=".csv" required className="text-sm text-neutral-300 file:mr-2 file:rounded file:border-0 file:bg-neutral-700 file:px-2 file:py-1 file:text-neutral-100" />
         </label>
-        <button className="rounded bg-emerald-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-emerald-500">Run</button>
+        <button className={BTN_PRIMARY}>Run</button>
       </form>
       <p className="mt-2 text-xs text-neutral-500">Matches are staged for review (binder/deck) before anything is saved. Unmatched cards land in the resolver below.</p>
     </section>
@@ -124,7 +125,7 @@ export default async function ImportPage({ searchParams }: { searchParams: Promi
   if (!unmatched.length) {
     return (
       <div>
-        <h1 className="mb-1 text-2xl font-bold">Import</h1>
+        <h1 className="sr-only">Import</h1>
         {importPanel}
         <p className="text-sm text-emerald-400">Nothing unresolved — every imported card has been matched.</p>
       </div>
@@ -149,7 +150,7 @@ export default async function ImportPage({ searchParams }: { searchParams: Promi
 
   return (
     <div>
-      <h1 className="mb-1 text-2xl font-bold">Import</h1>
+      <h1 className="sr-only">Import</h1>
       {importPanel}
 
       <h2 className="mb-1 text-lg font-semibold text-neutral-300">Resolve unmatched cards</h2>
@@ -219,7 +220,7 @@ export default async function ImportPage({ searchParams }: { searchParams: Promi
         </div>
 
         <div className="fixed bottom-6 right-6 z-20 flex flex-col items-end gap-1">
-          <button className="rounded bg-emerald-600 px-4 py-2 font-semibold text-white shadow-lg hover:bg-emerald-500">
+          <button className={`${BTN_PRIMARY} shadow-lg`}>
             Resolve selected
           </button>
           <span className="rounded bg-neutral-950/90 px-2 py-1 text-xs text-neutral-400">

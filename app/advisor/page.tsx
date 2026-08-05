@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { client } from '../../src/db/index.ts';
 import { ENABLED_GAMES, MTG_BUCKETS, MTG_DECK_TYPES } from '../../src/games.ts';
 import ChipFormSection from '../components/ChipFormSection.tsx';
+import { BTN_PRIMARY, BTN_SECONDARY, CHIP_NEUTRAL, CHIP_PLUS } from '../components/chip.ts';
 
 export const dynamic = 'force-dynamic';
 
@@ -101,7 +102,7 @@ export default async function AdvisorPage({
 
   return (
     <div>
-      <h1 className="mb-1 text-2xl font-bold">Nearest-complete sets</h1>
+      <h1 className="sr-only">Nearest-complete sets</h1>
       <p className="mb-6 max-w-3xl text-sm text-neutral-400">
         Sets you&apos;ve started, ranked by coverage when <span className="text-amber-400">for-play copies</span> (any
         owned printing of the same card, per oracle identity) fill slots alongside{' '}
@@ -122,11 +123,7 @@ export default async function AdvisorPage({
           <Link
             key={id}
             href={`/advisor?game=${id}&min=${minSize}`}
-            className={`rounded-full border px-2.5 py-0.5 text-xs ${
-              game === id
-                ? 'border-emerald-500 bg-emerald-500/10 text-emerald-300'
-                : 'border-neutral-700 text-neutral-300 hover:border-neutral-500'
-            }`}
+            className={game === id ? CHIP_PLUS : CHIP_NEUTRAL}
           >
             {label}
           </Link>
@@ -145,7 +142,7 @@ export default async function AdvisorPage({
           defaultValue={minSize}
           className="w-16 rounded border border-neutral-700 bg-neutral-900 px-2 py-1"
         />
-        <button className="rounded border border-neutral-700 px-3 py-1 hover:bg-neutral-800">Apply</button>
+        <button className={BTN_SECONDARY}>Apply</button>
       </form>
 
       {/* Collection Aim chips are multi-select; toggling everything off posts the explicit

@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { client } from '../../src/db/index.ts';
 import { ENABLED_GAMES, MTG_DECK_TYPES } from '../../src/games.ts';
 import DeleteContainer from '../components/DeleteContainer.tsx';
-import NewContainer from '../components/NewContainer.tsx';
+import { BTN_PRIMARY } from '../components/chip.ts';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,8 +62,8 @@ export default async function DecksPage() {
   return (
     <div>
       <div className="mb-1 flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Decks</h1>
-        <NewContainer kind="deck" />
+        <h1 className="sr-only">Decks</h1>
+        <Link href="/decks/new" className={BTN_PRIMARY}>+ New deck</Link>
       </div>
       <p className="mb-6 text-sm text-neutral-400">
         Preconstructed products are the fixed, buyable deck lists — the &quot;master sets&quot; of decks.

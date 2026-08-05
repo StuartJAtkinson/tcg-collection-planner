@@ -1,13 +1,11 @@
-import Link from 'next/link';
-import type { ReactNode } from 'react';
-import VanillaCard, { type VanillaCardData } from './VanillaCard.tsx';
-import OwnershipStrip, { type OwnershipCounts } from './OwnershipStrip.tsx';
+import CardSurface from './CardSurface.tsx';
+import type { VanillaCardData } from './VanillaCard.tsx';
+import type { OwnershipCounts } from './OwnershipStrip.tsx';
+import type { MockCardSource } from './cardToMockFaces.ts';
 
-// The one standard full-size card tile, used by the set checklist, Search and deck views:
-// the card image (with its ring/foil/qty/finish dressing) + name + an optional meta row,
-// linking to the single-card page, with the at-a-glance ownership strip alongside. The strip
-// is always rendered (an empty fixed-width bar when unowned) so every tile is the same width
-// and the images line up across a grid. Compact grids (binder pockets) use <VanillaCard>.
+// Back-compat shim: every existing call site (set / search / decks) passes a
+// `VanillaCardData & {id}` shape plus ownership / setIconUrl / game. CardSurface is the
+// real renderer; this just maps the legacy props onto the uniform shape.
 export default function CardTile({
   card,
   href,
@@ -17,27 +15,24 @@ export default function CardTile({
   setIconUrl,
   game,
 }: {
-  card: VanillaCardData & { id: string };
+  card: VanillaCardData & MockCardSource & { id: string };
   href?: string;
-  metaLeft?: ReactNode;
-  metaRight?: ReactNode;
+  metaLeft?: React.ReactNode;
+  metaRight?: React.ReactNode;
   ownership?: OwnershipCounts;
   setIconUrl?: string | null;
   game?: string | null;
 }) {
   return (
-    <div className={`flex gap-1 ${card.owned ? '' : 'opacity-90'}`}>
-      <Link href={href ?? `/card/${encodeURIComponent(card.id)}`} className="min-w-0 flex-1">
-        <VanillaCard card={card} />
-        <div className="mt-1 truncate text-sm">{card.name}</div>
-        {(metaLeft || metaRight) && (
-          <div className="flex justify-between text-xs text-neutral-400">
-            <span>{metaLeft}</span>
-            <span>{metaRight}</span>
-          </div>
-        )}
-      </Link>
-      <OwnershipStrip counts={ownership ?? { funcTotal: 0 }} setIconUrl={setIconUrl} game={game} />
-    </div>
+    <CardSurface
+      card={{ ...card, game_id: card.game_id ?? game ?? null } as any}
+      ownership={ownership}
+      setIconUrl={setIconUrl}
+      href={href}
+      metaLeft={metaLeft}
+      metaRight={metaRight}
+      container={{ kind: 'all' }}
+      showSidebar={true}
+    />
   );
 }

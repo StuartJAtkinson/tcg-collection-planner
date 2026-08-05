@@ -1,5 +1,7 @@
 import React from 'react';
 import FilterApply from './FilterApply.tsx';
+import TriStateChipGroup from './TriStateChipGroup.tsx';
+import { CHIP_NEUTRAL, CHIP_PLUS } from './chip.ts';
 
 // Standardized filter panel used across Search / Collections / Decks. A plain GET <form>, so
 // nothing applies until the sticky Apply button is pressed (click-to-apply, not laggy live
@@ -17,6 +19,11 @@ export type FilterOpt = { value: string; label: string; n?: number };
 export type FilterGroup = {
   name: string; label: string; options: FilterOpt[];
   current?: string | string[]; rawLabel?: boolean; manaSymbols?: boolean; multi?: boolean;
+  // triState: each chip cycles neutral → + → − → neutral on click. The URL posts a signed
+  // value (+foo, -foo) per selected chip. Server interprets: `+` includes (intersected),
+  // `-` excludes (subtracted), no entry means off. `-` only meaningful when at least one
+  // `+` exists in the form.
+  triState?: boolean;
 };
 
 const properCase = (s: string) =>
@@ -41,22 +48,22 @@ function ChipGroup({ group }: { group: FilterGroup }) {
     <div className="mb-3">
       <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">{group.label}</div>
       <div className="flex flex-wrap gap-1.5">
-        {opts.map((o) => (
-          <label
-            key={o.value}
-            className="cursor-pointer rounded-full border border-neutral-700 px-2.5 py-0.5 text-xs text-neutral-300 hover:border-neutral-500 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-500/10 has-[:checked]:text-emerald-300"
-          >
-            <input
-              type={group.multi ? 'checkbox' : 'radio'}
-              name={group.name}
-              value={o.value}
-              defaultChecked={group.multi ? current.has(o.value) : current.size ? current.has(o.value) : o.value === ''}
-              className="sr-only"
-            />
-            <OptLabel opt={o} group={group} />
-            {'n' in o && o.n ? <span className="text-neutral-500"> {o.n}</span> : null}
-          </label>
-        ))}
+        {opts.map((o) => {
+          const checked = group.multi ? current.has(o.value) : current.size ? current.has(o.value) : o.value === '';
+          return (
+            <label key={o.value} className={checked ? CHIP_PLUS : CHIP_NEUTRAL}>
+              <input
+                type={group.multi ? 'checkbox' : 'radio'}
+                name={group.name}
+                value={o.value}
+                defaultChecked={checked}
+                className="sr-only"
+              />
+              <OptLabel opt={o} group={group} />
+              {'n' in o && o.n ? <span className="text-neutral-500"> {o.n}</span> : null}
+            </label>
+          );
+        })}
       </div>
     </div>
   );
@@ -65,7 +72,6 @@ function ChipGroup({ group }: { group: FilterGroup }) {
 export default function FilterSidebar({
   action,
   display,
-  search,
   slicers,
   customSlicers,
   other,
@@ -74,7 +80,6 @@ export default function FilterSidebar({
 }: {
   action?: string;
   display?: FilterGroup[];
-  search?: { name: string; value?: string; placeholder?: string };
   slicers?: FilterGroup[];
   customSlicers?: import('react').ReactNode; // interactive client slicers (e.g. ComboSlicer)
   other?: FilterGroup[];
@@ -87,7 +92,7 @@ export default function FilterSidebar({
       id={formId}
       method="get"
       action={action}
-      className="no-print flex w-56 shrink-0 flex-col self-start rounded-xl border border-neutral-800 bg-neutral-900/50"
+      className="no-print flex w-[21rem] shrink-0 flex-col self-start rounded-xl border border-neutral-800 bg-neutral-900/50"
     >
       <div className="flex-1 overflow-y-auto p-3">
         {hidden &&
@@ -96,25 +101,11 @@ export default function FilterSidebar({
         {/* 1. Display */}
         {display?.map((g) => <ChipGroup key={g.name} group={g} />)}
 
-        {/* 2. Text search */}
-        {search && (
-          <div className="mb-3">
-            <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-neutral-500">Search</div>
-            <input
-              type="search"
-              name={search.name}
-              defaultValue={search.value ?? ''}
-              placeholder={search.placeholder ?? 'name…'}
-              className="w-full rounded border border-neutral-700 bg-neutral-900 px-2 py-1 text-sm"
-            />
-          </div>
-        )}
-
-        {/* 3. Slicers */}
-        {slicers?.map((g) => <ChipGroup key={g.name} group={g} />)}
+        {/* 2. Slicers */}
+        {slicers?.map((g) => (g.triState ? <TriStateChipGroup key={g.name} group={g} /> : <ChipGroup key={g.name} group={g} />))}
         {customSlicers}
 
-        {/* 4. Other (collapsed) */}
+        {/* 3. Other (collapsed) */}
         {other && other.length > 0 && (
           <details className="mt-1">
             <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-neutral-500 hover:text-neutral-300">
@@ -127,7 +118,7 @@ export default function FilterSidebar({
 
       {/* sticky Apply (with dirty check) */}
       <div className="sticky bottom-0 flex items-center gap-2 rounded-b-xl border-t border-neutral-800 bg-neutral-900 p-2">
-        <FilterApply formId={formId} searchName={search?.name} clearHref={clearHref} />
+        <FilterApply formId={formId} clearHref={clearHref} />
       </div>
     </form>
   );

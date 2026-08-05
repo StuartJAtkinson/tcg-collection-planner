@@ -1,9 +1,9 @@
 import Link from 'next/link';
-import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { client } from '../../../src/db/index.ts';
 import { ENABLED_GAMES, MTG_BUCKETS, MTG_DECK_TYPES } from '../../../src/games.ts';
 import ChipFormSection from '../../components/ChipFormSection.tsx';
+import { CHIP_NEUTRAL, CHIP_PLUS } from '../../components/chip.ts';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,9 +34,11 @@ export default async function GamePage({
   const { game } = await params;
   const { kind: kindParam, format } = await searchParams;
 
-  // remembered default: URL param wins; else the last-applied kind (cookie); else seeded Core
-  const kindCookie = (await cookies()).get('pref_kind')?.value;
-  const kind = kindParam ?? kindCookie;
+  // URL is the source of truth. Clear (which drops `kind` and `format`) therefore restores
+  // the "all categories" default — exactly what the user asked for. Cookie previously tried
+  // to remember partial selections across visits, but the result was that Clear looked like
+  // it did nothing (the cookie silently re-applied the last partial state).
+  const kind = kindParam;
 
   const allGames = (await client`select id, name from games order by id`).filter((g) => ENABLED_GAMES.includes(g.id));
   const gameRow = allGames.find((g) => g.id === game);
@@ -79,12 +81,12 @@ export default async function GamePage({
   tabs = tabs.filter((t) => t.sets.length > 0);
 
   // kind is a multi-select toggle set, comma-separated in the URL / remembered cookie. Absent
-  // = seeded default (Core & Reprints); explicit sentinel kind=none = user toggled everything
-  // off — show nothing, so a single kind can then be picked cleanly without a big default grid
-  // rendering on top first.
+  // = "all" (every tab's contents rendered). Sentinel kind=none = user explicitly toggled
+  // everything off, so render nothing — lets them pick a single tab cleanly without a giant
+  // default grid rendering on top first.
   const selected = new Set(
-    kind === undefined
-      ? [tabs.find((t) => t.label === 'Core & Reprints')?.label ?? tabs[0]?.label]
+    kind === undefined || kind === ''
+      ? tabs.map((t) => t.label)
       : kind === 'none'
         ? []
         : kind.split(',').filter(Boolean),
@@ -100,18 +102,14 @@ export default async function GamePage({
 
   return (
     <div>
-      <h1 className="mb-1 text-2xl font-bold">Collections</h1>
+      <h1 className="sr-only">Collections</h1>
       {/* games as tabs under Collections */}
       <div className="no-print mb-4 flex gap-2">
         {allGames.map((g) => (
           <Link
             key={g.id}
             href={`/g/${g.id}`}
-            className={`rounded-t-lg border-b-2 px-3 py-1.5 text-sm font-medium ${
-              g.id === game
-                ? 'border-emerald-500 text-white'
-                : 'border-transparent text-neutral-400 hover:text-neutral-200'
-            }`}
+            className={g.id === game ? CHIP_PLUS : CHIP_NEUTRAL}
           >
             {g.name}
           </Link>

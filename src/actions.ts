@@ -229,6 +229,43 @@ export async function createContainer(formData: FormData) {
   redirect(`/${kind === 'deck' ? 'decks' : 'binders'}/${id}`);
 }
 
+// Create a deck from a sealed product (precon set). Pulls every card in that set as a
+// holding at quantity 1 (finish=nonfoil), tags the container `deck_source='sealed'`, and
+// optionally attaches an MTGJSON sealed_product uuid when the future ingest lands.
+// Empty if the set has no cards in catalogue yet.
+export async function createDeckFromSealed(formData: FormData) {
+  const setId = String(formData.get('set_id') ?? '');
+  const name = String(formData.get('name') ?? '').trim().slice(0, 100) || 'Sealed deck';
+  if (!setId) return;
+  const id = `${slug(name, 'deck')}-${Date.now().toString(36)}`;
+  await client.begin(async (tx) => {
+    await tx`
+      insert into containers (id, user_id, name, kind, deck_source)
+      values (${id}, ${USER}, ${name}, 'deck', 'sealed')`;
+    await tx`
+      insert into holdings (user_id, card_id, finish, container_id, quantity)
+      select ${USER}, c.id, 'nonfoil', ${id}, 1
+      from cards c where c.set_id = ${setId}
+      on conflict (user_id, card_id, finish, container_id)
+      do update set quantity = holdings.quantity + excluded.quantity`;
+  });
+  revalidatePath('/decks');
+  redirect(`/decks/${id}`);
+}
+
+// Create a deck from scratch — same as createContainer but flags `deck_source='scratch'`
+// so the Decks page knows it wasn't built from a precon or import.
+export async function createDeckScratch(formData: FormData) {
+  const name = String(formData.get('name') ?? '').trim().slice(0, 100);
+  if (!name) return;
+  const id = `${slug(name, 'deck')}-${Date.now().toString(36)}`;
+  await client`
+    insert into containers (id, user_id, name, kind, deck_source)
+    values (${id}, ${USER}, ${name}, 'deck', 'scratch')`;
+  revalidatePath('/decks');
+  redirect(`/decks/${id}`);
+}
+
 // Create Binders: materialize a suggested set-binder. Moves every owned holding of the set
 // that is currently sitting in the unsorted pool into a new binder container. Cards already
 // filed in decks or other binders are left where they are — this only files the loose ones.

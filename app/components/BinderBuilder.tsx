@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { createFunctionalBinder } from '../../src/actions.ts';
+import { BTN_PRIMARY } from './chip.ts';
 
 export type BinderCandidate = {
   id: string;
@@ -148,7 +149,7 @@ export default function BinderBuilder({ cards, defaultName }: { cards: BinderCan
           {arranged.filter((c) => c === null).length.toLocaleString()} deliberate empty pockets
         </div>
         <button disabled={!cards.length}
-          className="mt-3 w-full rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-40">
+          className={BTN_PRIMARY}>
           Create binder and file cards
         </button>
       </form>

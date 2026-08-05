@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { deleteContainer } from '../../src/actions.ts';
+import { BTN_DANGER, BTN_SECONDARY } from './chip.ts';
 
 // Trash-can button → a small popover offering the two ways to delete a binder/deck:
 //  · Keep in collection — its cards move to the unsorted pool
@@ -25,10 +26,10 @@ export default function DeleteContainer({ id, name }: { id: string; name: string
             <div className="mb-2 truncate px-1 text-neutral-400">Delete “{name}”?</div>
             <form action={deleteContainer}>
               <input type="hidden" name="id" value={id} />
-              <button name="mode" value="keep" className="mb-1 block w-full rounded bg-neutral-800 px-2 py-1.5 text-left font-medium text-neutral-100 hover:bg-neutral-700">
+              <button name="mode" value="keep" className={`mb-1 block w-full ${BTN_SECONDARY}`}>
                 Keep in collection <span className="text-neutral-500">→ unsorted</span>
               </button>
-              <button name="mode" value="delete" className="block w-full rounded bg-red-900/60 px-2 py-1.5 text-left font-medium text-red-200 hover:bg-red-800/70">
+              <button name="mode" value="delete" className={`block w-full ${BTN_DANGER}`}>
                 Delete completely
               </button>
             </form>

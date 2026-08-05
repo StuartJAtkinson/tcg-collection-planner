@@ -13,7 +13,10 @@ export const SORT_FIELDS: Record<string, string> = {
   number: 'c.sort_key',
   rarity: 'c.rarity_tier',
   mv: "(c.attrs->>'cmc')::numeric",
-  color: 'cc.value',
+  // C/W/U/B/R/G primary colours first, then 2-colour combos in WUBRG order, then 3-colour
+  // combos, etc. Lex sort of `translate` alone puts 'WU' (='23') between 'W' and 'U' — a
+  // length-prefix fixes that: shorter combos come first, inner ordering preserved.
+  color: "lpad(length(cc.value)::text, 2, '0') || translate(cc.value, 'CWUBRG', '123456')",
   price: 'p.usd',
 };
 

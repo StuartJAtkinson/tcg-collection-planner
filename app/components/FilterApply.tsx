@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import { CHIP_NEUTRAL } from './chip.ts';
 
 // Filtersidebar's Apply button, with a dirty check: disabled until something in the form
 // (radios + the text input named `search.name`) differs from the current URL. Lives as the
@@ -7,12 +8,10 @@ import { useEffect, useRef, useState } from 'react';
 
 export default function FilterApply({
   formId,
-  searchName,
   applyLabel = 'Apply',
   clearHref,
 }: {
   formId: string;
-  searchName?: string;
   applyLabel?: string;
   clearHref?: string;
 }) {
@@ -28,12 +27,6 @@ export default function FilterApply({
       const elems = form.querySelectorAll<HTMLInputElement>('input[name]');
       for (const el of elems) {
         if (el.type === 'hidden') continue;
-        // skip the search input — its initial value reflects the URL too, and the user typing
-        // in it counts as dirty (handled by change/input listeners)
-        if (searchName && el.name === searchName) {
-          if (el.value !== (url.get(searchName) ?? '')) return true;
-          continue;
-        }
         // radio/checkbox: any input whose value/status differs from URL
         const urlVal = url.getAll(el.name);
         if (el.type === 'checkbox') {
@@ -46,7 +39,7 @@ export default function FilterApply({
             if (urlVal.includes(el.value)) return true;
           }
         } else {
-          // text/number/search: value differs
+          // text/number: value differs
           if (el.value !== (url.get(el.name) ?? '')) return true;
         }
       }
@@ -68,15 +61,12 @@ export default function FilterApply({
       <button
         type="submit"
         disabled={!dirty}
-        className="flex-1 rounded bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-40"
+        className={`flex-1 ${CHIP_NEUTRAL}`}
       >
         {applyLabel}
       </button>
       {clearHref && (
-        <a
-          href={clearHref}
-          className="rounded border border-neutral-700 px-3 py-1.5 text-sm text-neutral-400 hover:text-white"
-        >
+        <a href={clearHref} className={CHIP_NEUTRAL}>
           Clear
         </a>
       )}

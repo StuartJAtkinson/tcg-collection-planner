@@ -192,7 +192,7 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
         </div>
 
         {/* functional "you own" sidebar across all printings */}
-        <aside className="w-52 shrink-0 self-start rounded-xl border border-neutral-800 bg-neutral-900/50 p-4 text-sm">
+        <aside className="w-[21rem] shrink-0 self-start rounded-xl border border-neutral-800 bg-neutral-900/50 p-4 text-sm">
           <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">You own</div>
           <div className="flex items-baseline gap-1">
             <span className="text-2xl font-bold text-emerald-400">{funcTotal}</span>

@@ -6,6 +6,7 @@
 import { cardToMockFaces } from '../components/cardToMockFaces.ts';
 import MockCard from '../components/MockCard.tsx';
 import { client } from '../../src/db/index.ts';
+import { BTN_SECONDARY } from '../components/chip.ts';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +25,7 @@ export default async function PreviewPage({ searchParams }: { searchParams: Prom
 
   return (
     <div>
-      <h1 className="mb-1 text-2xl font-bold">MockCard preview</h1>
+      <h1 className="sr-only">MockCard preview</h1>
       <p className="mb-4 text-sm text-neutral-400">
         Search any card by name to see MockCard rendered next to the real image.
       </p>
@@ -36,7 +37,7 @@ export default async function PreviewPage({ searchParams }: { searchParams: Prom
           placeholder="card name…"
           className="w-64 rounded border border-neutral-700 bg-neutral-900 px-2 py-1 text-sm"
         />
-        <button className="rounded border border-neutral-700 px-3 py-1 text-sm hover:bg-neutral-800">Search</button>
+        <button className={BTN_SECONDARY}>Search</button>
       </form>
 
       <div className="flex flex-wrap gap-8">

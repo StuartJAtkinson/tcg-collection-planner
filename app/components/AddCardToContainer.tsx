@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { addHolding } from '../../src/actions.ts';
+import { BTN_PRIMARY, BTN_SECONDARY } from './chip.ts';
 
 type Hit = { id: string; name: string; set_code: string; image_small: string | null };
 
@@ -29,7 +30,7 @@ export default function AddCardToContainer({ containerId }: { containerId: strin
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="rounded border border-neutral-700 px-3 py-1.5 text-sm font-semibold text-neutral-200 hover:bg-neutral-800"
+        className={BTN_SECONDARY}
       >
         + Add card
       </button>
@@ -57,7 +58,7 @@ export default function AddCardToContainer({ containerId }: { containerId: strin
                   <span className="min-w-0 flex-1 truncate text-xs">
                     {h.name} <span className="uppercase text-neutral-500">{h.set_code}</span>
                   </span>
-                  <button className="shrink-0 rounded bg-emerald-600 px-2 py-0.5 text-xs font-semibold text-white hover:bg-emerald-500">Add</button>
+                  <button className={BTN_PRIMARY}>Add</button>
                 </form>
               ))}
             </div>

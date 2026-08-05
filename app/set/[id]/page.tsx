@@ -110,9 +110,13 @@ export default async function SetPage({
   const pct = stats.total ? Math.round((100 * stats.owned) / stats.total) : 0;
 
   const comboOpts = facetOpts.filter((f) => f.facet === 'color_combo').map((f) => ({ value: f.value as string, n: f.n as number }));
+  const kindOpts = facetOpts
+    .filter((f) => f.facet === 'kind')
+    .map((f) => ({ value: f.value, label: f.value, n: f.n }))
+    .sort((a, b) => (b.n ?? 0) - (a.n ?? 0) || a.label.localeCompare(b.label));
   const slicers: FilterGroup[] = [
     { name: 'rarity', label: 'Rarity', current: sp.rarity, options: (rarities as any[]).map((r) => ({ value: r.value, label: r.value, n: r.n })) },
-    { name: 'kind', label: 'Kind', current: sp.kind, options: facetOpts.filter((f) => f.facet === 'kind').map((f) => ({ value: f.value, label: f.value, n: f.n })) },
+    { name: 'kind', label: 'Kind', current: sp.kind, options: kindOpts },
     ...(set.game_id !== 'mtg' && comboOpts.length ? [{ name: 'combo', label: 'Colour combo', current: combos, multi: true, rawLabel: true, options: comboOpts.map((c) => ({ value: c.value, label: c.value, n: c.n })) }] : []),
     ...(cmcs.length ? [{ name: 'cmc', label: 'Mana value', current: cmcs_sel, multi: true, rawLabel: true, options: (cmcs as any[]).map((c) => ({ value: c.value, label: c.value, n: c.n })) }] : []),
   ];

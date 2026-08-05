@@ -9,3 +9,6 @@ next-env.d.ts
 startStop.md
 .claude/
 tsconfig.tsbuildinfo
+.atelier-dev.log
+.scratch/
+H:GitHubcard-collection.scratchsearch.html

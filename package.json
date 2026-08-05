@@ -13,7 +13,9 @@
     "import": "node src/import/mtg.ts && node src/import/pokemon.ts",
     "db:prices": "node src/import/prices.ts",
     "import:collectr": "node src/import/collectr.ts",
-    "verify": "node src/verify.ts"
+    "verify": "node src/verify.ts",
+    "schema:counts": "python scripts/build_schema_xlsx.py && node scripts/count_schema_fields.ts && python scripts/build_schema_xlsx.py",
+    "probe:composite-key": "node scripts/probe_composite_key.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",

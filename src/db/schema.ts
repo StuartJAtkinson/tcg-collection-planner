@@ -35,6 +35,17 @@ export const sets = pgTable(
     // non-Magic-IP crossover set (Universes Beyond etc.) — derived at import from Scryfall's
     // triangle security stamp on the set's cards, since Scryfall has no set-level UB field
     crossover: boolean('crossover').notNull().default(false),
+    // MTGJSON-only enrichment fields populated by src/import/mtg.ts during the MTGJSON stream.
+    // block/parent codes, MTGO/Arena shorthand aliases, online/foil-only flags, and the
+    // language/translation metadata Scryfall doesn't expose at set level.
+    blockCode: text('block_code'),
+    parentCode: text('parent_code'),
+    mtgoCode: text('mtgo_code'),
+    arenaCode: text('arena_code'),
+    isFoilOnly: boolean('is_foil_only'),
+    isOnlineOnly: boolean('is_online_only'),
+    languages: jsonb('languages'),
+    translations: jsonb('translations'),
   },
   (t) => [index('sets_game_idx').on(t.gameId)],
 );
@@ -99,12 +110,48 @@ export const prices = pgTable(
   (t) => [primaryKey({ columns: [t.cardId, t.finish, t.asOf] })],
 );
 
+// One row per MTGJSON uuid (MTGJSON's per-printing key). A single Scryfall card often
+// corresponds to several MTGJSON printings — base, foil, promo, foreign-language — that
+// share the same Scryfall `id` but differ in lang/finishes/promoTypes. The `cards` row
+// stores the "primary" printing's attrs (English, nonfoil, base) while this table preserves
+// every alternative printing so a future "Printings" UI can show finish/lang/promo variants
+// without losing data. Populated by src/import/mtg.ts; not yet read by the app.
+export const mtgCardPrintings = pgTable(
+  'mtg_card_printings',
+  {
+    cardId: text('card_id').notNull().references(() => cards.id),
+    mtgUuid: text('mtg_uuid').notNull(),
+    lang: text('lang').notNull(),
+    finishes: text('finishes').array().notNull(),
+    promoTypes: text('promo_types').array(),
+    isReserved: boolean('is_reserved'),
+    frame: text('frame'),
+    borderColor: text('border_color'),
+    securityStamp: text('security_stamp'),
+    artist: text('artist'),
+    flavorText: text('flavor_text'),
+  },
+  (t) => [
+    primaryKey({ columns: [t.cardId, t.mtgUuid] }),
+    index('mtg_printings_lang_idx').on(t.lang),
+  ],
+);
+
 // inventory overlay — single user today, user_id column from day 1 per the plan.
 // One slot per card: any owned finish satisfies completion, wherever the card physically
 // lives — a card in a deck or out for grading still counts. Every holding lives in exactly
 // one container ("where is it physically"); the default 'main' container is the general
 // collection pool. Container kind never affects completion math, but drives the physical
 // counts ("x in collection, y in decks") and the Decks page.
+//
+// From 2026-08-05: binders are pure filters of the non-deck collection, not containers
+// that own holdings rows. A binder's contents are computed live from `filter jsonb`
+// (`{set_ids, rarities, color_combos, cmcs}` array shape; compiled to SQL via
+// src/filterExpr.ts). sort_config persists the binder's display order across pages.
+//
+// Deck containers gain `deck_source` ('manual'|'sealed'|'scratch') and an optional
+// `source_sealed_id` FK to sealed_products (populated when an MTGJSON AllDeckFiles
+// ingest lands).
 export const containers = pgTable('containers', {
   id: text('id').primaryKey(), // slug, e.g. 'main', 'jeskaimonks' — text so imports are idempotent
   userId: text('user_id').notNull().default('stuart'),
@@ -114,6 +161,32 @@ export const containers = pgTable('containers', {
   pocketCols: smallint('pocket_cols'),
   pocketRows: smallint('pocket_rows'),
   sortConfig: jsonb('sort_config'),
+  // Binder: structured query (set_ids / rarities / color_combos / cmcs); null for non-binders.
+  filter: jsonb('filter'),
+  // Deck: how the deck was created. NULL on binders / collection / graded / box.
+  deckSource: text('deck_source'),
+  // Deck: optional FK to sealed_products when created from an MTGJSON sealed-product.
+  sourceSealedId: text('source_sealed_id'),
+});
+
+// Sealed products (MTG theme decks / precons / starters / commander decks). Schema mirrors
+// the MTGJSON Deck/SealedProduct data models; the populated payload lands via a future
+// AllDeckFiles.tar.gz ingest (src/import/mtgDecks.ts, deferred). For v1 the table is
+// empty and decks created via the "from sealed product" path populate themselves by
+// pulling every card with set_id = set.id, then write holdings rows + deck_source='sealed'.
+export const sealedProducts = pgTable('sealed_products', {
+  id: text('id').primaryKey(), // MTGJSON sealedProduct uuid
+  setId: text('set_id').references(() => sets.id),
+  setCode: text('set_code').notNull(),
+  name: text('name').notNull(),
+  type: text('type'), // 'theme' | 'precon' | 'deck_of_the_day' | …
+  releaseDate: date('release_date'),
+  mainBoard: jsonb('main_board'),
+  sideBoard: jsonb('side_board'),
+  commander: jsonb('commander'),
+  tokens: jsonb('tokens'),
+  sealedProductUuids: text('sealed_product_uuids').array(),
+  raw: jsonb('raw'),
 });
 
 // The "lowest level of unsorted": rows a Collectr import couldn't confidently place. Persisted

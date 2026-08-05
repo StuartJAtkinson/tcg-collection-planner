@@ -1,0 +1,1046 @@
+[
+  {
+    "group": "Identity",
+    "element": "Primary UUID",
+    "scryfall": "Card.id",
+    "mtgjson": "Card.uuid"
+  },
+  {
+    "group": "Identity",
+    "element": "Oracle UUID",
+    "scryfall": "Card.oracle_id",
+    "mtgjson": "Card.scryfallOracleId"
+  },
+  {
+    "group": "Identity",
+    "element": "Card name",
+    "scryfall": "Card.name",
+    "mtgjson": "Card.name"
+  },
+  {
+    "group": "Identity",
+    "element": "ASCII name",
+    "scryfall": "\u2014",
+    "mtgjson": "Card.asciiName"
+  },
+  {
+    "group": "Identity",
+    "element": "Layout",
+    "scryfall": "Card.layout",
+    "mtgjson": "Card.layout"
+  },
+  {
+    "group": "Identity",
+    "element": "Collector number",
+    "scryfall": "Card.collector_number",
+    "mtgjson": "Card.number"
+  },
+  {
+    "group": "Identity",
+    "element": "Sort key",
+    "scryfall": "derived from Card.collector_number",
+    "mtgjson": "Card.numberSort (recommended)"
+  },
+  {
+    "group": "Identity",
+    "element": "Language",
+    "scryfall": "Card.lang",
+    "mtgjson": "Card.language"
+  },
+  {
+    "group": "Identity",
+    "element": "Card release date",
+    "scryfall": "Card.released_at",
+    "mtgjson": "Card.releaseDate"
+  },
+  {
+    "group": "Card text",
+    "element": "Oracle text (card-level)",
+    "scryfall": "Card.oracle_text",
+    "mtgjson": "Card.text (when not in faces)"
+  },
+  {
+    "group": "Card text",
+    "element": "Flavor text (card-level)",
+    "scryfall": "Card.flavor_text",
+    "mtgjson": "Card.flavorText"
+  },
+  {
+    "group": "Card text",
+    "element": "Printed name (foreign/localised)",
+    "scryfall": "Card.printed_name",
+    "mtgjson": "Card.faceName (related)"
+  },
+  {
+    "group": "Card text",
+    "element": "Printed text (foreign/localised)",
+    "scryfall": "Card.printed_text",
+    "mtgjson": "Card.cardFaces[].text (when localised)"
+  },
+  {
+    "group": "Card text",
+    "element": "Printed type line (foreign/localised)",
+    "scryfall": "Card.printed_type_line",
+    "mtgjson": "Card.cardFaces[].type (when localised)"
+  },
+  {
+    "group": "Card text",
+    "element": "Foreign / localised data",
+    "scryfall": "\u2014",
+    "mtgjson": "Card.foreignData[].{language,name,faceName,flavorText,text}"
+  },
+  {
+    "group": "Card text",
+    "element": "Rulings (date)",
+    "scryfall": "Card.rulings[].published_at",
+    "mtgjson": "Card.rulings[].date"
+  },
+  {
+    "group": "Card text",
+    "element": "Rulings (text)",
+    "scryfall": "Card.rulings[].comment",
+    "mtgjson": "Card.rulings[].text"
+  },
+  {
+    "group": "Picture",
+    "element": "Thumbnail",
+    "scryfall": "Card.image_uris.small",
+    "mtgjson": "identifiers.imageSmallUrl (5e MB only)"
+  },
+  {
+    "group": "Picture",
+    "element": "Default size",
+    "scryfall": "Card.image_uris.normal",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Picture",
+    "element": "Large",
+    "scryfall": "Card.image_uris.large",
+    "mtgjson": "identifiers.imageLargeUrl (5e MB only)"
+  },
+  {
+    "group": "Picture",
+    "element": "PNG (transparent)",
+    "scryfall": "Card.image_uris.png",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Picture",
+    "element": "Art crop",
+    "scryfall": "Card.image_uris.art_crop",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Picture",
+    "element": "Border crop",
+    "scryfall": "Card.image_uris.border_crop",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Picture",
+    "element": "Illustration id",
+    "scryfall": "Card.illustration_id",
+    "mtgjson": "Card.scryfallIllustrationId"
+  },
+  {
+    "group": "Gameplay",
+    "element": "Mana cost",
+    "scryfall": "Card.mana_cost",
+    "mtgjson": "Card.manaCost"
+  },
+  {
+    "group": "Gameplay",
+    "element": "Converted mana cost",
+    "scryfall": "Card.cmc",
+    "mtgjson": "Card.manaValue"
+  },
+  {
+    "group": "Gameplay",
+    "element": "Type line",
+    "scryfall": "Card.type_line",
+    "mtgjson": "Card.type"
+  },
+  {
+    "group": "Gameplay",
+    "element": "Power",
+    "scryfall": "Card.power",
+    "mtgjson": "Card.power"
+  },
+  {
+    "group": "Gameplay",
+    "element": "Toughness",
+    "scryfall": "Card.toughness",
+    "mtgjson": "Card.toughness"
+  },
+  {
+    "group": "Gameplay",
+    "element": "Loyalty",
+    "scryfall": "Card.loyalty",
+    "mtgjson": "Card.loyalty"
+  },
+  {
+    "group": "Gameplay",
+    "element": "Defense (battle)",
+    "scryfall": "Card.card_faces[].defense",
+    "mtgjson": "Card.defense"
+  },
+  {
+    "group": "Gameplay",
+    "element": "Life modifier (Vanguard)",
+    "scryfall": "Card.life_modifier",
+    "mtgjson": "Card.life"
+  },
+  {
+    "group": "Gameplay",
+    "element": "Hand modifier (Vanguard)",
+    "scryfall": "Card.hand_modifier",
+    "mtgjson": "Card.hand"
+  },
+  {
+    "group": "Gameplay",
+    "element": "Keywords",
+    "scryfall": "Card.keywords",
+    "mtgjson": "Card.keywords"
+  },
+  {
+    "group": "Gameplay",
+    "element": "Produced mana",
+    "scryfall": "Card.produced_mana",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Gameplay",
+    "element": "EDHREC rank",
+    "scryfall": "\u2014",
+    "mtgjson": "Card.edhrecRank"
+  },
+  {
+    "group": "Gameplay",
+    "element": "Per-face CMC",
+    "scryfall": "Card.card_faces[].cmc",
+    "mtgjson": "Card.faceConvertedManaCost"
+  },
+  {
+    "group": "Faces",
+    "element": "Face container",
+    "scryfall": "Card.card_faces[]",
+    "mtgjson": "Card.cardFaces[]"
+  },
+  {
+    "group": "Faces",
+    "element": "Face 1 UUID",
+    "scryfall": "Card.face_one_id",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Faces",
+    "element": "Face 2 UUID",
+    "scryfall": "Card.face_two_id",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Faces",
+    "element": "Per-face name",
+    "scryfall": "Card.card_faces[].name",
+    "mtgjson": "Card.cardFaces[].name / Card.faceName"
+  },
+  {
+    "group": "Faces",
+    "element": "Per-face flavor name",
+    "scryfall": "Card.card_faces[].flavor_name",
+    "mtgjson": "Card.faceFlavorName"
+  },
+  {
+    "group": "Faces",
+    "element": "Per-face mana cost",
+    "scryfall": "Card.card_faces[].mana_cost",
+    "mtgjson": "Card.cardFaces[].manaCost"
+  },
+  {
+    "group": "Faces",
+    "element": "Per-face type line",
+    "scryfall": "Card.card_faces[].type_line",
+    "mtgjson": "Card.cardFaces[].type"
+  },
+  {
+    "group": "Faces",
+    "element": "Per-face oracle text",
+    "scryfall": "Card.card_faces[].oracle_text",
+    "mtgjson": "Card.cardFaces[].text"
+  },
+  {
+    "group": "Faces",
+    "element": "Per-face power/toughness/loyalty",
+    "scryfall": "Card.card_faces[].{power,toughness,loyalty}",
+    "mtgjson": "Card.cardFaces[].{power,toughness,loyalty}"
+  },
+  {
+    "group": "Faces",
+    "element": "Per-face flavor text",
+    "scryfall": "Card.card_faces[].flavor_text",
+    "mtgjson": "Card.cardFaces[].flavorText"
+  },
+  {
+    "group": "Faces",
+    "element": "Per-face color indicator",
+    "scryfall": "Card.card_faces[].color_indicator",
+    "mtgjson": "Card.cardFaces[].colorIndicator / Card.colorIndicator"
+  },
+  {
+    "group": "Faces",
+    "element": "Per-face image_uris",
+    "scryfall": "Card.card_faces[].image_uris",
+    "mtgjson": "Card.cardFaces[].identifiers.imageUrls{...}"
+  },
+  {
+    "group": "Faces",
+    "element": "Per-face defense",
+    "scryfall": "Card.card_faces[].defense",
+    "mtgjson": "Card.cardFaces[].defense"
+  },
+  {
+    "group": "Faces",
+    "element": "Other face ids",
+    "scryfall": "\u2014",
+    "mtgjson": "Card.otherFaceIds"
+  },
+  {
+    "group": "Faces",
+    "element": "Side (split)",
+    "scryfall": "Card.side",
+    "mtgjson": "Card.side"
+  },
+  {
+    "group": "Colors & colour identity",
+    "element": "Card colours",
+    "scryfall": "Card.colors",
+    "mtgjson": "Card.colors"
+  },
+  {
+    "group": "Colors & colour identity",
+    "element": "Colour identity (Commander)",
+    "scryfall": "Card.colors (includes colour indicator)",
+    "mtgjson": "Card.colorIdentity"
+  },
+  {
+    "group": "Colors & colour identity",
+    "element": "Colour indicator",
+    "scryfall": "Card.card_faces[].color_indicator",
+    "mtgjson": "Card.colorIndicator"
+  },
+  {
+    "group": "Colors & colour identity",
+    "element": "WUBRG order",
+    "scryfall": "\u2014",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Types & tribes",
+    "element": "Types[]",
+    "scryfall": "derived from Card.type_line",
+    "mtgjson": "Card.types"
+  },
+  {
+    "group": "Types & tribes",
+    "element": "Subtypes[]",
+    "scryfall": "derived from Card.type_line",
+    "mtgjson": "Card.subtypes"
+  },
+  {
+    "group": "Types & tribes",
+    "element": "Supertypes[]",
+    "scryfall": "derived from Card.type_line",
+    "mtgjson": "Card.supertypes"
+  },
+  {
+    "group": "Frame & finish",
+    "element": "Frame",
+    "scryfall": "Card.frame",
+    "mtgjson": "Card.frameVersion"
+  },
+  {
+    "group": "Frame & finish",
+    "element": "Security stamp",
+    "scryfall": "Card.security_stamp",
+    "mtgjson": "Card.securityStamp"
+  },
+  {
+    "group": "Frame & finish",
+    "element": "Border colour",
+    "scryfall": "Card.border_color",
+    "mtgjson": "Card.borderColor"
+  },
+  {
+    "group": "Frame & finish",
+    "element": "Watermark",
+    "scryfall": "Card.watermark",
+    "mtgjson": "Card.watermark"
+  },
+  {
+    "group": "Frame & finish",
+    "element": "Finishes",
+    "scryfall": "Card.finishes",
+    "mtgjson": "Card.finishes"
+  },
+  {
+    "group": "Frame & finish",
+    "element": "Has foil",
+    "scryfall": "derived from Card.finishes",
+    "mtgjson": "Card.hasFoil"
+  },
+  {
+    "group": "Frame & finish",
+    "element": "Has nonfoil",
+    "scryfall": "derived from Card.finishes",
+    "mtgjson": "Card.hasNonFoil"
+  },
+  {
+    "group": "Print",
+    "element": "Set code",
+    "scryfall": "Card.set",
+    "mtgjson": "Card.setCode"
+  },
+  {
+    "group": "Print",
+    "element": "Set UUID",
+    "scryfall": "Card.set_id",
+    "mtgjson": "Set.uuid (via /sets cross-ref)"
+  },
+  {
+    "group": "Print",
+    "element": "Set name",
+    "scryfall": "Card.set_name",
+    "mtgjson": "Set.name"
+  },
+  {
+    "group": "Print",
+    "element": "Set type",
+    "scryfall": "Card.set_type",
+    "mtgjson": "Set.type"
+  },
+  {
+    "group": "Print",
+    "element": "Set URI (Scryfall)",
+    "scryfall": "Card.set_uri",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Print",
+    "element": "Set search URI",
+    "scryfall": "Card.set_search_uri",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Print",
+    "element": "Scryfall set web URL",
+    "scryfall": "Card.scryfall_set_uri",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Print",
+    "element": "Rulings URI",
+    "scryfall": "Card.rulings_uri",
+    "mtgjson": "\u2014 (rulings already in Card.rulings[])"
+  },
+  {
+    "group": "Print",
+    "element": "Prints search URI",
+    "scryfall": "Card.prints_search_uri",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Print",
+    "element": "Collector number",
+    "scryfall": "Card.collector_number",
+    "mtgjson": "Card.number"
+  },
+  {
+    "group": "Print",
+    "element": "Story spotlight",
+    "scryfall": "Card.story_spotlight",
+    "mtgjson": "Card.isStorySpotlight"
+  },
+  {
+    "group": "Print",
+    "element": "Time-shifted",
+    "scryfall": "\u2014",
+    "mtgjson": "Card.isTimeshifted"
+  },
+  {
+    "group": "Print",
+    "element": "Oversized",
+    "scryfall": "\u2014",
+    "mtgjson": "Card.isOversized"
+  },
+  {
+    "group": "Promo & content",
+    "element": "Promo types",
+    "scryfall": "Card.promo_types",
+    "mtgjson": "Card.promoTypes"
+  },
+  {
+    "group": "Promo & content",
+    "element": "Booster (draft)",
+    "scryfall": "Card.booster",
+    "mtgjson": "Card.isStarter (related)"
+  },
+  {
+    "group": "Promo & content",
+    "element": "Variation flag",
+    "scryfall": "Card.variation",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Promo & content",
+    "element": "Variation of (UUID)",
+    "scryfall": "Card.variation_of",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Promo & content",
+    "element": "Content warning",
+    "scryfall": "Card.content_warning",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Promo & content",
+    "element": "Starter card",
+    "scryfall": "derived (Card.booster-related)",
+    "mtgjson": "Card.isStarter"
+  },
+  {
+    "group": "Identifiers (cross-source)",
+    "element": "TCGplayer product id",
+    "scryfall": "Card.tcgplayer_id",
+    "mtgjson": "identifiers.tcgplayerProductId"
+  },
+  {
+    "group": "Identifiers (cross-source)",
+    "element": "TCGplayer etched id",
+    "scryfall": "Card.tcgplayer_etched_id",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Identifiers (cross-source)",
+    "element": "Cardmarket id",
+    "scryfall": "Card.cardmarket_id",
+    "mtgjson": "identifiers.mcmId"
+  },
+  {
+    "group": "Identifiers (cross-source)",
+    "element": "Cardmarket meta id",
+    "scryfall": "\u2014",
+    "mtgjson": "identifiers.mcmMetaId"
+  },
+  {
+    "group": "Identifiers (cross-source)",
+    "element": "MTGO id",
+    "scryfall": "Card.mtgo_id",
+    "mtgjson": "identifiers.mtgoId"
+  },
+  {
+    "group": "Identifiers (cross-source)",
+    "element": "MTGO foil id",
+    "scryfall": "Card.mtgo_foil_id",
+    "mtgjson": "\u2014 (deprecated in MTGJSON)"
+  },
+  {
+    "group": "Identifiers (cross-source)",
+    "element": "Arena id",
+    "scryfall": "Card.arena_id",
+    "mtgjson": "identifiers.mtgArenaId"
+  },
+  {
+    "group": "Identifiers (cross-source)",
+    "element": "Multiverse id",
+    "scryfall": "Card.multiverse_ids",
+    "mtgjson": "identifiers.multiverseId"
+  },
+  {
+    "group": "Identifiers (cross-source)",
+    "element": "Card Kingdom id",
+    "scryfall": "\u2014",
+    "mtgjson": "identifiers.cardKingdomId"
+  },
+  {
+    "group": "Identifiers (cross-source)",
+    "element": "Cardsphere id",
+    "scryfall": "\u2014",
+    "mtgjson": "identifiers.cardsphereId"
+  },
+  {
+    "group": "Identifiers (cross-source)",
+    "element": "Artist ids",
+    "scryfall": "\u2014",
+    "mtgjson": "Card.artistIds"
+  },
+  {
+    "group": "Prices",
+    "element": "Prices table",
+    "scryfall": "Card.prices.{usd,usd_foil,usd_etched}",
+    "mtgjson": "Card.prices.paper.{tcgplayer,cardmarket}"
+  },
+  {
+    "group": "Prices",
+    "element": "as_of",
+    "scryfall": "derived: stamp at import run",
+    "mtgjson": "derived: stamp at import run"
+  },
+  {
+    "group": "Prices",
+    "element": "USD (nonfoil)",
+    "scryfall": "Card.prices.usd",
+    "mtgjson": "Card.prices.paper.tcgplayer.{normal,holofoil}"
+  },
+  {
+    "group": "Prices",
+    "element": "USD (foil)",
+    "scryfall": "Card.prices.usd_foil",
+    "mtgjson": "Card.prices.paper.tcgplayer.foil"
+  },
+  {
+    "group": "Prices",
+    "element": "USD (etched)",
+    "scryfall": "Card.prices.usd_etched",
+    "mtgjson": "\u2014 (MTGJSON's hasEtched isn't priced)"
+  },
+  {
+    "group": "Prices",
+    "element": "EUR",
+    "scryfall": "Card.prices.eur",
+    "mtgjson": "Card.prices.paper.cardmarket"
+  },
+  {
+    "group": "Prices",
+    "element": "EUR (foil)",
+    "scryfall": "Card.prices.eur_foil",
+    "mtgjson": "Card.prices.paper.cardmarket.foil"
+  },
+  {
+    "group": "Prices",
+    "element": "TIX",
+    "scryfall": "Card.prices.tix",
+    "mtgjson": "\u2014 (MTGO is shut)"
+  },
+  {
+    "group": "Legalities",
+    "element": "Card legalities object",
+    "scryfall": "Card.legalities (17 keys)",
+    "mtgjson": "Card.legalities (17 keys)"
+  },
+  {
+    "group": "Legalities",
+    "element": "Standard",
+    "scryfall": "Card.legalities.standard",
+    "mtgjson": "Card.legalities.standard"
+  },
+  {
+    "group": "Legalities",
+    "element": "Pioneer",
+    "scryfall": "Card.legalities.pioneer",
+    "mtgjson": "Card.legalities.pioneer"
+  },
+  {
+    "group": "Legalities",
+    "element": "Modern",
+    "scryfall": "Card.legalities.modern",
+    "mtgjson": "Card.legalities.modern"
+  },
+  {
+    "group": "Legalities",
+    "element": "Legacy",
+    "scryfall": "Card.legalities.legacy",
+    "mtgjson": "Card.legalities.legacy"
+  },
+  {
+    "group": "Legalities",
+    "element": "Vintage",
+    "scryfall": "Card.legalities.vintage",
+    "mtgjson": "Card.legalities.vintage"
+  },
+  {
+    "group": "Legalities",
+    "element": "Commander",
+    "scryfall": "Card.legalities.commander",
+    "mtgjson": "Card.legalities.commander"
+  },
+  {
+    "group": "Legalities",
+    "element": "Pauper",
+    "scryfall": "Card.legalities.pauper",
+    "mtgjson": "Card.legalities.pauper"
+  },
+  {
+    "group": "Legalities",
+    "element": "Oathbreaker",
+    "scryfall": "Card.legalities.oathbreaker",
+    "mtgjson": "Card.legalities.oathbreaker"
+  },
+  {
+    "group": "Legalities",
+    "element": "Brawl",
+    "scryfall": "Card.legalities.brawl",
+    "mtgjson": "Card.legalities.brawl"
+  },
+  {
+    "group": "Legalities",
+    "element": "Historic",
+    "scryfall": "Card.legalities.historic",
+    "mtgjson": "Card.legalities.historic"
+  },
+  {
+    "group": "Legalities",
+    "element": "Alchemy",
+    "scryfall": "Card.legalities.alchemy",
+    "mtgjson": "Card.legalities.alchemy"
+  },
+  {
+    "group": "Legalities",
+    "element": "Explorer",
+    "scryfall": "Card.legalities.explorer",
+    "mtgjson": "Card.legalities.explorer"
+  },
+  {
+    "group": "Legalities",
+    "element": "Gladiator",
+    "scryfall": "Card.legalities.gladiator",
+    "mtgjson": "Card.legalities.gladiator"
+  },
+  {
+    "group": "Legalities",
+    "element": "Standardbrawl",
+    "scryfall": "Card.legalities.standardbrawl",
+    "mtgjson": "Card.legalities.standardbrawl"
+  },
+  {
+    "group": "Legalities",
+    "element": "Timeless",
+    "scryfall": "Card.legalities.timeless",
+    "mtgjson": "Card.legalities.timeless"
+  },
+  {
+    "group": "Legalities",
+    "element": "Predh",
+    "scryfall": "Card.legalities.predh",
+    "mtgjson": "Card.legalities.predh"
+  },
+  {
+    "group": "Legalities",
+    "element": "Premodern",
+    "scryfall": "Card.legalities.premodern",
+    "mtgjson": "Card.legalities.premodern"
+  },
+  {
+    "group": "Related cards",
+    "element": "All parts (combo/meld)",
+    "scryfall": "Card.all_parts[]",
+    "mtgjson": "Card.parts / Card.tokenParts / Card.signature"
+  },
+  {
+    "group": "Related cards",
+    "element": "Preview date",
+    "scryfall": "Card.preview.previewed_at",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Related cards",
+    "element": "Preview source URI",
+    "scryfall": "Card.preview.source_uri",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Related cards",
+    "element": "Preview source name",
+    "scryfall": "Card.preview.source",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Leadership & roles",
+    "element": "Leadership skills object",
+    "scryfall": "\u2014",
+    "mtgjson": "Card.leadershipSkills.{commander,brawl,oathbreaker}"
+  },
+  {
+    "group": "Leadership & roles",
+    "element": "Is Reserved",
+    "scryfall": "Card.reserved (boolean)",
+    "mtgjson": "Card.isReserved"
+  },
+  {
+    "group": "Games & platforms",
+    "element": "Games",
+    "scryfall": "Card.games",
+    "mtgjson": "Card.games"
+  },
+  {
+    "group": "Games & platforms",
+    "element": "Online-only",
+    "scryfall": "derived from Card.games (includes 'arena' only)",
+    "mtgjson": "Card.isOnlineOnly"
+  },
+  {
+    "group": "Sets",
+    "element": "Set UUID",
+    "scryfall": "Set.id",
+    "mtgjson": "Set.uuid"
+  },
+  {
+    "group": "Sets",
+    "element": "Set code",
+    "scryfall": "Set.code",
+    "mtgjson": "Set.code"
+  },
+  {
+    "group": "Sets",
+    "element": "Set name",
+    "scryfall": "Set.name",
+    "mtgjson": "Set.name"
+  },
+  {
+    "group": "Sets",
+    "element": "Set release date",
+    "scryfall": "Set.released_at",
+    "mtgjson": "Set.releaseDate"
+  },
+  {
+    "group": "Sets",
+    "element": "Set block (we call it series)",
+    "scryfall": "Set.block",
+    "mtgjson": "Set.block (rare)"
+  },
+  {
+    "group": "Sets",
+    "element": "Set type",
+    "scryfall": "Set.set_type",
+    "mtgjson": "Set.type"
+  },
+  {
+    "group": "Sets",
+    "element": "Card count",
+    "scryfall": "Set.card_count",
+    "mtgjson": "Set.totalSetSize"
+  },
+  {
+    "group": "Sets",
+    "element": "Parent set code",
+    "scryfall": "Set.parent_set_code",
+    "mtgjson": "Set.parentCode"
+  },
+  {
+    "group": "Sets",
+    "element": "Digital",
+    "scryfall": "Set.digital",
+    "mtgjson": "Set.isOnlineOnly"
+  },
+  {
+    "group": "Sets",
+    "element": "Foil-only",
+    "scryfall": "Set.foil_only",
+    "mtgjson": "Set.isFoilOnly"
+  },
+  {
+    "group": "Sets",
+    "element": "Set icon (SVG)",
+    "scryfall": "Set.icon_svg_uri",
+    "mtgjson": "Set.svgs.icon"
+  },
+  {
+    "group": "Sets",
+    "element": "Set search URI",
+    "scryfall": "Set.search_uri",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Sets",
+    "element": "Set scry URI",
+    "scryfall": "Set.scry_uri",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Sets",
+    "element": "Set URI (Scryfall)",
+    "scryfall": "Set.uri",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Sets",
+    "element": "Printed size",
+    "scryfall": "Set.printed_size",
+    "mtgjson": "\u2014 (MTGJSON doesn't expose)"
+  },
+  {
+    "group": "Sets",
+    "element": "TCGplayer set id",
+    "scryfall": "Set.tcgplayer_id",
+    "mtgjson": "identifiers.tcgplayerProductId (per card)"
+  },
+  {
+    "group": "Sets",
+    "element": "MTGO code",
+    "scryfall": "Set.mtgo_code",
+    "mtgjson": "Set.mtgoCode"
+  },
+  {
+    "group": "Sets",
+    "element": "Arena code",
+    "scryfall": "Set.arena_code",
+    "mtgjson": "Set.arenacode (varies)"
+  },
+  {
+    "group": "Sets",
+    "element": "Set legalities (aggregated)",
+    "scryfall": "derived from Card.legalities (aggregated)",
+    "mtgjson": "derived from Card.legalities (aggregated)"
+  },
+  {
+    "group": "Sets",
+    "element": "Set crossover flag",
+    "scryfall": "derived from Card.security_stamp=='triangle' or Card.promo_types?'universesbeyond'",
+    "mtgjson": "derived from same Scryfall signals"
+  },
+  {
+    "group": "Sets",
+    "element": "Set logo URL",
+    "scryfall": "derived from cards.image_art_crop (highest-priced per set)",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Sets",
+    "element": "Purchase URLs",
+    "scryfall": "\u2014",
+    "mtgjson": "Card.purchaseUrls.{cardmarket,cardKingdom,tcgplayer}"
+  },
+  {
+    "group": "Taxonomy (app)",
+    "element": "games table",
+    "scryfall": "\u2014",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Taxonomy (app)",
+    "element": "ENABLED_GAMES",
+    "scryfall": "\u2014",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Taxonomy (app)",
+    "element": "MTG_DECK_TYPES",
+    "scryfall": "derived from Set.set_type",
+    "mtgjson": "derived from Set.type"
+  },
+  {
+    "group": "Taxonomy (app)",
+    "element": "MTG_BUCKETS",
+    "scryfall": "\u2014",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Taxonomy (app)",
+    "element": "HIDDEN_TYPES (advisor)",
+    "scryfall": "\u2014",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Taxonomy (app)",
+    "element": "FORMAT_LIST (mtg)",
+    "scryfall": "Card.legalities keys",
+    "mtgjson": "Card.legalities keys"
+  },
+  {
+    "group": "Taxonomy (app)",
+    "element": "FORMAT_LIST (pokemon)",
+    "scryfall": "\u2014",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Taxonomy (app)",
+    "element": "POKEMON_AIM",
+    "scryfall": "\u2014",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Taxonomy (app)",
+    "element": "DEFAULT_AIM (mtg)",
+    "scryfall": "\u2014",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Facets (derived)",
+    "element": "color facet",
+    "scryfall": "derived from Card.colors (WUBRG) or Card.card_faces[].colors",
+    "mtgjson": "Card.colors"
+  },
+  {
+    "group": "Facets (derived)",
+    "element": "color_combo facet",
+    "scryfall": "derived from Card.colors or Card.card_faces[].colors",
+    "mtgjson": "Card.colors"
+  },
+  {
+    "group": "Facets (derived)",
+    "element": "kind facet",
+    "scryfall": "derived from Card.type_line or Card.card_faces[].type_line",
+    "mtgjson": "Card.type (or Card.types[])"
+  },
+  {
+    "group": "Constants (app)",
+    "element": "WUBRG order",
+    "scryfall": "\u2014",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Constants (app)",
+    "element": "MTG_KINDS list",
+    "scryfall": "\u2014",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Constants (app)",
+    "element": "MTG_RARITY_TIER map",
+    "scryfall": "\u2014",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Constants (app)",
+    "element": "sortKey() heuristic",
+    "scryfall": "\u2014",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "UX knobs (app)",
+    "element": "min set size default",
+    "scryfall": "\u2014",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "UX knobs (app)",
+    "element": "binder cover marquee rule",
+    "scryfall": "\u2014",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "UX knobs (app)",
+    "element": "download() cache TTL",
+    "scryfall": "\u2014",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "UX knobs (app)",
+    "element": "Batch sizes (bulk import)",
+    "scryfall": "\u2014",
+    "mtgjson": "\u2014"
+  },
+  {
+    "group": "Not imported",
+    "element": "Rulings",
+    "scryfall": "GET /cards/{id}/rulings (Card.rulings_uri)",
+    "mtgjson": "Card.rulings[].date / Card.rulings[].text (bundled)"
+  },
+  {
+    "group": "Not imported",
+    "element": "Scryfall API URIs",
+    "scryfall": "Card.{uri,scryfall_uri,set_uri,set_search_uri,scryfall_set_uri,rulings_uri,prints_search_uri}",
+    "mtgjson": "\u2014"
+  }
+]
