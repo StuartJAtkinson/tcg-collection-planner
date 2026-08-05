@@ -50,7 +50,7 @@ export default async function ImportPage({ searchParams }: { searchParams: Promi
     if (!stage) {
       return (
         <div>
-          <h1 className="sr-only">Import</h1>
+          <h1 className="mb-3 inline-block border-b-2 border-emerald-500 pb-1 text-xl font-semibold text-white">Import</h1>
           <p className="text-amber-400">That staged import is gone (committed, discarded, or expired). <a href="/resolve" className="underline">Start a new import.</a></p>
         </div>
       );
@@ -58,7 +58,7 @@ export default async function ImportPage({ searchParams }: { searchParams: Promi
 
     return (
       <div>
-        <h1 className="sr-only">Import locations</h1>
+        <h1 className="mb-3 inline-block border-b-2 border-emerald-500 pb-1 text-xl font-semibold text-white">Import locations</h1>
         <p className="mb-6 max-w-3xl text-sm text-neutral-400">
           {stage.matched.length} cards matched, staged in {stage.containers.length} portfolio{stage.containers.length === 1 ? '' : 's'}. Each was
           presumed a <span className="text-emerald-300">Binder</span> (&gt;100 cards) or <span className="text-sky-300">Deck</span> (≤100) — override
@@ -125,7 +125,7 @@ export default async function ImportPage({ searchParams }: { searchParams: Promi
   if (!unmatched.length) {
     return (
       <div>
-        <h1 className="sr-only">Import</h1>
+        <h1 className="mb-3 inline-block border-b-2 border-emerald-500 pb-1 text-xl font-semibold text-white">Import</h1>
         {importPanel}
         <p className="text-sm text-emerald-400">Nothing unresolved — every imported card has been matched.</p>
       </div>
@@ -150,7 +150,7 @@ export default async function ImportPage({ searchParams }: { searchParams: Promi
 
   return (
     <div>
-      <h1 className="sr-only">Import</h1>
+      <h1 className="mb-3 inline-block border-b-2 border-emerald-500 pb-1 text-xl font-semibold text-white">Import</h1>
       {importPanel}
 
       <h2 className="mb-1 text-lg font-semibold text-neutral-300">Resolve unmatched cards</h2>

@@ -10,7 +10,6 @@ import ComboSlicer from '../components/ComboSlicer.tsx';
 import FilterSidebar, { type FilterGroup } from '../components/FilterSidebar.tsx';
 import SortBar from '../components/SortBar.tsx';
 import SearchResults from './SearchResults.tsx';
-import { CHIP_NEUTRAL, CHIP_PLUS } from '../components/chip.ts';
 
 export const dynamic = 'force-dynamic';
 
@@ -67,6 +66,7 @@ export default async function SearchPage({
 
   const games = (await client`select id, name from games order by id`)
     .filter((g) => ENABLED_GAMES.includes(g.id));
+  const heading = games.find((g) => g.id === game)?.name ?? 'Search';
 
   // game-specific slicers only appear once a game scope is chosen; colour is exact combos
   const gameFacets = game
@@ -91,23 +91,29 @@ export default async function SearchPage({
 
   return (
     <div>
-      {/* game scope tabs: same underlined-header style as /g/[game]. Single tab — MTG only
-          for now. */}
-      <div className="no-print mb-4 flex flex-wrap gap-2">
+      {/* Page heading — same underlined-header treatment as the top nav's active section. */}
+      <h1 className="mb-2 inline-block border-b-2 border-emerald-500 pb-1 text-xl font-semibold text-white">
+        {heading}
+      </h1>
+      <nav className="no-print mb-4 flex gap-6 border-b border-neutral-800">
         {games.map((g) => {
-          const href = `/search?game=${g.id}`;
           const active = g.id === game;
           return (
             <Link
               key={g.id}
-              href={href}
-              className={active ? CHIP_PLUS : CHIP_NEUTRAL}
+              href={`/search?game=${g.id}`}
+              aria-current={active ? 'page' : undefined}
+              className={`border-b-2 px-1 pb-2 text-sm font-medium ${
+                active
+                  ? 'border-emerald-500 text-white'
+                  : 'border-transparent text-neutral-300 hover:text-white'
+              }`}
             >
               {g.name}
             </Link>
           );
         })}
-      </div>
+      </nav>
 
       <div className="flex gap-6">
         <FilterSidebar
@@ -124,7 +130,12 @@ export default async function SearchPage({
                   </div>
                 </div>
               )}
-              {game === 'mtg' && comboOpts.length ? <ComboSlicer options={comboOpts} current={sp.combo as any} /> : null}
+              {game === 'mtg' && comboOpts.length ? (
+                <ComboSlicer
+                  options={comboOpts}
+                  current={[...combos.plus.map((c) => `+${c}`), ...combos.minus.map((c) => `-${c}`)]}
+                />
+              ) : null}
             </>
           }
           hidden={{ game: game || undefined }}

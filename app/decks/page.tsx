@@ -61,8 +61,8 @@ export default async function DecksPage() {
 
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between gap-3">
-        <h1 className="sr-only">Decks</h1>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h1 className="inline-block border-b-2 border-emerald-500 pb-1 text-xl font-semibold text-white">Decks</h1>
         <Link href="/decks/new" className={BTN_PRIMARY}>+ New deck</Link>
       </div>
       <p className="mb-6 text-sm text-neutral-400">

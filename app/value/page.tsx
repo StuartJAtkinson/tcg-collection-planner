@@ -70,7 +70,7 @@ export default async function ValuePage() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <h1 className="sr-only">Collection value</h1>
+      <h1 className="mb-3 inline-block border-b-2 border-emerald-500 pb-1 text-xl font-semibold text-white">Value</h1>
       <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-6">
         <div className="text-sm text-neutral-400">Latest snapshot</div>
         <div className="text-4xl font-bold">{fmt(today?.total ?? 0)}</div>

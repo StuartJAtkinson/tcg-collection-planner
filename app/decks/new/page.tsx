@@ -41,8 +41,8 @@ export default async function NewDeckPage({ searchParams }: { searchParams: Prom
 
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between gap-3">
-        <h1 className="sr-only">New deck</h1>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h1 className="inline-block border-b-2 border-emerald-500 pb-1 text-xl font-semibold text-white">New deck</h1>
         <Link href="/decks" className="text-sm text-neutral-400 hover:text-white">← back to decks</Link>
       </div>
       <p className="mb-6 text-sm text-neutral-400">

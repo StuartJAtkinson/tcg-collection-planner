@@ -25,7 +25,7 @@ export default async function PreviewPage({ searchParams }: { searchParams: Prom
 
   return (
     <div>
-      <h1 className="sr-only">MockCard preview</h1>
+      <h1 className="mb-3 inline-block border-b-2 border-emerald-500 pb-1 text-xl font-semibold text-white">Preview</h1>
       <p className="mb-4 text-sm text-neutral-400">
         Search any card by name to see MockCard rendered next to the real image.
       </p>

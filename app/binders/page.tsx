@@ -80,8 +80,8 @@ export default async function BindersPage({ searchParams }: { searchParams: Prom
 
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between gap-3">
-        <h1 className="sr-only">Binders</h1>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h1 className="inline-block border-b-2 border-emerald-500 pb-1 text-xl font-semibold text-white">Binders</h1>
         <NewContainer kind="binder" />
       </div>
 

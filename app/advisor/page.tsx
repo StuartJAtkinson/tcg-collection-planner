@@ -102,7 +102,7 @@ export default async function AdvisorPage({
 
   return (
     <div>
-      <h1 className="sr-only">Nearest-complete sets</h1>
+      <h1 className="mb-3 inline-block border-b-2 border-emerald-500 pb-1 text-xl font-semibold text-white">Advisor</h1>
       <p className="mb-6 max-w-3xl text-sm text-neutral-400">
         Sets you&apos;ve started, ranked by coverage when <span className="text-amber-400">for-play copies</span> (any
         owned printing of the same card, per oracle identity) fill slots alongside{' '}

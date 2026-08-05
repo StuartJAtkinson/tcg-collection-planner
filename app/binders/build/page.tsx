@@ -46,7 +46,7 @@ export default async function BuildBinderPage({ searchParams }: { searchParams: 
       <div className="mb-4">
         <div className="text-sm text-neutral-400"><Link href="/binders" className="hover:text-white">Binders</Link> · Create</div>
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <h1 className="sr-only">Build from unsorted collection</h1>
+          <h1 className="mb-3 inline-block border-b-2 border-emerald-500 pb-1 text-xl font-semibold text-white">Build binder</h1>
           <div className="flex gap-1">
             {(['mtg', 'pokemon'] as const).filter((g) => ENABLED_GAMES.includes(g)).map((g) => (
               <Link key={g} href={`/binders/build?game=${g}`}

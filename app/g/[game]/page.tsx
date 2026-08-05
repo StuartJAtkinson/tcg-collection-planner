@@ -3,7 +3,6 @@ import { notFound } from 'next/navigation';
 import { client } from '../../../src/db/index.ts';
 import { ENABLED_GAMES, MTG_BUCKETS, MTG_DECK_TYPES } from '../../../src/games.ts';
 import ChipFormSection from '../../components/ChipFormSection.tsx';
-import { CHIP_NEUTRAL, CHIP_PLUS } from '../../components/chip.ts';
 
 export const dynamic = 'force-dynamic';
 
@@ -102,19 +101,30 @@ export default async function GamePage({
 
   return (
     <div>
-      <h1 className="sr-only">Collections</h1>
-      {/* games as tabs under Collections */}
-      <div className="no-print mb-4 flex gap-2">
-        {allGames.map((g) => (
-          <Link
-            key={g.id}
-            href={`/g/${g.id}`}
-            className={g.id === game ? CHIP_PLUS : CHIP_NEUTRAL}
-          >
-            {g.name}
-          </Link>
-        ))}
-      </div>
+      {/* Page heading — same underlined-header treatment as the top nav's active section,
+          so it reads as the page's name. The game tabs sit underneath, switching scope. */}
+      <h1 className="mb-2 inline-block border-b-2 border-emerald-500 pb-1 text-xl font-semibold text-white">
+        {gameRow.name}
+      </h1>
+      <nav className="no-print mb-4 flex gap-6 border-b border-neutral-800">
+        {allGames.map((g) => {
+          const active = g.id === game;
+          return (
+            <Link
+              key={g.id}
+              href={`/g/${g.id}`}
+              aria-current={active ? 'page' : undefined}
+              className={`border-b-2 px-1 pb-2 text-sm font-medium ${
+                active
+                  ? 'border-emerald-500 text-white'
+                  : 'border-transparent text-neutral-300 hover:text-white'
+              }`}
+            >
+              {g.name}
+            </Link>
+          );
+        })}
+      </nav>
 
       <ChipFormSection
         action={`/g/${game}`}
