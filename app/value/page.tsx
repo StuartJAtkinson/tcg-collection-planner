@@ -76,7 +76,7 @@ export default async function ValuePage() {
         <div className="text-4xl font-bold">{fmt(today?.total ?? 0)}</div>
         <div className="mt-1 text-sm text-neutral-500">
           {today?.priced_rows ?? 0} priced holdings
-          {gameRows.length ? ' · ' + gameRows.map((g) => `${g.game_id} ${fmt(g.total)}`).join(' · ') : ''}
+          {gameRows.length ? ' · ' + gameRows.map((g) => `${g.game_id === 'mtg' ? 'Magic' : 'Pokémon'} ${fmt(g.total)}`).join(' · ') : ''}
         </div>
       </div>
       <div className="mt-4 rounded-xl border border-neutral-800 bg-neutral-900 p-6">
