@@ -22,9 +22,12 @@ analytics.
   fake binder. Per-holding editor (move between containers, qty/condition/paid),
   rename/delete, create-binder from a near-complete set, functional-grouping
   binder builder, container delete.
-- **Search** (`/search`) — name + facet filters (rarity, kind, colour-combo,
-  mana value), **fuzzy name match** via `pg_trgm` (typos and partials rank
-  results by similarity), infinite scroll, owned-indicators per oracle.
+- **Search** (`/search`) — pure facet/sort-driven search (no name text
+  input — the global nav text input would duplicate the URL-driven filter
+  bar). Filters: kind (tri-state, mtg + pokemon), colour combo (tri-state,
+  pokemon only), mana-value range (mtg only). **Fuzzy name match** via
+  `pg_trgm` (typos and partials rank results by similarity), infinite
+  scroll, owned-indicators per oracle.
 - **Advisor** (`/advisor`) — nearest-complete-set ranking with dual completion
   (exact prints vs for-play coverage via shared `oracle_id`), cost to fill the
   remaining slots, Collection Aim toggle for set kinds.
