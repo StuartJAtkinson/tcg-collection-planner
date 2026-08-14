@@ -12,3 +12,13 @@ tsconfig.tsbuildinfo
 .atelier-dev.log
 .scratch/
 H:GitHubcard-collection.scratchsearch.html
+cards.json.gz
+ref/
+*.mp4
+
+# fetched booster photographs — regenerate with: node gen-packs.mjs
+packs/
+
+# screenshots dropped at the repo root while working. Only the root, so anything
+# deliberate under a folder still commits; no .png is tracked anywhere today.
+/*.png

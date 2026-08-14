@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
 
 // deck-shaped set types across games: mtg's precon products plus pokemon's 'deck'
 // (Trainer Kits / Starter Sets, derived at import). MTG list comes from src/games.ts so
-// /advisor and /g/mtg agree on what counts as a precon.
+// /g/mtg agrees on what counts as a precon.
 const DECK_SET_TYPES = [...MTG_DECK_TYPES, 'deck'];
 
 export default async function DecksPage() {

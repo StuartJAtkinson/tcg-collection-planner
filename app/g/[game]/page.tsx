@@ -11,8 +11,8 @@ export const dynamic = 'force-dynamic';
 // here — they're fixed buyable decks, not collectible sets. Masters/reprint sets merge into
 // Core (they're "kind of core again": reprint products), and crossover (non-Magic-IP /
 // Universes Beyond) sets get their own bucket regardless of set_type via sets.crossover.
-// ponytail: taxonomy comes from src/games.ts so /advisor's "precons" key and the six core
-// bucket labels can't drift between the two surfaces.
+// ponytail: taxonomy comes from src/games.ts so /decks' precon list and the six core bucket
+// labels can't drift between the two surfaces.
 const MTG_NAV_BUCKETS: [string, string[]][] = MTG_BUCKETS
   .filter(([key]) => key !== 'precons')
   .map(([key, label, types]) => [label, types]);

@@ -1,0 +1,193 @@
+/* The one bespoke effect from app/globals.css, trimmed to the idle shimmer
+   (the pointer-tracked specular highlight needs a client hook we don't have here). */
+.foil { position: relative; isolation: isolate; }
+.foil::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; z-index: 2;
+  background: linear-gradient(115deg, transparent 0%, rgba(255,119,115,.5) 12%, rgba(255,237,95,.5) 25%,
+    rgba(168,255,95,.5) 38%, rgba(95,255,246,.5) 50%, rgba(115,131,255,.5) 63%, rgba(255,102,247,.5) 76%, transparent 100%);
+  background-size: 300% 300%; mix-blend-mode: color-dodge; opacity: .5; animation: foil-shift 6s linear infinite;
+}
+@keyframes foil-shift { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+
+/* The Magic logo is already in the repo — public/fonts/mana.woff2 ships the
+   Mana icon font. Nothing to download, and no bitmap to scale badly.
+   mana.woff2 is copied in because serve.py serves this directory, not public/.
+
+   Two forms, and the choice matters at 32px:
+     U+E9ED  ms-watermark-mtg          the MAGIC wordmark — wide, mush at 32px
+     U+E623  ms-watermark-planeswalker the planeswalker symbol — Magic's
+                                       icon-form mark, legible at any size
+   The header uses the symbol; swap the content value below for the wordmark. */
+@font-face {
+  font-family: "Mana"; font-style: normal; font-weight: normal; font-display: block;
+  src: url("mana.woff2") format("woff2");
+}
+.ms {
+  font-family: "Mana" !important; speak: none; font-style: normal; font-weight: normal;
+  font-variant: normal; text-transform: none; line-height: 1; display: inline-block;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+}
+.ms-watermark-planeswalker::before { content: "\e623"; }
+.ms-watermark-mtg::before { content: "\e9ed"; }
+
+/* Scrollbars: the browser default is a bright grey slab that reads as chrome
+   bolted onto a dark page. Same neutral ramp as everything else, and the track
+   disappears so the bar only exists where there's something to scroll. */
+* { scrollbar-width: thin; scrollbar-color: #404040 transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: #404040; border-radius: 9999px;
+  border: 2px solid transparent; background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background: #525252; background-clip: content-box; }
+::-webkit-scrollbar-corner { background: transparent; }
+
+/* THE PACK TEARS. It does not shrink and fade, which is what it used to do and
+   what reads as "the pack was deleted" rather than "the pack was opened".
+
+   Read off an Arena capture frame by frame at 12.5fps: a light line builds
+   along the TOP EDGE for about half a second while the pack sits still (f0-f7),
+   the top splits and light pours up out of it (f8-f9), the body is eaten by the
+   light (f10), and only on f11 — some 900ms in — does it burst and hand over
+   the cards. Three beats before anything leaves, and the old 450ms scale-away
+   had none of them.
+
+   The tear is a pseudo-element rather than a second node so nothing in the
+   markup has to know about it: a hot ellipse pinned across the pack's top edge,
+   growing from a thin line to a flare that swallows the wrapper.
+
+   THE PACK DOES NOT DISSOLVE DOWNWARDS. It used to be eaten by a clip running
+   from the top edge to the bottom, and a pack being wiped away top-down reads as
+   the pack sinking, not as the pack opening — the eye follows the wipe, which is
+   the one direction nothing in this sequence is supposed to go. So the clip only
+   ever takes the top tenth (that is the tear, and it stops there), the pack stays
+   whole underneath it, and what ends the shot is the BURST: white-hot and gone in
+   the last quarter, on the frame the cards take over. */
+/* The body's clip is a POLYGON, not an inset, because the tear has a direction.
+   An inset takes the whole top edge off at once, which is a pack losing its lid;
+   a polygon whose two top corners move at different times is a pack being torn,
+   the seam running right to left just behind the hand. The right corner drops to
+   the tear line first (0-30%), the left corner follows it (30-62%), and only then
+   does the body blow out. */
+/* ON THE PACK'S IMG, NOT ON THE WRAPPER, and that is not tidiness. A clip-path
+   clips DESCENDANTS, and the strip is a descendant — put this on the wrapper and
+   the one thing that has to fly out past the top edge is the one thing guaranteed
+   to be cut off at it. The wrapper keeps the perspective; the body keeps the cut. */
+@keyframes booster-tear {
+  0%   { opacity: 1; filter: brightness(1);
+         clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+  30%  { opacity: 1; filter: brightness(1.15) drop-shadow(0 -6px 14px rgba(255,210,120,.55));
+         clip-path: polygon(0 0, 100% 10%, 100% 100%, 0 100%); }
+  62%  { opacity: 1; filter: brightness(1.6) drop-shadow(0 -10px 24px rgba(255,225,160,.9));
+         clip-path: polygon(0 10%, 100% 10%, 100% 100%, 0 100%); }
+  100% { opacity: 0; filter: brightness(3.2) drop-shadow(0 -12px 34px rgba(255,238,200,1));
+         clip-path: polygon(0 10%, 100% 10%, 100% 100%, 0 100%); }
+}
+.booster-opening > img, img.booster-opening {
+  animation: booster-tear 700ms cubic-bezier(.45, 0, .7, 1) forwards;
+  animation-delay: inherit;
+}
+
+/* THE STRIP. A box cropped to the top tenth of the pack with the pack's own art
+   inside it at full size, so at rest it is the same pixels in the same place and
+   there is no seam to see. `transform-origin` is the RIGHT edge because that is
+   where the hand is: the right corner is lifted first, the rest peels after it,
+   and `rotateY` turns the freed end toward the viewer instead of sliding it flat.
+   The parent carries the `perspective`, so the turn has depth rather than being a
+   horizontal squash. It clears the pack's left edge before it fades, which is
+   what sells the strip as having come OFF rather than having been deleted. */
+/* The travel is bounded by where this runs, not by how far a hand would go. A
+   single open tears out on the stage with the whole pane to fly into, but Open all
+   and Reveal all tear their packs where they stand — in a 280px sidebar against
+   the left edge of the window — and a strip pulled a full pack-width from there is
+   pulled off the screen. So it clears its own pack, and is gone before it would
+   have to leave. */
+@keyframes booster-strip {
+  0%   { transform: none; opacity: 1; }
+  12%  { transform: translate3d(-1%, -1%, 10px) rotateY(-8deg) rotate(-1deg); opacity: 1; }
+  38%  { transform: translate3d(-22%, -6%, 26px) rotateY(-24deg) rotate(-4deg); opacity: 1; }
+  70%  { transform: translate3d(-55%, -13%, 44px) rotateY(-42deg) rotate(-9deg); opacity: .8; }
+  100% { transform: translate3d(-92%, -22%, 62px) rotateY(-60deg) rotate(-14deg); opacity: 0; }
+}
+.booster-strip {
+  position: absolute; left: 0; top: 0; width: 100%; height: 10%;
+  overflow: hidden; pointer-events: none; z-index: 2;
+  transform-origin: 100% 50%; backface-visibility: hidden;
+  filter: drop-shadow(-3px 2px 5px rgba(0,0,0,.55));
+  animation: booster-strip 700ms cubic-bezier(.34, .06, .5, 1) forwards;
+}
+/* Full width of the PACK, anchored at the pack's top — the box crops it, so the
+   strip carries the real top tenth of the real art and not a stretched sliver. */
+.booster-strip img {
+  position: absolute; left: 0; top: 0; width: 100%; height: auto; max-width: none;
+}
+/* The light grows UP and OUT of the split — it never descends either. A flare
+   parked dead still at the top edge reads as a highlight on an intact pack, so
+   it is the SCALE that carries the beat, blowing out past the pack's own width. */
+@keyframes booster-tear-line {
+  0%   { opacity: 0; top: -3%; transform: scaleX(.25) scaleY(.3); }
+  35%  { opacity: 1; top: -3%; transform: scaleX(1)   scaleY(.7); }
+  65%  { opacity: 1; top: -5%; transform: scaleX(1.3) scaleY(2.2); }
+  100% { opacity: 0; top: -8%; transform: scaleX(1.9) scaleY(4.5); }
+}
+/* No `position` here on purpose. foil.css is appended AFTER Tailwind by
+   build.mjs, so `position: relative` on this class beat the `.absolute` the fan's
+   boosters are laid out with — the pack jumped back into flow the instant it was
+   asked to open. The ::after needs a positioned ancestor and it has one: every
+   element this class is put on is already absolutely positioned. */
+/* `perspective` and not a perspective() in the transform: the element's own
+   transform is the fan's rotation, written inline by Fan(), and this has to apply
+   to the CHILD strip rather than to the pack. No `position` here on purpose —
+   foil.css is appended AFTER Tailwind, so `position: relative` on this class beat
+   the `.absolute` the fan's boosters are laid out with, and the pack jumped back
+   into flow the instant it was asked to open. The strip needs a positioned
+   ancestor and it has one: every element this class is put on is already
+   absolutely positioned. */
+.booster-opening {
+  pointer-events: none;
+  perspective: 420px;
+  perspective-origin: 70% 0%;
+}
+.booster-opening::after {
+  content: ""; position: absolute; left: -10%; right: -10%; height: 14%;
+  border-radius: 50%; pointer-events: none;
+  background: radial-gradient(ellipse at center,
+    rgba(255,252,240,1) 0%, rgba(255,214,130,.95) 34%, rgba(255,150,40,.4) 62%, transparent 78%);
+  filter: blur(2px);
+  animation: booster-tear-line 700ms cubic-bezier(.45, 0, .7, 1) forwards;
+}
+/* Picking a mode walks that column's boosters from the centred preview fan to
+   the left edge, flattening the V into a row on the way. It has to be an
+   ANIMATION and not a transition: choosing a mode re-renders the window, so the
+   element a transition would run on is destroyed and replaced — a transition
+   has nothing to run from. An animation runs on mount, which is exactly what
+   this is. The endpoints differ per booster, so they arrive as custom
+   properties set inline by Fan(). */
+/* The rotation is carried through unchanged, not unwound: picking a mode MOVES
+   the fan, it does not re-deal it. Losing the fan on the way is a second
+   animation fighting the first, and it reads as a stumble. */
+/* It also HALVES on the way. Full size, the fan is the subject and there is
+   nowhere for eighty cards to go; half size it is the source, and the pile that
+   comes out of it at 0.8 of a booster has the rest of the window. The shrink is
+   the same animation as the move rather than a second one, so it reads as one
+   thing receding to the corner it will be dealt from. Origin is the bottom
+   centre, so it shrinks onto its own base and does not appear to fall.
+
+   The end state is ALSO written inline by Fan(), identical to the `to` frame
+   here. The animation outranks inline styles while it runs, so the two never
+   fight — but the moment the class comes off (which is how a booster is brought
+   to the front before it opens) the element holds exactly where the animation
+   left it, instead of snapping back to unrotated full size. */
+/* The two offsets in the `to` frame are the SCALE's, not taste. Shrinking by half
+   about the bottom centre leaves the pack in the bottom half of its own box with
+   a quarter of the box's width of dead margin either side of it — so a fan asked
+   to go to the top left arrives in the middle, which is exactly what it did.
+   translateY(-48%) is the height the scale gave back, less the rotation's own swing; translateX(-25%) is the
+   left margin. Both are percentages of the untransformed box, so they hold at
+   any size, and both fall out of `half` in Fan() rather than being typed twice. */
+/* The settle used to live here as a keyframe with written endpoints. It moved to
+   `fanFlip` in index.html: the fan travels between two boxes of different sizes
+   in a layout that does not exist until the answer is rendered, and a keyframe
+   can state neither the size change nor a start it has not measured. */
+

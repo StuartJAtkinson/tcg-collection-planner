@@ -2,7 +2,7 @@
 //  1. Unsorted collection + real binders (the physical containers).
 //  2. Import locations — classify each imported portfolio container as binder / deck (neither
 //     = unsorted). Same location a portfolio's resolved unmatched cards route to.
-//  3. Create Binders — like the advisor: a completion frequency analysis finds the "step jump"
+//  3. Create Binders — a completion frequency analysis finds the "step jump"
 //     from scattered promos/decks to substantially-collected sets, and suggests a dedicated
 //     binder for every set past the threshold; the rest are destined for functional-grouping
 //     binders (built next). Ownership counts cards anywhere you own them (incl. decks) but not

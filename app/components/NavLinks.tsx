@@ -11,8 +11,6 @@ const SECTIONS: { href: string; label: string; match: (p: string) => boolean }[]
   { href: '/', label: 'Collections', match: (p) => p === '/' || p.startsWith('/g/') || p.startsWith('/set/') },
   { href: '/binders', label: 'Binders', match: (p) => p.startsWith('/binders') },
   { href: '/decks', label: 'Decks', match: (p) => p.startsWith('/decks') },
-  { href: '/advisor', label: 'Advisor', match: (p) => p.startsWith('/advisor') },
-  { href: '/value', label: 'Value', match: (p) => p.startsWith('/value') },
 ];
 
 export default function NavLinks() {

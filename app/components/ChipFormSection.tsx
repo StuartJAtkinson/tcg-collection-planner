@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { CHIP_NEUTRAL, CHIP_PLUS } from './chip.ts';
 
 // Standardized chip-row filter for surfaces that don't use the full FilterSidebar (the master
-// Sets page, advisor's Collection Aim, /binders and /search's game tabs). Each chip is a
+// Sets page, /binders and /search's game tabs). Each chip is a
 // styled button — chips are NOT form inputs, so they never participate in form submission.
 // The form posts one hidden input per field, carrying the joined/delimited current value,
 // with the Apply button disabled while it equals the URL.
