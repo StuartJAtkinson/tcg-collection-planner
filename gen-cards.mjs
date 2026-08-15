@@ -74,6 +74,27 @@ const FORMATS = ['standard', 'pioneer', 'modern', 'legacy', 'vintage', 'commande
 const legalOf = (c) => FORMATS.reduce((m, f, i) =>
   m | (c.legalities?.[f] === 'legal' ? 1 << i : 0), 0);
 
+/* THE TURN INDICATOR. A two-sided card carries a small mark in the top-left of
+   its title bar saying which way it turns and into what — a sun and a crescent
+   for Innistrad's day/night werewolves, a compass for Ixalan's lands, a spark
+   for the Origins planeswalkers. Scryfall reports it in `frame_effects`, and
+   `treatOf` above drops all of them because it only looks for the four that
+   change the ART.
+
+   It is READ rather than derived, and that was measured before it was written:
+   only 110 of the 381 `sunmoondfc` printings say Daybound or Nightbound, so the
+   271 older Innistrad werewolves — which transform on the same mark with the
+   2011 wording — cannot be found in the rules text. 580 of 107,347 printings
+   carry one, so the field is 0 on 99.5% of the rows and costs nothing.
+
+   The NAME is stored rather than a flag for the one case the page currently
+   draws specially, the same way `treat` stores Scryfall's word: the page maps
+   names to marks, so a mark it has no glyph for degrades to the generic
+   triangle and naming it in the tooltip still works. */
+const DFC = ['sunmoondfc', 'compasslanddfc', 'originpwdfc', 'mooneldrazidfc',
+  'waxingandwaningmoondfc', 'fandfc', 'convertdfc', 'upsidedowndfc'];
+const dfcOf = (c) => (c.frame_effects || []).find(f => DFC.includes(f)) || 0;
+
 /* Finishes are per PRINTING — the same card is sold nonfoil in one set and
    etched in another — so this one is three bits on the printing row. */
 const FINISHES = ['nonfoil', 'foil', 'etched'];
@@ -105,7 +126,7 @@ const intern = ([arr, idx], s) => {
 
 const oracleIdx = new Map();
 const oracles = [];      // [name, cost, type, text, pt, col, cmc, layout, loy, faces, legal]
-const printings = [];    // [oracle, set, number, rarity, artId, usd, treatment, finishes, lang, artist, flavour]
+const printings = [];    // [oracle, set, number, rarity, artId, usd, treatment, finishes, lang, artist, flavour, dfc]
 
 const rl = readline.createInterface({
   input: createReadStream('data/scryfall-default-cards.jsonl.gz').pipe(createGunzip()),
@@ -199,6 +220,7 @@ for await (const raw of rl) {
         intern([flavour, flavourIdx], fc.flavor_text ?? (k ? '' : c.flavor_text)));
       return per.some(Boolean) ? per : 0;
     })() : intern([flavour, flavourIdx], c.flavor_text),
+    dfcOf(c),
   ]);
 }
 

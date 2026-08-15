@@ -741,7 +741,7 @@ const materialiseFace = ([n, cost, type, text, pt, loy, col]) =>
    flavour" rather than throwing. Absent, not invented. */
 const materialise = ({ o, p, artists = [''], flavour = [''] }) => {
   const faceCache = new Map();
-  return p.map(([oi, set, num, rar, art_id, usd, treat, fin, lang, art, flav]) => {
+  return p.map(([oi, set, num, rar, art_id, usd, treat, fin, lang, art, flav, dfc]) => {
     const [n, cost, type, text, pt, col, cmc, layout, loy, faces, legal] = o[oi];
     if (faces && !faceCache.has(oi)) faceCache.set(oi, faces.map(materialiseFace));
     /* Flavour is the one per-printing field that has to reach a FACE, and faces
@@ -768,6 +768,9 @@ const materialise = ({ o, p, artists = [''], flavour = [''] }) => {
                 like. `flav` is the CARD's, so it is empty whenever the faces
                 carry their own; RulesPlate reads the face first. */
              art: artists[art] || '', flav: Array.isArray(flav) ? '' : flavour[flav] || '',
+             // which mark the title bar carries and what it turns into; '' is
+             // "no named indicator", which every ordinary DFC is
+             dfc: dfc || '',
              /* Read off the printing, not assumed. 2,634 of these are not English
                 — Foreign Black Border, Rinascimento, Phyrexian, Quenya — and the
                 identity key prints this beside the set and number, where a
@@ -1097,8 +1100,31 @@ const rarityMark = (c) => {
    the same object for an ordinary card, and differ for everything with two
    faces. Set, rarity, collector number and finish are printing facts, so they
    always come off `c`; name, cost, type, text and P/T are face facts. */
-const TitlePlate = (f, c, plate, cls = '') => `
+/* THE TURN INDICATOR, in the top-left of the title bar, which is where the
+   printed card puts it. It says which way the card turns and into what, and it
+   is the one thing the flip control cannot: a corner button says "there is
+   another side", the mark says "this is a werewolf and it is daytime".
+
+   Two marks and not eight. `sunmoondfc` is 381 of the 580 named printings and
+   Unicode has exactly the sun and crescent it prints; the other six — compass,
+   spark, Eldrazi, fan, convert, upside-down — have no character that is
+   actually them, so inventing one each would be fabrication wearing fidelity's
+   clothes. They get the generic triangle a modern DFC prints, and the tooltip
+   names the effect off `c.dfc`, which is the source's own word. */
+const DFC_MARK = { sunmoondfc: ['&#9728;', '&#9790;'] };   // sun, crescent moon
+const TURN_MARK = ['&#9650;', '&#9660;'];                  // the modern DFC triangle
+const turnMark = (c, i) => {
+  if (!SIDED.has(c.layout) || !c.faces) return '';
+  // the named effect if there is one, else the layout — an MDFC is not a
+  // transform, and both words are the ones /anatomy already files it under
+  const kind = c.dfc ? c.dfc.replace(/dfc$/, '') : c.layout;
+  return `<span title="${jsArg(`${kind} — turn the card over`)}" aria-hidden="true"
+    class="shrink-0 text-[0.85em] leading-none opacity-70">${(DFC_MARK[c.dfc] || TURN_MARK)[i ? 1 : 0]}</span>`;
+};
+
+const TitlePlate = (f, c, plate, cls = '', i = 0) => `
   <div class="flex items-center justify-between gap-1 rounded-md px-1.5 py-0.5 ${cls}" style="${plate}">
+    ${turnMark(c, i)}
     <span class="truncate font-bold leading-tight ${nameFit((f.n || '').length + 2 * ((f.cost || []).length + (c.hp ? 3 : 0)))}">${f.n}</span>
     <span class="flex shrink-0 items-center gap-0.5">${c.hp
       ? `<span class="text-[1em] font-bold">${c.hp} HP</span>`
@@ -1321,7 +1347,7 @@ const TrackSide = (c, i, bg, plate) => {
   return `
   <div class="flex h-full w-full flex-col overflow-hidden rounded p-1.5 text-[4.91cqw] ${c.foil ? 'foil' : ''}"
     style="background:${bg};color:${ink(lum(bg))}">
-    ${TitlePlate(f, c, plate)}
+    ${TitlePlate(f, c, plate, '', i)}
     <div class="my-1 flex min-h-0 flex-1 gap-1">${artLeft ? art + track : track + art}</div>
     ${TypePlate(f, c, plate, '')}
     ${FootPlate(f, c, plate)}
@@ -1366,7 +1392,7 @@ const CardSide = (c, i, bg, plate, treat, layout) => {
     style="background:${bg};color:${ink(lum(bg))}">
     ${over ? art : ''}
     <div class="relative flex h-full w-full flex-col">
-      ${TitlePlate(f, c, plate)}
+      ${TitlePlate(f, c, plate, '', i)}
       ${over ? '' : art}
       <!-- THE SPACER GOES HERE, not after the rules box. On a full-art card the
            printed article puts the title at the top and everything else in the

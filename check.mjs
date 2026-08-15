@@ -1681,7 +1681,7 @@ t.setQuality('tcg', '200w');
   const gc = readFileSync('gen-cards.mjs', 'utf8');
   assert.ok(/c\.lang === 'en' \? 0 : c\.lang/.test(gc),
     'gen-cards.mjs no longer carries the printing language');
-  assert.ok(/\[oracle, set, number, rarity, artId, usd, treatment, finishes, lang, artist, flavour\]/.test(gc),
+  assert.ok(/\[oracle, set, number, rarity, artId, usd, treatment, finishes, lang, artist, flavour, dfc\]/.test(gc),
     'the printing tuple comment and its contents disagree about language');
   // narrowed to materialise: the 18 mock rows carry `lang: 'en'` as data, which
   // is what a hand-written mock card is for and not the fault
@@ -2448,6 +2448,44 @@ assert.ok(aft.includes('object-left') && aft.includes('object-right'),
   'the two aftermath halves show the same end of the shared art crop');
 assert.ok(aft.indexOf('object-left') < aft.indexOf('object-right'),
   'the aftermath halves have their illustrations the wrong way round');
+
+/* THE TURN INDICATOR. A two-sided card prints a mark in the top-left of its
+   title bar saying which way it turns and into what — the one thing the corner
+   flip button cannot say. `treatOf` dropped every DFC frame effect because it
+   only looks for the four that change the ART, so 580 printings lost theirs.
+   Read, not derived: only 110 of the 381 `sunmoondfc` printings say Daybound or
+   Nightbound, so the 271 older Innistrad werewolves cannot be found in the text. */
+{
+  const gc = readFileSync('gen-cards.mjs', 'utf8');
+  assert.ok(/find\(f => DFC\.includes\(f\)\)/.test(gc),
+    'gen-cards.mjs no longer reads the DFC frame effect');
+  const id = (n) => `00000000-0000-4000-8000-0000000000${n}`;
+  const two = ['A // B', '{G}', 'Creature', 'Front.', '', 'G', 1, 'transform', '',
+    [['A', '{G}', 'Creature', 'Front.', '', '', 'G'],
+     ['B', '', 'Creature', 'Back.', '', '', 'G']], 0];
+  const solo = ['Solo', '{G}', 'Creature', 'Text.', '', 'G', 1, 'normal', '', 0, 0];
+  const [plain, sun, single] = t.materialise({ o: [two, solo], p: [
+    [0, 'AAA', '1', 1, id(21), 0, 0, 1, 0, 0, 0, 0],
+    [0, 'AAA', '2', 1, id(22), 0, 0, 1, 0, 0, 0, 'sunmoondfc'],
+    [1, 'AAA', '3', 1, id(23), 0, 0, 1, 0, 0, 0, 0],
+  ] }).map(t.MockCard);
+  assert.ok(plain.includes('&#9650;') && plain.includes('&#9660;'),
+    'an ordinary two-sided card draws no turn indicator');
+  assert.ok(plain.indexOf('&#9650;') < plain.indexOf('&#9660;'),
+    'the back of a two-sided card carries the front\'s mark');
+  // the six effects with no character that is actually them fall back to the
+  // triangle rather than to an invented symbol; the day/night pair does not
+  assert.ok(sun.includes('&#9728;') && sun.includes('&#9790;'),
+    'a day/night card does not draw its sun and crescent');
+  assert.ok(!sun.includes('&#9650;'), 'a day/night card draws the generic triangle as well as its own');
+  assert.ok(!single.includes('&#9650;') && !single.includes('&#9728;'),
+    'a single-faced card grew a turn indicator');
+  // the tooltip carries the source's own word, which is why the name is stored
+  // rather than a flag for the one case the page draws specially
+  assert.ok(sun.includes('sunmoon &mdash; turn the card over')
+    || sun.includes('sunmoon — turn the card over'), 'the mark does not name what it turns into');
+  assert.ok(plain.includes('transform'), 'an unnamed indicator does not say it is a transform');
+}
 
 /* TWO-COLUMN: a Saga and a Class are not stacked cards. The illustration is a
    tall strip down one side — Scryfall crops them 312x752 rather than the 626x457
