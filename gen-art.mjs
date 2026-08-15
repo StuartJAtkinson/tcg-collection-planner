@@ -48,20 +48,25 @@ if (args.some(a => !a.startsWith('--') && !SIZES[a] && !/^[A-Za-z0-9]{2,8}$/.tes
 const UA = { 'User-Agent': 'card-collection/1.0 (+local art cache)', Accept: 'image/*' };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-// The same four sets as index.html. Kept in step by hand because this file has
-// no way to import from a page — check.mjs asserts they match.
-const SIDED = new Set(['transform', 'modal_dfc', 'double_faced_token', 'art_series', 'reversible_card']);
+/* SIDED and the frameable rule come from anatomy.js — the same file the page
+   loads with <script src>. They were copied in here with a note saying this
+   "has no way to import from a page", which was only ever true of a module:
+   these are plain top-level declarations and new Function reads them, which is
+   how gen-packs.mjs has always read sets.js. Two copies and two assertions in
+   check.mjs, to avoid one line. */
+const [SIDED, framableFaces] =
+  new Function(`${readFileSync('anatomy.js', 'utf8')}
+return [SIDED, framableFaces];`)();
 
 /* 3% of printings have no mana cost, no type line and no rules — art cards,
    Jumpstart theme dividers, punchcards, "Poison Counter". The page gives up on
    drawing a frame for those and shows the whole printed card instead, so the
    crop is the one size that is no use to them: fetch `normal` for those rows
    even when the run asked for art_crop, or Local has a hole exactly where the
-   frame cannot cover for it. Same rule as `framable` in index.html — Scryfall's
-   "Card" is a placeholder for a missing type line, not a type. */
-const bareType = t => !t || t === 'Card';
-const framable = or => (or[9]?.length > 1 ? or[9] : [[or[0], or[1], or[2]]])
-  .some(f => f[1] || !bareType(f[2]));
+   frame cannot cover for it. All this adds to the shared rule is the shape the
+   catalogue stores a card in — the oracle tuple, faces at index 9. */
+const framable = (or) => framableFaces((or[9]?.length > 1 ? or[9] : [[or[0], or[1], or[2]]])
+  .map((f) => ({ cost: f[1], type: f[2] })));
 
 const { o, p } = JSON.parse(gunzipSync(readFileSync('cards.json.gz')));
 

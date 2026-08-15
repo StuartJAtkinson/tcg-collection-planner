@@ -18,6 +18,12 @@
 <div id="app" class="flex h-full flex-col"></div>
 
 <script src="sets.js"></script>
+<!-- Shared with the generators, loaded the same way sets.js is: the pack trim
+     runs here live and in gen-packs.mjs on the way to disk, and SIDED/framable
+     are read by gen-art.mjs to decide what to fetch. One copy, so they cannot
+     drift apart. -->
+<script src="trim.js"></script>
+<script src="anatomy.js"></script>
 <script>
 /* ============================================================================
    UI FORMAT DRAFT — no data, no queries, no server. Every number is fake.
@@ -40,7 +46,9 @@
      grid → new row · compact/text → rule · binder → new page · deck → section
    ========================================================================= */
 
-/* ---- design tokens: verbatim from app/components/chip.ts -------------- */
+/* ---- design tokens: the source of truth, and the only one --------------
+   These were lifted verbatim from app/components/chip.ts, which no longer
+   exists. They are not a copy of anything now. */
 const CHIP_NEUTRAL = 'inline-flex items-center justify-between gap-1 cursor-pointer whitespace-nowrap rounded-full border border-neutral-700 px-3 py-1 text-xs text-neutral-300 hover:border-neutral-500';
 const CHIP_PLUS    = 'inline-flex items-center justify-between gap-1 cursor-pointer whitespace-nowrap rounded-full border border-emerald-500 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300';
 const CHIP_MINUS   = 'inline-flex items-center justify-between gap-1 cursor-pointer whitespace-nowrap rounded-full border border-rose-500 bg-rose-500/10 px-3 py-1 text-xs text-rose-300';
@@ -737,7 +745,7 @@ const scopedCards = () => {
 // sorted BEFORE the cap, or the order only rearranges the arbitrary first 240
 const CARDS = () => { const s = sortCards(scopedCards()); return s.length > CARD_LIMIT ? s.slice(0, CARD_LIMIT) : s; };
 
-/* The same five plates as app/components/MockCard.tsx, which is the anatomy of
+/* The same five plates the deleted MockCard.tsx drew, which is the anatomy of
    a real card: name+cost, art window, type line with the rarity symbol, rules
    and flavour, then the collector bar with power/toughness. Vector, font and one
    hotlinked art crop — the frame still draws without it, which is what the
@@ -792,7 +800,8 @@ const frameOf = c => c.energy ? (PKM_FRAME[c.energy] || '#8c8c8c')
    TREATMENT — how the illustration relates to the frame. `framed` and
    `showcase` put it in a window; the rest do not, which is the "breakout art"
    problem: the art is no longer contained by the box the layout drew for it. */
-const SIDED = new Set(['transform', 'modal_dfc', 'double_faced_token', 'art_series', 'reversible_card']);
+// SIDED lives in anatomy.js — gen-art.mjs reads the same set to decide whether
+// to fetch a second image, and a disagreement means asking for files it never wrote
 const PAIRED = new Set(['split', 'adventure', 'flip', 'prepare']);
 const LANDSCAPE = new Set(['planar', 'scheme', 'split']);
 const BANDED = new Set(['saga', 'class', 'leveler']);
@@ -802,25 +811,11 @@ const OVERLAID = new Set(['fullart', 'textless']);
 const twoFaced = c => (c.faces?.length > 1 ? c.faces : null);
 const faceAt = (c, i) => c.faces?.[i] || c;
 
-/* NOT EVERY PRINTING IS A CARD A FRAME CAN DESCRIBE. A frame exists to hold a
-   mana cost, a type line and a rules box; some printings have none of the
-   three. An art card is an illustration and a signature. A Jumpstart theme
-   divider's entire text is "(Theme color: {G})". A punchcard, a "Poison
-   Counter", a "Double-Faced Substitute Card", an artist bio — all of them are
-   a name over a picture. Drawing the frame anyway is what made art series
-   render as two-thirds empty box, which was the single most visible fault on
-   the anatomy page at 2,649 printings.
-
-   The test is on the FACE, not on a list of layouts, and that is the whole
-   point: `front_card` appeared in the catalogue after this was written and was
-   handled without an edit. A list would have missed it silently, which is how
-   the anatomy taxonomy is built everywhere else here too.
-
-   `Card` is Scryfall's literal placeholder type line, not a type — it is what
-   the source puts there when there is nothing to put. 3,249 of 107,347
-   printings fail this; every one of them is a picture with a name on it. */
-const bareType = t => !t || t === 'Card';
-const framable = c => ((twoFaced(c) || [c]).some(f => f.cost?.length || !bareType(f.type)));
+/* NOT EVERY PRINTING IS A CARD A FRAME CAN DESCRIBE, and the rule for that is
+   in anatomy.js because gen-art.mjs needs the same answer: a printing drawn as
+   a whole scan needs the whole-card image fetched, not the art crop. All this
+   adds is the page's own shape — a materialised card, one face or several. */
+const framable = c => framableFaces(twoFaced(c) || [c]);
 
 /* Hotlinked by default, never stored — that is what Scryfall asks for, and it
    is also the honest shape: the catalogue holds an id, the image is somebody
@@ -1563,7 +1558,7 @@ const Selector = () => {
 };
 
 
-/* Colour combos, laid out exactly as app/components/ComboSlicer.tsx already
+/* Colour combos, laid out as the deleted ComboSlicer.tsx already
    does it — its own comment records the column counts as your spec:
      mono (6) 3 cols · dual (10) 2 · tri (10) 2 · quad (5) 1 · all (1) 1
    Colourless sorts first in the mono bucket; every other bucket is canonical
@@ -2160,7 +2155,8 @@ function measureGutter() {
    Two ways out, both leaving the picture exactly as it came: corners that don't
    agree aren't a background, and a flood that eats the image was never one. A
    pack whose own artwork bleeds white to the edge would otherwise be erased. */
-const TRIM_TOL = 28, PACK_SAT = 1.3, WHITE = 255, MAX_GAIN = 1.7, LEVELS = 0.02, TRIMMED = new Map();
+// the constants and the algorithm live in trim.js; this cache is the browser's own
+const TRIMMED = new Map();
 /* A copy already in the HTTP cache from a request that did NOT ask for CORS is
    handed back without the header, and the crossorigin load then fails outright —
    which is how the trim first showed up as a broken image rather than an
@@ -2192,106 +2188,9 @@ function trimPack(img) {
   let px;
   try { px = cx.getImageData(0, 0, w, h); }
   catch { return void TRIMMED.set(raw, null); }        // tainted: not ours to read
-  const d = px.data;
-  /* Sampled and seeded from the whole outer RING, not the four corners. Corners
-     alone are the obvious reading and it threw away a third of the packs: many
-     of these photographs are cropped tight enough that a corner is one pixel of
-     white above fifteen of artwork, and where the white survives only as a top
-     and a bottom strip, a flood from the corners cannot reach the second strip
-     at all — the two are not connected. The ring is every border pixel; the
-     vote takes every fourth of them.
-
-     And "most frequent" has to mean most AGREED WITH, not most identical.
-     Quantising into buckets first looked tidier and cost another third: JPEG
-     noise on a white margin lands either side of a bucket edge and splits one
-     background in two. Counting neighbours within the tolerance the fill itself
-     uses doesn't care where the edges fall. */
-  const ring = [];
-  for (let x = 0; x < w; x++) { ring.push(x * 4); ring.push(((h - 1) * w + x) * 4); }
-  for (let y = 1; y < h - 1; y++) { ring.push(y * w * 4); ring.push((y * w + w - 1) * 4); }
-  const vote = ring.filter((_, i) => !(i % 4));
-  const near = (a, b) => Math.abs(d[a] - d[b]) <= TRIM_TOL
-    && Math.abs(d[a + 1] - d[b + 1]) <= TRIM_TOL && Math.abs(d[a + 2] - d[b + 2]) <= TRIM_TOL;
-  let bg = -1, agree = 0;
-  for (const a of vote) {
-    let n = 0;
-    for (const b of vote) if (near(a, b)) n++;
-    if (n > agree) { agree = n; bg = a; }
-  }
-  // less than a quarter of the border agreeing on a colour is not a background
-  if (agree < vote.length / 4) return void TRIMMED.set(raw, null);
-  const br = d[bg], bgg = d[bg + 1], bb = d[bg + 2];
-  const seen = new Uint8Array(w * h), stack = ring.map(i => i / 4);
-  let cleared = 0;
-  while (stack.length) {
-    const at = stack.pop();
-    if (seen[at]) continue;
-    seen[at] = 1;
-    const i = at * 4;
-    if (Math.abs(d[i] - br) > TRIM_TOL || Math.abs(d[i + 1] - bgg) > TRIM_TOL
-      || Math.abs(d[i + 2] - bb) > TRIM_TOL) continue;
-    d[i + 3] = 0; cleared++;
-    const x = at % w;
-    if (x) stack.push(at - 1);
-    if (x < w - 1) stack.push(at + 1);
-    if (at >= w) stack.push(at - w);
-    if (at < w * (h - 1)) stack.push(at + w);
-  }
-  if (cleared > w * h * 0.85) return void TRIMMED.set(raw, null);   // it ate the pack
-  /* White balance off the very reference the fill just used. That colour WAS
-     white when the pack was photographed, so whatever it came back as is the
-     cast — this is the eyedropper "this should be white", with the dropper
-     already in hand.
-     Every channel goes to WHITE — 255, not a shade under it. The reference is a
-     sheet of paper that was white, so taking it to anything less leaves the
-     whole photograph a step dim; the pixels that overshoot are the ones about
-     to be transparent anyway.
-     Scaling to its own top only removes the cast, and a quarter of these photos
-     (10 of 40 sampled) came back with a white that is merely light grey; those
-     stayed grey, correctly balanced and still underexposed. MAX_GAIN is the
-     brake: a reference at 147 or below is a photograph this can't rescue, and
-     below 64 it was never white at all, so only the saturation applies. */
-  const top = Math.max(br, bgg, bb);
-  const gain = top < 64 ? [1, 1, 1]
-    : [br, bgg, bb].map(c => Math.min(MAX_GAIN, WHITE / Math.max(c, 1)));
-  const hist = new Uint32Array(256);
-  let opaque = 0;
-  for (let i = 0; i < d.length; i += 4) {
-    if (!d[i + 3]) continue;                       // trimmed away, don't pay for it
-    const r = d[i] = Math.min(255, d[i] * gain[0]);
-    const g = d[i + 1] = Math.min(255, d[i + 1] * gain[1]);
-    const b = d[i + 2] = Math.min(255, d[i + 2] * gain[2]);
-    hist[Math.round(0.2126 * r + 0.7152 * g + 0.0722 * b)]++;
-    opaque++;
-  }
-  /* Then LEVELS, off the pack's own histogram rather than the paper's. White
-     balance can only carry a photograph as far as its backdrop, and a wrapper
-     with no white in it stays flat: Doctor Who's red channel tops out at 241
-     over the entire pack, so there is nothing there for a white point to find.
-     So take the top of the near-black and the bottom of the near-white — the
-     LEVELS fraction of pixels at each end — and stretch what lies between to the
-     full range. Clipping both ends is the point, not a side effect: whatever the
-     brightest thing is, usually the text, comes out white. A washed-out wrapper
-     gets washed further, which is the trade.
-     One brake: a pack with no range to stretch (span under a quarter) is flat
-     because it IS flat, and amplifying that only amplifies the JPEG. */
-  let lo = 0, hi = 255, acc = 0;
-  const edge = opaque * LEVELS;
-  for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc >= edge) { lo = v; break; } }
-  acc = 0;
-  for (let v = 255; v >= 0; v--) { acc += hist[v]; if (acc >= edge) { hi = v; break; } }
-  const stretch = hi - lo >= 64 ? 255 / (hi - lo) : 1;
-  const level = v => Math.max(0, Math.min(255, (v - lo) * stretch));
-  for (let i = 0; i < d.length; i += 4) {
-    if (!d[i + 3]) continue;
-    const r = level(d[i]), g = level(d[i + 1]), b = level(d[i + 2]);
-    // last, push the colour out from its own luminance — the same weights the
-    // card frames pick their ink by, so grey stays grey and only hue moves
-    const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-    d[i] = Math.max(0, Math.min(255, l + (r - l) * PACK_SAT));
-    d[i + 1] = Math.max(0, Math.min(255, l + (g - l) * PACK_SAT));
-    d[i + 2] = Math.max(0, Math.min(255, l + (b - l) * PACK_SAT));
-  }
+  // a photograph this could not cut out is still a photograph of a pack: null
+  // caches "leave it alone" and it stays on screen untrimmed
+  if (trimPixels(px.data, w, h)) return void TRIMMED.set(raw, null);
   cx.putImageData(px, 0, 0);
   cv.toBlob(b => {
     const url = URL.createObjectURL(b);
@@ -4814,7 +4713,7 @@ PAGES.anatomy = () => {
 
 /* ---- control kit ------------------------------------------------------ */
 PAGES.kit = () => Frame('kit', {
-  desc: '<span class="text-neutral-200">Control kit.</span> Every control, once. Tokens verbatim from app/components/chip.ts; FIELD and PANEL are the two the repo hand-rolls and has no token for.',
+  desc: '<span class="text-neutral-200">Control kit.</span> Every control, once &mdash; this page is where the tokens are defined, not a copy of them. FIELD and PANEL are the two the repo hand-rolls and has no token for.',
   body: `<div class="${PANEL} px-4 py-4">
     ${SectionHeader('Chips')}<div class="mb-5 flex gap-1.5">${chip('Neutral','')}${chip('Include','+')}${chip('Exclude','-')}${chip('With count','',count(42))}</div>
     ${SectionHeader('Buttons')}<div class="mb-5 flex gap-1.5"><button class="${BTN_PRIMARY}">Primary</button>

@@ -6,10 +6,12 @@ import vm from 'node:vm';
 import assert from 'node:assert';
 const MONTHS_3 = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-// sets.js is generated data loaded ahead of the page script — same order as the browser
+// The three plain scripts the page loads ahead of its own, in the same order the
+// browser loads them: sets.js is generated data, trim.js and anatomy.js are the
+// two things the generators read as well so they cannot drift from the page.
 const page = readFileSync('index.html', 'utf8');   // the markup too: <body> carries the UI scale
-const src = readFileSync('sets.js', 'utf8')
-  + page.match(/<script>([\s\S]*)<\/script>/)[1];
+const src = `${['sets.js', 'trim.js', 'anatomy.js'].map(f => readFileSync(f, 'utf8')).join('\n')}
+${page.match(/<script>([\s\S]*)<\/script>/)[1]}`;
 const js = src
   + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_ROWS, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, CAN_BE_LOCAL, MISSING_LOCAL, srcBytes, onDisk, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, frameOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, costTokens, CARD_LIMIT, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, setZoom, binderDims, zoomPx, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, BINDER_SORT, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
   + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen,'
@@ -418,19 +420,18 @@ for (const [cell, rows] of packs) {
 // nothing without saying so
 assert.ok(t.PACK_SAT > 1, 'the pack saturation is a no-op — say so or remove it');
 
-/* LOCAL AND ONLINE MUST BE THE SAME PICTURE. gen-packs.mjs is a hand-written
-   port of trimPack() — it has no way to import from a page — and the two only
-   stay one algorithm because something checks. If they drift, flipping Config's
-   TCGplayer chip changes how the app LOOKS, which is not what that chip is for,
-   and it does it silently because both sides render something plausible. */
+/* LOCAL AND ONLINE ARE THE SAME PICTURE BECAUSE THEY ARE THE SAME CODE.
+   gen-packs.mjs used to carry a hand-kept copy of the algorithm with three
+   assertions here holding the two in step; both now read trim.js, so there is
+   nothing left to drift and nothing to assert about it beyond the wiring. */
 {
   const gp = readFileSync('gen-packs.mjs', 'utf8');
-  const consts = src => Object.fromEntries([...src.matchAll(
-    /\b(TRIM_TOL|PACK_SAT|WHITE|MAX_GAIN|LEVELS)\s*=\s*([\d.]+)/g)].map(m => [m[1], +m[2]]));
-  const page = consts(readFileSync('index.html', 'utf8'));
-  assert.strictEqual(Object.keys(page).length, 5, 'index.html no longer states all five trim constants');
-  assert.deepStrictEqual(consts(gp), page,
-    'gen-packs.mjs and index.html disagree about the trim, so Local and Online are different pictures');
+  assert.ok(/shared\('trim\.js'/.test(gp), 'gen-packs.mjs no longer trims with the page\'s own code');
+  assert.ok(!/^const TRIM_TOL = \d/m.test(gp), 'gen-packs.mjs has grown its own copy of the trim constants');
+  assert.ok(readFileSync('index.html', 'utf8').includes('src="trim.js"'),
+    'the page does not load trim.js, so trimPack has no algorithm');
+  assert.ok(readFileSync('serve.py', 'utf8').includes("'/trim.js'"),
+    'serve.py will 404 trim.js, so the page loads with no trim at all');
 
   /* ONCE MEANS ONCE, and the manifest is the mechanism. Skipping on "a file of
      that name exists" answers a different question — it says a picture was made,
@@ -438,8 +439,8 @@ assert.ok(t.PACK_SAT > 1, 'the pack saturation is a no-op — say so or remove i
      stale PNGs on disk with nothing to notice. The fingerprint has to cover the
      CODE as well as the numbers, or a rewritten flood fill is called the same
      recipe, and that is the likelier edit of the two. */
-  assert.ok(/createHash\(/.test(gp) && /\.update\(trim\.toString\(\)\)/.test(gp),
-    'the pack recipe fingerprint does not cover trim() itself, so changing the algorithm reuses stale images');
+  assert.ok(/createHash\(/.test(gp) && /\.update\(trimPixels\.toString\(\)\)/.test(gp),
+    'the pack recipe fingerprint does not cover trimPixels() itself, so changing the algorithm reuses stale images');
   assert.ok(/have\.has\(name\) && man\.files\[name\]/.test(gp),
     'gen-packs.mjs skips on the filename alone, which cannot tell a current image from a stale one');
 
@@ -467,10 +468,14 @@ assert.ok(t.PACK_SAT > 1, 'the pack saturation is a no-op — say so or remove i
   for (const dead of [31840, 244377, 34469])
     assert.ok(!JSON.stringify(t.PACK_ART).includes(String(dead)),
       `PACK_ART still carries ${dead}, which has no photograph at any size`);
-  // ...and what it wrote has to describe what is actually there
+  // ...and what it wrote has to describe what is actually there. The constants
+  // come off trim.js, which is now the only place they are written down.
   if (existsSync('packs/.recipe.json')) {
     const man = JSON.parse(readFileSync('packs/.recipe.json', 'utf8'));
-    assert.deepStrictEqual(man.constants, page,
+    const now = Object.fromEntries([...readFileSync('trim.js', 'utf8').matchAll(
+      /\b(TRIM_TOL|PACK_SAT|WHITE|MAX_GAIN|LEVELS)\s*=\s*([\d.]+)/g)].map(m => [m[1], +m[2]]));
+    assert.strictEqual(Object.keys(now).length, 5, 'trim.js no longer states all five constants');
+    assert.deepStrictEqual(man.constants, now,
       'packs/ was built with different constants from the ones in force — re-run gen-packs.mjs');
     const onDisk = readdirSync('packs').filter(f => f.endsWith('.png'));
     const unrecorded = onDisk.filter(f => !man.files[f]);
@@ -2309,32 +2314,20 @@ for (const a of classes) assert.ok(painted.includes(`>${a.layout}</span>`), `#/a
 assert.ok(painted.includes('no frame to draw'),
   '#/anatomy shows a scan in place of a frame and says nothing about why');
 
-/* gen-art.mjs keeps its own copy of SIDED — it has no way to import from a page
-   — and it decides whether to fetch a back. Out of step, the page asks for
-   files the downloader never wrote. */
+/* gen-art.mjs reads SIDED and the frameable rule from anatomy.js — the same
+   file the page loads — so the two cannot disagree about which layouts have a
+   back to fetch, or about which printings need the whole card rather than the
+   crop. Both used to be copied in here and asserted equal. */
 const genArt = readFileSync('gen-art.mjs', 'utf8');
-const genSided = genArt.match(/const SIDED = new Set\(\[([^\]]*)\]\)/)[1]
-  .split(',').map(s => s.trim().replace(/'/g, '')).filter(Boolean);
-assert.deepStrictEqual(genSided.sort(), [...t.SIDED].sort(),
-  'gen-art.mjs and index.html disagree about which layouts have a second side');
+assert.ok(/new Function\(`\$\{readFileSync\('anatomy\.js'/.test(genArt),
+  'gen-art.mjs has its own copy of the anatomy rules again, which is how it asks for files it never wrote');
+assert.ok(readFileSync('index.html', 'utf8').includes('src="anatomy.js"'),
+  'the page does not load anatomy.js');
+assert.ok(readFileSync('serve.py', 'utf8').includes("'/anatomy.js'"),
+  'serve.py will 404 anatomy.js');
 assert.ok(genArt.includes('User-Agent'),
   'gen-art.mjs sends the default node UA, which Scryfall 400s with a reason only the body carries');
 
-/* ...and its own copy of `framable`, for the same reason and with the same
-   consequence reversed: the page draws the WHOLE printed card for a printing a
-   frame has nothing to say about, so art_crop is the one size those rows cannot
-   use and the downloader fetches `normal` for them instead. Disagree, and Local
-   has a hole in exactly the 3% of the catalogue the frame cannot cover for.
-   Lifted out of the source and run against the same fixtures rather than
-   grepped for, because "the file mentions framable" is not the property. */
-const genFramable = new Function('or', `
-  ${genArt.match(/const bareType = [^\n]+\nconst framable = or =>[\s\S]*?;\n/)[0]}
-  return framable(or);`);
-for (const [i, or] of ANAT.o.entries()) {
-  const card = t.ALL().find(c => c.n === or[0]);
-  assert.strictEqual(genFramable(or), t.framable(card),
-    `gen-art.mjs and index.html disagree about whether "${or[0]}" (o[${i}]) has a frame to draw`);
-}
 assert.ok(/size === 'art_crop' && !framable\(or\)/.test(genArt),
   'gen-art.mjs fetches the art crop for printings that are drawn as whole cards');
 

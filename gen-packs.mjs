@@ -31,9 +31,10 @@
 // the interesting part is the flood fill, and that is thirty lines either way.
 // A native `sharp` install would add a build toolchain to save none of them.
 //
-// The algorithm below is a straight port of trimPack() in index.html and must
-// stay one: the two produce the same picture, or switching Local/Online in
-// Config changes how the app LOOKS, which is not what that chip is for.
+// The algorithm is trim.js, the same file the page loads — it was a hand-kept
+// copy with three assertions holding the two in step, which is a tax for the
+// life of the repo to avoid one shared file. Local and Online are supposed to
+// be the same picture; now they cannot be anything else.
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, existsSync, statSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -44,8 +45,14 @@ const force = args.includes('--force');
 const size = args.find((a) => !a.startsWith('--')) || '200w';
 if (!SIZES[size]) { console.error(`size must be one of: ${Object.keys(SIZES).join(', ')}`); process.exit(1); }
 
-// same constants as index.html — see the note above about staying in step
-const TRIM_TOL = 28, PACK_SAT = 1.3, WHITE = 255, MAX_GAIN = 1.7, LEVELS = 0.02;
+/* trim.js and sets.js are plain top-level declarations, not modules, because the
+   page loads them with <script src>. new Function is how node reads one: the
+   same trick already used for PACK_ART below. */
+const shared = (file, ...names) =>
+  new Function(`${readFileSync(file, 'utf8')}
+return [${names.join(',')}];`)();
+const [TRIM_TOL, PACK_SAT, WHITE, MAX_GAIN, LEVELS, trimPixels] =
+  shared('trim.js', 'TRIM_TOL', 'PACK_SAT', 'WHITE', 'MAX_GAIN', 'LEVELS', 'trimPixels');
 const OUT = 'packs';
 
 // sets.js is a plain script of top-level consts, not a module. Reading it as
@@ -66,85 +73,6 @@ const probe = (jpg) => {
   return String(out).trim().split(',').map(Number);
 };
 
-function trim(d, w, h) {
-  /* Seeded from the whole outer RING, not the four corners. Corners alone threw
-     away a third of the packs: many of these are cropped tight enough that a
-     corner is one pixel of white above fifteen of artwork, and where the white
-     survives only as a top and a bottom strip a flood from the corners cannot
-     reach the second strip at all — the two are not connected. */
-  const ring = [];
-  for (let x = 0; x < w; x++) { ring.push(x * 4); ring.push(((h - 1) * w + x) * 4); }
-  for (let y = 1; y < h - 1; y++) { ring.push(y * w * 4); ring.push((y * w + w - 1) * 4); }
-  const vote = ring.filter((_, i) => !(i % 4));
-  const near = (a, b) => Math.abs(d[a] - d[b]) <= TRIM_TOL
-    && Math.abs(d[a + 1] - d[b + 1]) <= TRIM_TOL && Math.abs(d[a + 2] - d[b + 2]) <= TRIM_TOL;
-  // "most frequent" has to mean most AGREED WITH, not most identical: JPEG noise
-  // on a white margin splits one background in two if you quantise it first
-  let bg = -1, agree = 0;
-  for (const a of vote) {
-    let n = 0;
-    for (const b of vote) if (near(a, b)) n++;
-    if (n > agree) { agree = n; bg = a; }
-  }
-  if (agree < vote.length / 4) return 'no background';   // not a background, leave it
-  const br = d[bg], bgg = d[bg + 1], bb = d[bg + 2];
-  const seen = new Uint8Array(w * h), stack = ring.map((i) => i / 4);
-  let cleared = 0;
-  while (stack.length) {
-    const at = stack.pop();
-    if (seen[at]) continue;
-    seen[at] = 1;
-    const i = at * 4;
-    if (Math.abs(d[i] - br) > TRIM_TOL || Math.abs(d[i + 1] - bgg) > TRIM_TOL
-      || Math.abs(d[i + 2] - bb) > TRIM_TOL) continue;
-    d[i + 3] = 0; cleared++;
-    const x = at % w;
-    if (x) stack.push(at - 1);
-    if (x < w - 1) stack.push(at + 1);
-    if (at >= w) stack.push(at - w);
-    if (at < w * (h - 1)) stack.push(at + w);
-  }
-  if (cleared > w * h * 0.85) return 'ate the pack';
-  /* White balance off the very reference the fill just used: that colour WAS
-     white when the pack was photographed, so whatever it came back as is the
-     cast. MAX_GAIN is the brake — a reference at 147 or below is a photograph
-     this cannot rescue, and below 64 it was never white at all. */
-  const top = Math.max(br, bgg, bb);
-  const gain = top < 64 ? [1, 1, 1]
-    : [br, bgg, bb].map((c) => Math.min(MAX_GAIN, WHITE / Math.max(c, 1)));
-  const hist = new Uint32Array(256);
-  let opaque = 0;
-  for (let i = 0; i < d.length; i += 4) {
-    if (!d[i + 3]) continue;
-    const r = d[i] = Math.min(255, d[i] * gain[0]);
-    const g = d[i + 1] = Math.min(255, d[i + 1] * gain[1]);
-    const b = d[i + 2] = Math.min(255, d[i + 2] * gain[2]);
-    hist[Math.round(0.2126 * r + 0.7152 * g + 0.0722 * b)]++;
-    opaque++;
-  }
-  /* Then LEVELS off the pack's own histogram: white balance can only carry a
-     photograph as far as its backdrop, and a wrapper with no white in it stays
-     flat. A pack with no range to stretch is flat because it IS flat, and
-     amplifying that only amplifies the JPEG. */
-  let lo = 0, hi = 255, acc = 0;
-  const edge = opaque * LEVELS;
-  for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc >= edge) { lo = v; break; } }
-  acc = 0;
-  for (let v = 255; v >= 0; v--) { acc += hist[v]; if (acc >= edge) { hi = v; break; } }
-  const stretch = hi - lo >= 64 ? 255 / (hi - lo) : 1;
-  const level = (v) => Math.max(0, Math.min(255, (v - lo) * stretch));
-  for (let i = 0; i < d.length; i += 4) {
-    if (!d[i + 3]) continue;
-    const r = level(d[i]), g = level(d[i + 1]), b = level(d[i + 2]);
-    // push the colour out from its own luminance, so grey stays grey
-    const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-    d[i] = Math.max(0, Math.min(255, l + (r - l) * PACK_SAT));
-    d[i + 1] = Math.max(0, Math.min(255, l + (g - l) * PACK_SAT));
-    d[i + 2] = Math.max(0, Math.min(255, l + (b - l) * PACK_SAT));
-  }
-  return null;
-}
-
 mkdirSync(OUT, { recursive: true });
 const have = new Set(readdirSync(OUT));
 
@@ -156,7 +84,7 @@ const have = new Set(readdirSync(OUT));
    security boundary, it is a cache key. */
 const CONSTANTS = { TRIM_TOL, PACK_SAT, WHITE, MAX_GAIN, LEVELS };
 const recipe = createHash('sha1').update(JSON.stringify(CONSTANTS))
-  .update(trim.toString()).digest('hex').slice(0, 12);
+  .update(trimPixels.toString()).digest('hex').slice(0, 12);
 const MANIFEST = `${OUT}/.recipe.json`;
 let man = null;
 try { man = JSON.parse(readFileSync(MANIFEST, 'utf8')); } catch { /* first run */ }
@@ -199,7 +127,7 @@ for (const id of ids) {
     const d = new Uint8ClampedArray(raw.buffer, raw.byteOffset, raw.length);
     // a picture we could not cut out is still a picture of a pack: it goes in
     // untrimmed rather than not at all, exactly as the browser path does
-    const why = trim(d, w, h);
+    const why = trimPixels(d, w, h);
     if (why) plain++;
     writeFileSync(`${OUT}/${name}`, ff(['-f', 'rawvideo', '-pix_fmt', 'rgba', '-video_size',
       `${w}x${h}`, '-i', 'pipe:0', '-frames:v', '1', '-f', 'image2', '-c:v', 'png',

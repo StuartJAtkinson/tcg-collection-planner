@@ -3,11 +3,13 @@
 Catalogue-first TCG collection tracker.
 
 **The UI is `index.html` at the repo root** — a self-contained, hash-routed static
-page, served on **http://localhost:5255/**. It is where every layout, control and
-interaction decision gets settled, and it is currently ahead of the Next.js app on
-almost every screen. `app/` + `src/` hold the Postgres-backed implementation; they
-still build and the importers still run, but nothing new is being designed there
-(see [Two surfaces](#two-surfaces)).
+page, served on **http://localhost:5255/**. It is the whole app: every layout,
+control and interaction decision gets settled there, against the real catalogue.
+
+There used to be a second surface, a Next.js 16 + Postgres implementation under
+`app/` and `src/`. It was deleted in August 2026 once the static page had passed
+it on every screen; the bulk downloader it owned survives as `gen-data.mjs`, and
+the rest is in git history.
 
 Plan of record: [ARCHITECTURE.md](ARCHITECTURE.md) — one cache, binder/deck files,
 one control kit. Open items: [ISSUES.md](ISSUES.md). (REDESIGN.md is gone; its data
@@ -46,8 +48,8 @@ catalogue; `CARDS()` is the capped slice a view may draw, because every list her
 renders its whole input.
 
 `build.mjs` runs the Tailwind CLI over `index.html` alone — `source(none)` is
-deliberate, or Tailwind would walk `app/`, `src/` and `.next/` and fold their classes
-into the stylesheet. `check.mjs` renders every page in `node:vm` against a stubbed
+deliberate, or Tailwind would walk the whole repo and fold every class it found in
+`docs/`, `ref/` or a stray scratch file into the stylesheet. `check.mjs` renders every page in `node:vm` against a stubbed
 DOM and asserts the decisions: contrast of card names against every frame, pack
 geometry, round-robin thinning, that every declaration is used and every inline
 handler resolves. It is the reason the UI can be a single 2k-line file.
@@ -64,10 +66,11 @@ shown. `node gen-packs.mjs` fetches all 388 and does that cut ONCE — flood fil
 from the border ring to alpha, white balance, levels, saturation — writing
 `packs/<id>_<size>.png` (43 MB at 200w, 194 MB at in_1000x1000, gitignored). Config → TCGplayer →
 **Local** serves those; **Online** hotlinks the CDN and repeats the same pass in
-a canvas on every page. The two produce the same picture on purpose: `trim()` in
-`gen-packs.mjs` is a port of `trimPack()` in `index.html`, and they have to stay
-one, or the Local/Online chip changes how the app looks rather than where its
-bytes come from. A local file that isn't there falls through to the CDN, so an
+a canvas on every page. The two produce the same picture because they run the
+same code: `trim.js` is loaded by the page with `<script src>` and read by
+`gen-packs.mjs` with `new Function`, so the Local/Online chip changes where the
+bytes come from and nothing else. It was two hand-kept copies with assertions
+holding them level, which is a tax for the life of the repo to avoid one file. A local file that isn't there falls through to the CDN, so an
 un-run download degrades to the online behaviour rather than a broken image.
 
 The same file carries `BOOSTER` — the collation itself, from MTGJSON's
@@ -253,76 +256,3 @@ shown once rather than beside a copy of itself. Note the scans are **normalised 
 layout** — so a Plane, a Scheme and a split card, all of which you turn sideways
 to read, arrive rotated; the compare column turns them back, or the drawn card
 looks like it got the orientation wrong when it is the scan that is turned.
-
-## Two surfaces
-
-`app/` is Next.js 16 + Postgres and phases 1–5 are live there: bulk-imported Scryfall
-/ pokemon-tcg-data catalogue, containers, `pg_trgm` fuzzy search, the Collectr
-importer, the unmatched resolver, and a nightly price job. What it lacks is the UI
-work above. Nothing has been deleted — the schema, importers and price history are
-the parts worth keeping, and the static page is the specification the app gets
-rebuilt against.
-
-The web app never calls an external card API at runtime; importers do, and only they.
-
-```
-npm install
-npm run db:up        # postgres 17 in docker, localhost:5254
-npm run db:push      # create/sync schema
-npm run import       # ~500MB download first time, then a few minutes of inserts
-npm run db:prices    # one-shot price refresh (same JSONL, only writes prices)
-npm run dev          # app on http://localhost:5253
-```
-
-Ports 5253 (app), 5254 (db) and 5255 (UI) were chosen against the machine-wide
-registry in `H:\GitHub\PORTS.md` — v1 card-collector owns 5252, map-merch owns 5432.
-`DATABASE_URL` overrides the default `postgres://cards:cards@localhost:5254/cards`.
-Re-running the import is idempotent; downloads cache in `data/` for 20h.
-
-Two pages were cut rather than ported: `/advisor` (guessing what you should buy is
-not what this is for) and `/value`. The `prices` table keeps accruing a per-day
-series per `(card_id, finish)` and holdings carry `held_since`, so a value page can
-come back later as a page and nothing else.
-
-## Importing a Collectr export
-
-[Collectr](https://getcollectr.com) is a mobile app for scanning/tracking a physical
-card collection. To bring a Collectr collection in as holdings:
-
-1. In the Collectr app: **Settings → Export → CSV** (this may be a Collectr+ /
-   premium feature). Save the file somewhere reachable from this machine.
-2. `npm run import:collectr -- path/to/export.csv`
-
-The importer detects Collectr's column headers by alias (case-insensitive — "Card
-Name", "Set", "Card Number", "Variant"/"Foil", "Condition", "Grading
-Company"/"Grade", "Quantity", "Purchase Price" and close variants all match) and
-prints exactly what it matched before touching the database. Cards it can't
-confidently match against the local catalogue (unknown set name, ambiguous
-name+set with no/bad collector number) are **not guessed** — they're staged to
-the `import_unmatched` table with a reason, for manual review at `/resolve`.
-
-Collectr's exact native CSV header text isn't publicly documented anywhere I
-could verify, so if the "detected columns" printout is missing a field you know
-your export has, tell me the exact header text and I'll add it as an alias —
-safer than the importer silently guessing wrong.
-
-**Quantities add on re-run** (so a second export with new cards merges
-correctly) — don't run the same file twice, or clear `holdings` first if you
-need a clean retry.
-
-Real-world naming drift ("Universes Beyond: FINAL FANTASY" vs Scryfall's
-"Final Fantasy", "10th Edition" vs "Tenth Edition") is handled by exact match
-first, falling back to token-overlap fuzzy set matching (ordinal-word
-normalization + light stemming) — verified against a real 2,796-row export at a
-94.7% match rate on supported-game rows.
-
-## Resolving unmatched rows
-
-Open **http://localhost:5253/resolve** (also linked in the nav whenever the
-`import_unmatched` table has rows). For each unresolved row it shows the raw import
-data next to ranked candidate cards from the catalogue, each rendered as a MockCard.
-The resolver deliberately does not assume it knows the printing when disambiguating —
-the minimum a card needs to render is a name. Pick a candidate (or "None of these /
-skip") per row and submit — resolved rows become holdings and are removed from the
-unresolved pool; skipped rows stay for next time. Rows are matched by position, not
-content, so two identical scanned duplicates resolve independently.

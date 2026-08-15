@@ -2,16 +2,11 @@ node_modules/
 data/
 .env
 *.csv
-*-unmatched.csv
 .playwright-mcp/
-.next/
-next-env.d.ts
 startStop.md
 .claude/
-tsconfig.tsbuildinfo
 .atelier-dev.log
 .scratch/
-H:GitHubcard-collection.scratchsearch.html
 cards.json.gz
 ref/
 *.mp4

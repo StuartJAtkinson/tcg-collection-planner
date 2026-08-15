@@ -10,7 +10,8 @@ import re
 from http.server import SimpleHTTPRequestHandler, test
 from pathlib import Path
 
-ALLOWED = {'/', '/index.html', '/draft.css', '/sets.js', '/mana.woff2', '/cards.json.gz'}
+ALLOWED = {'/', '/index.html', '/draft.css', '/sets.js', '/trim.js', '/anatomy.js',
+           '/mana.woff2', '/cards.json.gz'}
 
 # Config's Local column used to be hand-typed strings -- "372 MB, pulled
 # 2026-08-06 04:10" -- and every one of them had drifted: two named a file that
