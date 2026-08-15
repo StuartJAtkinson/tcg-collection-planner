@@ -3197,7 +3197,7 @@ function revealState() {
 }
 
 async function reveal() {
-  if (!P.draw || P.draw.mode === 'robin' || P.opening) return;
+  if (!P.draw || P.draw.mode === 'robin' || P.opening || P.dealing) return;
   const pane = document.querySelector(`[${SCROLL_KEEP}]`);
   const first = pane && pane.firstElementChild;
   let shell = document.querySelector('[data-draw]');
@@ -4055,7 +4055,7 @@ async function flyOpen(els, all) {
     /* STAGE 2 — the draw is painted, and then given a frame to lay itself out.
        flyGhosts measures every slot in it; measuring a DOM the browser has not
        laid out yet is the same mistake as measuring a moving booster. */
-    P.ask = null; render();
+    P.ask = null; P.dealing = true; render();
     /* HIDDEN IN THE SAME TICK THEY ARE PAINTED IN. flyGhosts hides these too, and
        used to be the only thing that did — but it runs two frames and a beat
        later, and the browser paints in between. So the cards appeared in their
@@ -4075,6 +4075,14 @@ async function flyOpen(els, all) {
 const hideSlots = () => qsa('[data-card-id]')
   .forEach((el) => { el.style.transition = 'none'; el.style.opacity = '0'; });
 
+/* THE DEAL'S OWN WAY TO FINISH EARLY. `land()` already exists as the ending the
+   loop reaches and as the timer's way out when a background tab serves no
+   frames; Skip to End is a third caller of the same thing, so it is a handle on
+   it rather than a second ending. Cleared when the deal is over, which is what
+   makes the button safe to press twice. */
+let SKIP = null;
+function skipDeal() { const end = SKIP; if (end) end(); }
+
 function flyGhosts(root, ghosts, all) {
   /* The fly is decoration; the cards arriving is not. Chrome serves no frames
      to a background tab, so an rAF loop there simply never runs — and since the
@@ -4091,8 +4099,16 @@ function flyGhosts(root, ghosts, all) {
   const done = async () => {
     if (over) return;
     over = true;
+    SKIP = null;
     await beat();
     root.remove();
+    /* Rendered HERE and nowhere earlier. The ghosts fly to rects measured off
+       the real slots, so a render mid-flight replaces the very elements `land`
+       has to hand their opacity back to, and the cards stay invisible behind
+       finished placeholders. Once the root is gone there is nothing pointing at
+       them any more. */
+    P.dealing = false;
+    render();
     if (!all) return;
     await beat(HOLD);
     // left to right, because the deal left the view at the left and did not
@@ -4214,6 +4230,7 @@ function flyGhosts(root, ghosts, all) {
     slots.forEach((el) => { el.style.transition = ''; el.style.opacity = '1'; });
     done();
   };
+  SKIP = land;
   requestAnimationFrame(tick);
   setTimeout(land, span + 400);          // the way out when no frames arrive
 }
@@ -4295,8 +4312,21 @@ const DrawSide = () => {
     ${!fan ? '' : `<div class="shrink-0 [container-type:size]" style="height: min(228px, 26vh)">${
       fan}</div>`}
     ${pick}${all}
-    ${fresh || P.draw.mode === 'robin' || P.draw.all || drawDone() ? '' : `
-      <button onclick="reveal()" class="${BTN_SECONDARY} shrink-0"
+    <!-- ONE BUTTON, TWO JOBS, AND NEVER BOTH AT ONCE. While the cards are being
+         dealt the only useful verb is "stop waiting": the capture reads Skip to
+         End there, and only once they are all down does it become Reveal All.
+         Ours offered Reveal all throughout, including mid-fly, where pressing it
+         fought the animation — reveal() guards on P.opening, and that goes false
+         the moment flyGhosts is CALLED rather than when it finishes, because it
+         is not awaited. P.dealing is the flag that actually spans the deal.
+         Skip also has to exist for Open all, the case that most needs it (84
+         cards) and the one that offers no Reveal all at all, so these are two
+         conditions rather than one label swap. -->
+    ${P.dealing ? `
+      <button onclick="skipDeal()" data-reveal class="${BTN_SECONDARY} shrink-0"
+        title="Put every card straight into its slot">Skip to End</button>`
+      : fresh || P.draw.mode === 'robin' || P.draw.all || drawDone() ? '' : `
+      <button onclick="reveal()" data-reveal class="${BTN_SECONDARY} shrink-0"
         title="Skip the filler &mdash; commons and uncommons turn themselves over">Reveal all</button>`}
     <div class="min-h-0 flex-1 overflow-y-auto">${RevealedList()}</div>
     ${KeepOrBin()}

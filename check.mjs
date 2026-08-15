@@ -2135,6 +2135,37 @@ for (const slot of ['Rare / mythic', 'Wildcard', 'The List'])
 // turning cards over one at a time still walks booster by booster
 t.revealAt(0); t.nextPack();
 assert.ok(painted.includes('booster 2 of'), 'the draw did not move on to the next booster');
+/* ONE BUTTON, TWO JOBS, AND NEVER BOTH AT ONCE. While the cards are being dealt
+   the only useful verb is "stop waiting" — the capture reads Skip to End there,
+   and only once they are down does it become Reveal All. Ours offered Reveal all
+   throughout, including mid-fly, where pressing it fought the animation.
+   `P.opening` could not carry this: it goes false the moment `flyGhosts` is
+   CALLED, because it is not awaited, so it is true for the tear and false for
+   the entire deal. `P.dealing` spans the deal itself. */
+{
+  const src = readFileSync('index.html', 'utf8');
+  assert.ok(/P\.ask = null; P\.dealing = true; render\(\);/.test(src),
+    'the render that paints the draw does not know a deal is starting');
+  assert.ok(/P\.dealing = false;\s*\n\s*render\(\);/.test(src),
+    'nothing redraws the sidebar when the deal ends, so Skip to End stays up');
+  // Skip is a handle on the ending the loop already has, not a second ending
+  assert.ok(/SKIP = land;/.test(src) && /function skipDeal\(\) \{ const end = SKIP; if \(end\) end\(\); \}/.test(src),
+    'Skip to End does not reuse land(), so there are two ways for a deal to finish');
+  assert.ok(/SKIP = null;/.test(src), 'SKIP outlives its deal, so the button can fire a finished one');
+  // ...and Reveal all cannot run over the top of it
+  assert.ok(/if \(!P\.draw \|\| P\.draw\.mode === 'robin' \|\| P\.opening \|\| P\.dealing\) return;/.test(src),
+    'Reveal all still runs during the deal, where it fights the animation');
+  const was = t.P.dealing;
+  t.P.dealing = true; go('#/draw');
+  assert.ok(painted.includes('>Skip to End<'), 'the deal offers no way to skip it');
+  assert.ok(!painted.includes('>Reveal all<'), 'Reveal all is offered mid-deal, where it fights the fly');
+  assert.ok(painted.includes('onclick="skipDeal()"'), 'Skip to End is not wired to anything');
+  t.P.dealing = false; go('#/draw');
+  assert.ok(painted.includes('>Reveal all<'), 'Reveal all never comes back once the cards have landed');
+  assert.ok(!painted.includes('>Skip to End<'), 'Skip to End survives the deal it was for');
+  t.P.dealing = was;
+}
+
 /* Reveal all skips the FILLER, not the ceremony: commons and uncommons turn
    themselves over, rares and mythics stay face down at the top of the draw, and
    anything already revealed stays revealed whatever its rarity. */
