@@ -742,7 +742,7 @@ const materialiseFace = ([n, cost, type, text, pt, loy, col]) =>
 const materialise = ({ o, p, artists = [''], flavour = [''] }) => {
   const faceCache = new Map();
   return p.map(([oi, set, num, rar, art_id, usd, treat, fin, lang, art, flav, dfc]) => {
-    const [n, cost, type, text, pt, col, cmc, layout, loy, faces, legal] = o[oi];
+    const [n, cost, type, text, pt, col, cmc, layout, loy, faces, legal, meld] = o[oi];
     if (faces && !faceCache.has(oi)) faceCache.set(oi, faces.map(materialiseFace));
     /* Flavour is the one per-printing field that has to reach a FACE, and faces
        are shared by reference across every printing of an oracle — so a card
@@ -771,6 +771,8 @@ const materialise = ({ o, p, artists = [''], flavour = [''] }) => {
              // which mark the title bar carries and what it turns into; '' is
              // "no named indicator", which every ordinary DFC is
              dfc: dfc || '',
+             // [result, partA, partB] — the group this card melds in, or null
+             meld: meld || null,
              /* Read off the printing, not assumed. 2,634 of these are not English
                 — Foreign Black Border, Rinascimento, Phyrexian, Quenya — and the
                 identity key prints this beside the set and number, where a
@@ -5165,6 +5167,30 @@ const Candidates = () => `
           : `<button onclick="setMatched(true)" class="${BTN_SECONDARY} w-16 shrink-0">Match</button>`}</div>`).join('')}
   </div>`;
 
+/* MELD, and the honest thing to say about it. The other two anatomy relations
+   are turns — one card, two sides, a flip control — and this is not one: two
+   cards are exiled and become a THIRD, whose printed back spans both of them.
+   So there is no "other side" to show, and offering the result as one would be
+   a lie; what the card needs is to name the group and let you walk to it.
+   `openCard` already does the walking, so this is three names and two links. */
+const MeldBand = () => {
+  const c = openedCard();
+  if (!c.meld) return '';
+  const [result, ...parts] = c.meld;
+  const link = n => `<a onclick="openCard('${jsArg(n)}')"
+    class="cursor-pointer font-medium text-neutral-200 underline decoration-neutral-700 underline-offset-2 hover:decoration-neutral-400">${n}</a>`;
+  const isResult = c.n === result;
+  return Band('meld', `
+    <div class="${PANEL} p-3 text-sm text-neutral-400">
+      ${isResult
+        ? `Melded from ${parts.map(link).join(' <span class="text-neutral-600">+</span> ')}.`
+        : `Melds with ${parts.filter(n => n !== c.n).map(link).join(' and ')} into ${link(result)}.`}
+      <p class="mt-2 text-[11px] text-neutral-600">Three cards, not two sides &mdash; ${
+        isResult ? 'this one is printed across the backs of the other two' : 'its printed back is half of the result'
+      }, so there is nothing here to turn over.</p>
+    </div>`, { note: 'what this card belongs to' });
+};
+
 const Holdings = () => `
   <div class="${PANEL} overflow-hidden">
     ${holdingsOf(openedCard()).map(([kind, where, qty]) => `
@@ -5235,6 +5261,7 @@ PAGES.card = () => Frame(P.tab, {
       </div>
       <div class="min-w-0 flex-1 space-y-5">
         ${Band('anatomy', CardFacts(), { note: P.matched ? 'from the catalogue' : 'unknown until matched' })}
+        ${MeldBand()}
         ${Band(P.matched ? 'printings' : 'candidates', Candidates(), {
           note: P.matched ? 'every printing of this card' : 'what the line could mean — the identity key is what tells them apart' })}
         ${Band('holdings', Holdings(), { note: 'your copies, wherever they live' })}

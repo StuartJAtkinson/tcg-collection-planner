@@ -124,8 +124,35 @@ const intern = ([arr, idx], s) => {
   return i;
 };
 
+/* MELD IS THREE CARDS, NOT TWO FACES, which is why it needs a field of its own
+   when transform does not. Two fronts are exiled and become one back that spans
+   both of them, so Scryfall gives the result its OWN row — `BRO 163b Mishra,
+   Lost to Phyrexia` — with no `card_faces` and `all_parts` naming the group.
+   Every member is `layout: meld` and single-faced, so without this the result
+   sits in the catalogue as an ordinary card with no link to either half, and
+   neither half knows what it becomes.
+
+   Not derivable from the rules text, which was worth checking because aftermath
+   was: `The Mightstone and Weakstone` says "(Melds with Urza, Lord Protector.)"
+   and names its partner but not the result, `Gisela` spells the whole thing out
+   in prose instead of a reminder, and `Brisela` — the result — says nothing
+   about melding at all.
+
+   Stored as [result, partA, partB] on the ORACLE, because which cards meld
+   together is a fact about the card and not about a printing of it. Tokens
+   share the group's `all_parts` (a Powerstone, an Eldrazi Horror) and are not
+   members, so membership is tested rather than assumed. */
+const meldOf = (c) => {
+  const all = c.all_parts || [];
+  const res = all.find(p => p.component === 'meld_result');
+  if (!res) return 0;
+  const parts = all.filter(p => p.component === 'meld_part').map(p => p.name);
+  if (c.name !== res.name && !parts.includes(c.name)) return 0;
+  return [res.name, ...parts];
+};
+
 const oracleIdx = new Map();
-const oracles = [];      // [name, cost, type, text, pt, col, cmc, layout, loy, faces, legal]
+const oracles = [];      // [name, cost, type, text, pt, col, cmc, layout, loy, faces, legal, meld]
 const printings = [];    // [oracle, set, number, rarity, artId, usd, treatment, finishes, lang, artist, flavour, dfc]
 
 const rl = readline.createInterface({
@@ -175,6 +202,7 @@ for await (const raw of rl) {
       f.loyalty ?? f.defense ?? c.loyalty ?? '',
       faces,
       legalOf(c),
+      meldOf(c),
     ]);
   }
   printings.push([

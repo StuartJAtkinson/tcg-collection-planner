@@ -2487,6 +2487,51 @@ assert.ok(aft.indexOf('object-left') < aft.indexOf('object-right'),
   assert.ok(plain.includes('transform'), 'an unnamed indicator does not say it is a transform');
 }
 
+/* MELD IS THREE CARDS, NOT TWO FACES. Scryfall gives the result its own row
+   with no `card_faces` and `all_parts` naming the group, so without the group
+   the result sits in the catalogue as an ordinary card with no link to either
+   half and neither half knows what it becomes. Not derivable from the rules
+   text — checked, because aftermath was: a part names its partner but not the
+   result, and the result says nothing about melding at all. */
+{
+  const gc = readFileSync('gen-cards.mjs', 'utf8');
+  // tokens share the group's all_parts and are not members of it
+  assert.ok(/if \(c\.name !== res\.name && !parts\.includes\(c\.name\)\) return 0;/.test(gc),
+    'gen-cards.mjs hands a meld group to every token printed alongside one');
+  const id = (n) => `00000000-0000-4000-8000-0000000000${n}`;
+  const group = ['Whole', 'Half A', 'Half B'];
+  const card = (n, meld) => ['{2}{W}', 'Creature — Angel', 'Text.', '2/2', 'W', 3, 'meld', '', 0, 0, meld];
+  const MELD = {
+    o: [['Half A', ...card('Half A', group)], ['Whole', ...card('Whole', group)],
+        ['Ordinary', ...card('Ordinary', 0)]],
+    p: [[0, 'AAA', '1', 3, id(31), 0, 0, 1, 0, 0, 0, 0],
+        [1, 'AAA', '2', 3, id(32), 0, 0, 1, 0, 0, 0, 0],
+        [2, 'AAA', '3', 3, id(33), 0, 0, 1, 0, 0, 0, 0]],
+  };
+  const cat = t.materialise(MELD);
+  assert.strictEqual(cat[0].meld.join('|'), 'Whole|Half A|Half B', 'the meld group did not survive materialise');
+  assert.strictEqual(cat[2].meld, null, 'a card outside a meld group was given one');
+  t.loadCards(MELD);
+  // a half names its partner AND what they become; both are walkable
+  t.openCard('Half A');
+  assert.ok(/Melds with .*Half B.*into .*Whole/s.test(painted), 'a meld half does not say what it becomes');
+  assert.ok(painted.includes("openCard('Half B')") && painted.includes("openCard('Whole')"),
+    'a meld half names the rest of its group without linking to them');
+  // ...and the result names the two cards it is printed across
+  t.openCard('Whole');
+  assert.ok(/Melded from .*Half A.*Half B/s.test(painted), 'the meld result does not name its halves');
+  assert.ok(!/Melds with/.test(painted), 'the meld result is described as if it were a half');
+  // there is no other side, and the card says so rather than growing a flip
+  assert.ok(painted.includes('nothing here to turn over'), 'the meld band does not say why it has no flip');
+  assert.ok(!t.MockCard(t.ALL().find(c => c.n === 'Whole')).includes('anat-flip'),
+    'a meld card grew a flip control for a side that does not exist');
+  // an ordinary card gets no band at all
+  t.openCard('Ordinary');
+  assert.ok(!/Melds with|Melded from/.test(painted), 'a card outside a meld group drew a meld band');
+  // put the anatomy catalogue back — everything below this line still reads it
+  t.loadCards(ANAT);
+}
+
 /* TWO-COLUMN: a Saga and a Class are not stacked cards. The illustration is a
    tall strip down one side — Scryfall crops them 312x752 rather than the 626x457
    an ordinary card gets, which is the tell — with the track beside it and the

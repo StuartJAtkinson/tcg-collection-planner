@@ -1657,6 +1657,12 @@
   .underline {
     text-decoration-line: underline;
   }
+  .decoration-neutral-700 {
+    text-decoration-color: var(--color-neutral-700);
+  }
+  .underline-offset-2 {
+    text-underline-offset: 2px;
+  }
   .accent-emerald-500 {
     accent-color: var(--color-emerald-500);
   }
@@ -1926,6 +1932,13 @@
     &:hover {
       @media (hover: hover) {
         color: var(--color-white);
+      }
+    }
+  }
+  .hover\:decoration-neutral-400 {
+    &:hover {
+      @media (hover: hover) {
+        text-decoration-color: var(--color-neutral-400);
       }
     }
   }
