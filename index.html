@@ -738,7 +738,7 @@ const materialiseFace = ([n, cost, type, text, pt, loy, col]) =>
   ({ n, cost: costTokens(cost), type, text, pt, loy, col });
 const materialise = ({ o, p }) => {
   const faceCache = new Map();
-  return p.map(([oi, set, num, rar, art_id, usd, treat, fin]) => {
+  return p.map(([oi, set, num, rar, art_id, usd, treat, fin, lang]) => {
     const [n, cost, type, text, pt, col, cmc, layout, loy, faces, legal] = o[oi];
     if (faces && !faceCache.has(oi)) faceCache.set(oi, faces.map(materialiseFace));
     // qty/foil are holdings, not catalogue: you own nothing until something says so
@@ -753,7 +753,12 @@ const materialise = ({ o, p }) => {
              // the two anatomy facts, defaulted here so nothing downstream has to
              layout: layout || 'normal', treat: treat || 'framed',
              faces: faces ? faceCache.get(oi) : null,
-             cost: costTokens(cost), lang: 'en', qty: 0, foil: 0 };
+             /* Read off the printing, not assumed. 2,634 of these are not English
+                — Foreign Black Border, Rinascimento, Phyrexian, Quenya — and the
+                identity key prints this beside the set and number, where a
+                hardcoded 'en' read as a fact about the printing rather than a
+                literal. 0 is the stored default for the 104,713 that are. */
+             cost: costTokens(cost), lang: lang || 'en', qty: 0, foil: 0 };
   });
 };
 // `seed` skips the fetch and takes the payload as given — how check.mjs, which has

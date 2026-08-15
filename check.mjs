@@ -1669,6 +1669,31 @@ t.setQuality('tcg', '200w');
     'a whole-card render asks for art_crop, which is not a whole card');
 }
 
+/* LANGUAGE IS READ, NOT ASSUMED. Every row used to carry a hardcoded 'en',
+   which is a literal wearing a field's clothes — it prints in the identity key
+   beside the set and collector number, where it reads as a fact about the
+   printing. `default_cards` is one printing per card *preferring* English, not
+   a set of English printings: 2,634 of 107,347 are Foreign Black Border,
+   Rinascimento, Phyrexian, Quenya, and one card each in Latin, Hebrew, Arabic
+   and Ancient Greek. Asserted on the generator's shape, since the fixtures here
+   are English and would pass either way. */
+{
+  const gc = readFileSync('gen-cards.mjs', 'utf8');
+  assert.ok(/c\.lang === 'en' \? 0 : c\.lang/.test(gc),
+    'gen-cards.mjs no longer carries the printing language');
+  assert.ok(/\[oracle, set, number, rarity, artId, usd, treatment, finishes, lang\]/.test(gc),
+    'the printing tuple comment and its contents disagree about language');
+  // narrowed to materialise: the 18 mock rows carry `lang: 'en'` as data, which
+  // is what a hand-written mock card is for and not the fault
+  const mat = readFileSync('index.html', 'utf8').match(/const materialise = [\s\S]*?\n};/)[0];
+  assert.ok(!/lang: 'en'/.test(mat), 'materialise hardcodes a language on every printing again');
+  assert.ok(/lang: lang \|\| 'en'/.test(mat), 'materialise does not read the printing language');
+  // ...and a non-English printing keeps its language through materialise
+  const one = t.materialise({ o: [['X', '', 'Creature', '', '', 'G', 1, 'normal', '', 0, 0]],
+    p: [[0, 'FBB', '1', 1, '00000000-0000-4000-8000-00000000abcd', 0, 0, 1, 'de']] })[0];
+  assert.strictEqual(one.lang, 'de', 'a non-English printing arrives claiming English');
+}
+
 // --- every declared name is used; every name a handler calls exists --------
 const declared = [...src.matchAll(/^(?:const|let|function)\s+([A-Za-z_$][\w$]*)/gm)].map(m => m[1]);
 for (const name of declared) {

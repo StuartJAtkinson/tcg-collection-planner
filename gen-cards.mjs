@@ -82,7 +82,7 @@ const finishOf = (c) => FINISHES.reduce((m, f, i) =>
 
 const oracleIdx = new Map();
 const oracles = [];      // [name, cost, type, text, pt, col, cmc, layout, loy, faces, legal]
-const printings = [];    // [oracle, set, number, rarity, artId, usd, treatment, finishes]
+const printings = [];    // [oracle, set, number, rarity, artId, usd, treatment, finishes, lang]
 
 const rl = readline.createInterface({
   input: createReadStream('data/scryfall-default-cards.jsonl.gz').pipe(createGunzip()),
@@ -146,6 +146,19 @@ for await (const raw of rl) {
        compresses to nothing and one that does not. */
     treatOf(c),
     finishOf(c),
+    /* READ, NOT ASSUMED. The page wrote `lang: 'en'` on every row, which is a
+       literal wearing a field's clothes — it prints in the identity key beside
+       the set and collector number, where it reads as a fact about the printing.
+       **2,634 of these 107,347 are not English**: Foreign Black Border, Italian
+       Rinascimento, Phyrexian, Quenya, and one card each in Latin, Hebrew,
+       Arabic and Ancient Greek. `default_cards` is one printing per card
+       *preferring* English, not a set of English printings — where a card was
+       never printed in English it hands you the language it was.
+
+       'en' is written as 0 for the 104,713 that are, the same trick treatment
+       uses: a per-printing field written a hundred thousand times pays for its
+       default case in the tail of the gzip. */
+    c.lang === 'en' ? 0 : c.lang,
   ]);
 }
 
