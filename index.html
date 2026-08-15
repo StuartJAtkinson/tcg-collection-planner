@@ -736,11 +736,21 @@ const costTokens = (s) => (s.match(/\{[^}]+\}/g) || []).map(t => t.slice(1, -1))
    per oracle, not once per printing of it. */
 const materialiseFace = ([n, cost, type, text, pt, loy, col]) =>
   ({ n, cost: costTokens(cost), type, text, pt, loy, col });
-const materialise = ({ o, p }) => {
+/* The two dictionaries default to a lone empty string so an older cards.json.gz
+   — one generated before either field existed — reads as "no artist, no
+   flavour" rather than throwing. Absent, not invented. */
+const materialise = ({ o, p, artists = [''], flavour = [''] }) => {
   const faceCache = new Map();
-  return p.map(([oi, set, num, rar, art_id, usd, treat, fin, lang]) => {
+  return p.map(([oi, set, num, rar, art_id, usd, treat, fin, lang, art, flav]) => {
     const [n, cost, type, text, pt, col, cmc, layout, loy, faces, legal] = o[oi];
     if (faces && !faceCache.has(oi)) faceCache.set(oi, faces.map(materialiseFace));
+    /* Flavour is the one per-printing field that has to reach a FACE, and faces
+       are shared by reference across every printing of an oracle — so a card
+       whose faces carry their own flavour gets its own copies of them, and only
+       that card. 866 printings of 107,347 pay for it; the rest keep the shared
+       objects the comment above is about. */
+    let fs = faces ? faceCache.get(oi) : null;
+    if (fs && Array.isArray(flav)) fs = fs.map((x, k) => ({ ...x, flav: flavour[flav[k]] || '' }));
     // qty/foil are holdings, not catalogue: you own nothing until something says so
     return { n, set, num, rar, art_id, usd, col, cmc, type, text, pt, loy,
              // legal is a bitmask over FORMATS, fin one over FINISHES — both are
@@ -752,7 +762,12 @@ const materialise = ({ o, p }) => {
              legal: legal || 0, fin: fin || 0,
              // the two anatomy facts, defaulted here so nothing downstream has to
              layout: layout || 'normal', treat: treat || 'framed',
-             faces: faces ? faceCache.get(oi) : null,
+             faces: fs,
+             /* Both interned, both defaulting to '' — an empty collector credit
+                and no italic block, which is what a card with neither looks
+                like. `flav` is the CARD's, so it is empty whenever the faces
+                carry their own; RulesPlate reads the face first. */
+             art: artists[art] || '', flav: Array.isArray(flav) ? '' : flavour[flav] || '',
              /* Read off the printing, not assumed. 2,634 of these are not English
                 — Foreign Black Border, Rinascimento, Phyrexian, Quenya — and the
                 identity key prints this beside the set and number, where a
@@ -1116,9 +1131,15 @@ const BandedText = (text) => (text || '').split('\n').map((line) => {
    divisors were never revisited, so a Saga's track column, which is now HALF
    AGAIN the standard box, was still being told to shrink as though it were half
    the size. Above 1 is normal here and was previously unreachable. */
+/* The face's flavour first, the card's second — because a two-faced card is
+   printed with different flavour on each side and a single-faced one has only
+   the card. `faceAt` returns the card itself when there are no faces, so the
+   two are the same object there and this collapses to `c.flav`. */
+const flavOf = (f, c) => f.flav || c.flav || '';
 const RulesPlate = (f, c, plate, { banded = false, cls = 'mt-2.5 flex-1', room = 1 } = {}) => {
   const atk = (c.atk || []).map(a => a.n + (a.t || '')).join(' ');
-  const size = textFit(((f.text || '').length + atk.length + (c.flav || '').length) / room);
+  const flav = flavOf(f, c);
+  const size = textFit(((f.text || '').length + atk.length + flav.length) / room);
   return `
   <div class="${cls} flex flex-col justify-between overflow-hidden rounded-sm px-1 py-0.5 leading-snug ${size}" style="${plate}">
     <div>
@@ -1129,7 +1150,7 @@ const RulesPlate = (f, c, plate, { banded = false, cls = 'mt-2.5 flex-1', room =
           ${a.dmg ? `<span class="font-bold">${a.dmg}</span>` : ''}</div>
         ${a.t ? `<p class="opacity-80">${symbolise(a.t)}</p>` : ''}`).join('')}
     </div>
-    ${!c.flav ? '' : `<div><hr class="my-1 border-black/50"><p class="italic opacity-70">${c.flav}</p></div>`}
+    ${!flav ? '' : `<div><hr class="my-1 border-black/50"><p class="italic opacity-70">${flav}</p></div>`}
   </div>`;
 };
 
@@ -1243,10 +1264,11 @@ const TrackSide = (c, i, bg, plate) => {
      takes it back to 1.3. This was 0.45 while the frame was still stacked, and
      0.45 is why every Saga on the page was set two steps smaller than the
      ordinary cards beside it. */
+  const flav = flavOf(f, c);
   const track = `<div class="flex min-w-0 flex-1 flex-col overflow-hidden rounded-sm px-1 py-0.5 leading-snug ${
-    textFit(((f.text || '').length + (c.flav || '').length) / 1.3)}" style="${plate}">
+    textFit(((f.text || '').length + flav.length) / 1.3)}" style="${plate}">
       ${BandedText(f.text)}
-      ${!c.flav ? '' : `<div><hr class="my-1 border-black/50"><p class="italic opacity-70">${c.flav}</p></div>`}
+      ${!flav ? '' : `<div><hr class="my-1 border-black/50"><p class="italic opacity-70">${flav}</p></div>`}
     </div>`;
   return `
   <div class="flex h-full w-full flex-col overflow-hidden rounded p-1.5 text-[4.91cqw] ${c.foil ? 'foil' : ''}"
@@ -1839,6 +1861,10 @@ const facetCounts = () => {
     Rarity: RARITIES.map(([label, v]) => [label, n(c => c.rar === v)]),
     Language: topN(cards, c => [c.lang || 'en'], 6),
     Finish: FINISHES.map((f, i) => [f, n(c => c.fin & (1 << i))]),
+    /* Most-illustrated first, the same as Subtype and for the same reason:
+       2,527 names is not a chip list, and any six picked by hand would be a
+       sample presented as a vocabulary. */
+    Artist: topN(cards, c => (c.art ? [c.art] : []), 8),
   };
   return FACETS;
 };
@@ -1849,17 +1875,12 @@ const facetsLive = () => CATALOGUE && P.game === 'mtg';
 const anatomyGroup = ([kind, label, arg, o = {}]) => {
   if (kind === 'range') return RangeField(label, '', '', o.symbols);
   if (kind === 'combos') return ComboSlicer();
-  /* A group the catalogue cannot answer says so rather than keeping its made-up
-     chips. Artist is the only one: it is a per-printing string, so carrying it
-     means a dictionary in cards.json.gz, and that is the flavour-text-and-artist
-     job rather than this one. Three invented names would otherwise sit here
-     looking exactly as authoritative as the counted groups beside them. */
-  if (facetsLive() && !facetCounts()[label]) return `
-    <div class="mb-3">
-      <p class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-neutral-600">${label}</p>
-      <p class="text-[11px] italic text-neutral-600">not in the catalogue yet &mdash; needs ${
-        label === 'Artist' ? 'artist credits' : 'the field'} in <code>gen-cards.mjs</code></p>
-    </div>`;
+  /* Every chips group is answered by facetCounts now that Artist is in the
+     catalogue, so the "not in the catalogue yet" apology that used to stand here
+     for Artist alone is gone. What replaces it is not a runtime message but a
+     check: check.mjs asserts the anatomy spec and facetCounts name the same
+     groups, which fails on the build that adds a group rather than on the page
+     that draws it with three invented numbers. */
   const live = facetsLive() && facetCounts()[label];
   return ChipGroup(label, (live || arg).map(([nm, c]) => [nm, '', c]), o.note || '', o.cols);
 };

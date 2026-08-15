@@ -80,9 +80,32 @@ const FINISHES = ['nonfoil', 'foil', 'etched'];
 const finishOf = (c) => FINISHES.reduce((m, f, i) =>
   m | (c.finishes?.includes(f) ? 1 << i : 0), 0);
 
+/* ARTIST AND FLAVOUR ARE DICTIONARIES, because both are per-printing strings
+   with heavy reuse and gzip cannot see it. Its window is 32 KB and these fields
+   run to megabytes, so the second copy of "John Avon" 4 MB later is a fresh
+   literal as far as the compressor is concerned. Interning is what turns that
+   back into a reference:
+
+     artist   2,527 names over 107,347 printings — 0.36 MB flat, 0.18 interned.
+     flavour  27,275 distinct texts over 53,107 printings that have one. Nearly
+              2x reuse, because a reprint keeps the same flavour, so it is
+              1.23 MB interned against 2.08 flat.
+
+   Index 0 is the empty string in both, so "no artist" (794) and "no flavour"
+   (53,496 — half the catalogue) cost one character each and need no sentinel. */
+const dict = () => { const a = ['']; return [a, new Map([['', 0]])]; };
+const [artists, artistIdx] = dict();
+const [flavour, flavourIdx] = dict();
+const intern = ([arr, idx], s) => {
+  s = s || '';
+  let i = idx.get(s);
+  if (i === undefined) { i = arr.length; arr.push(s); idx.set(s, i); }
+  return i;
+};
+
 const oracleIdx = new Map();
 const oracles = [];      // [name, cost, type, text, pt, col, cmc, layout, loy, faces, legal]
-const printings = [];    // [oracle, set, number, rarity, artId, usd, treatment, finishes, lang]
+const printings = [];    // [oracle, set, number, rarity, artId, usd, treatment, finishes, lang, artist, flavour]
 
 const rl = readline.createInterface({
   input: createReadStream('data/scryfall-default-cards.jsonl.gz').pipe(createGunzip()),
@@ -159,10 +182,27 @@ for await (const raw of rl) {
        uses: a per-printing field written a hundred thousand times pays for its
        default case in the tail of the gzip. */
     c.lang === 'en' ? 0 : c.lang,
+    /* ONE artist per printing, the root's, even though 151 two-faced printings
+       credit a different illustrator on each side. The collector bar is drawn
+       once per card by design (see FootPlate), so a second name has nowhere to
+       go; 0.14% of the catalogue names the front's artist on both sides. */
+    intern([artists, artistIdx], c.artist),
+    /* Flavour is per FACE when there is more than one, because it is printed on
+       the face it belongs to and a transform showing its front's flavour on its
+       back would be a lie rather than a gap. 744 printings have flavour ONLY on
+       their faces — every "Invasion of" card in March of the Machine — so
+       reading the root alone would have left them blank while their single-faced
+       neighbours read fine. Root flavour lands on face 0, which is where an
+       adventure or a split puts it. Collapses to 0 when no face has any. */
+    faces ? (() => {
+      const per = c.card_faces.map((fc, k) =>
+        intern([flavour, flavourIdx], fc.flavor_text ?? (k ? '' : c.flavor_text)));
+      return per.some(Boolean) ? per : 0;
+    })() : intern([flavour, flavourIdx], c.flavor_text),
   ]);
 }
 
-const json = JSON.stringify({ o: oracles, p: printings });
+const json = JSON.stringify({ o: oracles, p: printings, artists, flavour });
 writeFileSync('cards.json.gz', gzipSync(json, { level: 9 }));
 
 // The anatomy census, printed because it is the input to the /anatomy page and
@@ -178,6 +218,9 @@ console.log(`cards.json.gz — ${oracles.length.toLocaleString('en-GB')} cards �
   printings.length.toLocaleString('en-GB')} printings · ${
   (json.length / 1e6).toFixed(1)} MB raw · ${(kb / 1e6).toFixed(2)} MB gzipped${
   skipped ? ` · skipped ${skipped.toLocaleString('en-GB')} digital/unparsed of ${lines.toLocaleString('en-GB')}` : ''}`);
+console.log(`dictionaries — ${(artists.length - 1).toLocaleString('en-GB')} artists · ${
+  (flavour.length - 1).toLocaleString('en-GB')} distinct flavour texts over ${
+  printings.filter(p => p[10]).length.toLocaleString('en-GB')} printings that carry one`);
 console.log(`anatomy — ${census.size} classes, ${
   [...census.values()].filter(n => n >= 6).length} of them with six printings or more`);
 for (const [k, n] of [...census].sort((a, b) => b[1] - a[1]))

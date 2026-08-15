@@ -13,7 +13,7 @@ const page = readFileSync('index.html', 'utf8');   // the markup too: <body> car
 const src = `${['sets.js', 'trim.js', 'anatomy.js'].map(f => readFileSync(f, 'utf8')).join('\n')}
 ${page.match(/<script>([\s\S]*)<\/script>/)[1]}`;
 const js = src
-  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_ROWS, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, CAN_BE_LOCAL, MISSING_LOCAL, srcBytes, onDisk, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, frameOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, costTokens, CARD_LIMIT, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, setZoom, binderDims, zoomPx, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, BINDER_SORT, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
+  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_ROWS, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, CAN_BE_LOCAL, MISSING_LOCAL, srcBytes, onDisk, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, frameOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, costTokens, CARD_LIMIT, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, setZoom, binderDims, zoomPx, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, BINDER_SORT, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
   + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen,'
   + ' setDebug: v => { DEBUG = v; } };';
 
@@ -1681,7 +1681,7 @@ t.setQuality('tcg', '200w');
   const gc = readFileSync('gen-cards.mjs', 'utf8');
   assert.ok(/c\.lang === 'en' \? 0 : c\.lang/.test(gc),
     'gen-cards.mjs no longer carries the printing language');
-  assert.ok(/\[oracle, set, number, rarity, artId, usd, treatment, finishes, lang\]/.test(gc),
+  assert.ok(/\[oracle, set, number, rarity, artId, usd, treatment, finishes, lang, artist, flavour\]/.test(gc),
     'the printing tuple comment and its contents disagree about language');
   // narrowed to materialise: the 18 mock rows carry `lang: 'en'` as data, which
   // is what a hand-written mock card is for and not the fault
@@ -1692,6 +1692,63 @@ t.setQuality('tcg', '200w');
   const one = t.materialise({ o: [['X', '', 'Creature', '', '', 'G', 1, 'normal', '', 0, 0]],
     p: [[0, 'FBB', '1', 1, '00000000-0000-4000-8000-00000000abcd', 0, 0, 1, 'de']] })[0];
   assert.strictEqual(one.lang, 'de', 'a non-English printing arrives claiming English');
+}
+
+/* ARTIST AND FLAVOUR, both interned and both per PRINTING. MockCard has drawn
+   `c.art` on the collector bar and `c.flav` under the rules box since it was
+   written, and the mock rows carry both — so the slots looked implemented and
+   were empty on all 107,347 real cards. The interesting half is flavour on a
+   two-faced card: it is printed on the face it belongs to, faces are SHARED by
+   reference across every printing of an oracle, and writing one printing's
+   flavour onto a shared face would give it to every reprint. */
+{
+  const gc = readFileSync('gen-cards.mjs', 'utf8');
+  assert.ok(/intern\(\[artists, artistIdx\], c\.artist\)/.test(gc),
+    'gen-cards.mjs no longer interns the artist');
+  assert.ok(/o: oracles, p: printings, artists, flavour/.test(gc),
+    'the payload no longer carries the two dictionaries');
+  // per-face, not per-card: 744 printings have flavour ONLY on their faces
+  assert.ok(/c\.card_faces\.map\(\(fc, k\) =>/.test(gc),
+    'gen-cards.mjs reads one flavour per card again, so a transform loses its back');
+
+  const id = (n) => `00000000-0000-4000-8000-0000000000${n}`;
+  const oracle = ['X', '', 'Creature', '', '', 'G', 1, 'normal', '', 0, 0];
+  const two = ['T // B', '{G}', 'Creature', 'Front.', '', 'G', 1, 'transform', '',
+    [['T', '{G}', 'Creature', 'Front.', '', '', 'G'],
+     ['B', '', 'Creature', 'Back.', '', '', 'G']], 0];
+  const cat = t.materialise({
+    o: [oracle, two],
+    p: [
+      [0, 'AAA', '1', 1, id(11), 0, 0, 1, 0, 1, 1],   // both
+      [0, 'AAA', '2', 1, id(12), 0, 0, 1, 0, 0, 0],   // neither
+      [1, 'AAA', '3', 1, id(13), 0, 0, 1, 0, 2, [2, 3]],  // one flavour per face
+      [1, 'AAA', '4', 1, id(14), 0, 0, 1, 0, 0, 0],   // ...and a reprint with none
+    ],
+    artists: ['', 'Rebecca Guay', 'Terese Nielsen'],
+    flavour: ['', 'Only a line.', 'Front line.', 'Back line.'],
+  });
+  assert.strictEqual(cat[0].art, 'Rebecca Guay', 'the artist did not survive materialise');
+  assert.strictEqual(cat[0].flav, 'Only a line.', 'the flavour text did not survive materialise');
+  assert.strictEqual(cat[1].art, '', 'a printing with no artist invented one');
+  assert.strictEqual(cat[1].flav, '', 'a printing with no flavour invented some');
+  assert.strictEqual(cat[2].faces[0].flav, 'Front line.', 'a face lost its own flavour');
+  assert.strictEqual(cat[2].faces[1].flav, 'Back line.', 'the back face shows the front\'s flavour');
+  assert.strictEqual(cat[2].flav, '',
+    'a two-faced card also carries a card-level flavour, so both faces draw it twice');
+  // the shared faces were not scribbled on: the reprint gets its own answer
+  assert.ok(!cat[3].faces[0].flav, 'one printing\'s flavour leaked onto every reprint of it');
+  assert.notStrictEqual(cat[2].faces, cat[3].faces,
+    'a printing with its own face flavour is sharing face objects with one without');
+  // ...and both reach the drawn card
+  assert.ok(t.MockCard(cat[0]).includes('Illus. Rebecca Guay'), 'the collector bar names no artist');
+  assert.ok(t.MockCard(cat[0]).includes('Only a line.'), 'the rules box draws no flavour');
+  const both = t.MockCard(cat[2]);
+  assert.ok(both.includes('Front line.') && both.includes('Back line.'),
+    'a two-faced card draws only one of its two flavour texts');
+  // an older cards.json.gz has neither dictionary: absent, not a throw
+  const old = t.materialise({ o: [oracle], p: [[0, 'AAA', '9', 1, id(15), 0, 0, 1, 0]] })[0];
+  assert.strictEqual(old.art, '', 'a payload predating the artist dictionary invented an artist');
+  assert.strictEqual(old.flav, '', 'a payload predating the flavour dictionary invented flavour');
 }
 
 // --- every declared name is used; every name a handler calls exists --------
@@ -2263,6 +2320,17 @@ const ANAT = {
 };
 t.loadCards(ANAT);
 const byName = Object.fromEntries(t.ALL().map(c => [`${c.n}|${c.treat}`, c]));
+
+/* EVERY CHIPS GROUP IS COUNTED, or the sidebar falls back to the hand-written
+   numbers beside it and they look exactly as authoritative as the real ones.
+   Artist used to be the exception and said so on the page; now that it is in
+   the catalogue nothing is, so the apology is gone and this is what stands in
+   its place — a group added to the anatomy spec without a counter fails the
+   build rather than shipping three invented names. */
+go('#/search');
+for (const [kind, label] of t.GAMES.mtg.anatomy)
+  if (kind === 'chips') assert.ok(t.facetCounts()[label],
+    `"${label}" is drawn from hand-written numbers — facetCounts does not answer it`);
 
 /* A SAVED DECK IS A SNAPSHOT. A deck kept before a field existed has no such
    field, and the sidebar duly reported a Hobbit draft as containing nothing
