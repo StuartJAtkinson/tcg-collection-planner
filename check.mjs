@@ -13,7 +13,7 @@ const page = readFileSync('index.html', 'utf8');   // the markup too: <body> car
 const src = `${['sets.js', 'trim.js', 'anatomy.js'].map(f => readFileSync(f, 'utf8')).join('\n')}
 ${page.match(/<script>([\s\S]*)<\/script>/)[1]}`;
 const js = src
-  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, CAN_BE_LOCAL, MISSING_LOCAL, srcBytes, onDisk, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, frameOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, costTokens, CARD_LIMIT, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, setZoom, binderDims, zoomPx, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, BINDER_SORT, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
+  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, CAN_BE_LOCAL, MISSING_LOCAL, srcBytes, onDisk, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, frameOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, costTokens, CARD_LIMIT, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setZoom, binderDims, zoomPx, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, BINDER_SORT, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
   + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen,'
   + ' setDebug: v => { DEBUG = v; } };';
 
@@ -998,6 +998,27 @@ for (const [size, overflowsAt] of [[1.09, 144], [1, 207], [0.91, 274], [0.82, 37
   const px = n => parseFloat(t.textFit(n).match(/[\d.]+/)[0]);
   assert.ok(px(overflowsAt - 1) <= size,
     `${size}em is still used at ${overflowsAt - 1} characters, where it overflows`);
+}
+/* A NEWLINE COSTS SPACE ITS CHARACTERS DO NOT, and the ladder was measured
+   against paragraphs. A forced break leaves the tail of the previous line empty,
+   so text of many short lines is taller than the same characters flowing — which
+   is why 4 of 279 banded cards overflowed on 164-240 characters while sixty
+   ordinary cards with more than 200 overflowed none. `fitLen` charges half a
+   line per break, and it is the same ladder underneath: no new step, no new size. */
+{
+  const one = 'x'.repeat(96);
+  const many = Array.from({ length: 8 }, () => 'x'.repeat(12)).join('\n');
+  assert.strictEqual(one.length, many.replace(/\n/g, '').length, 'the two fixtures are not the same length');
+  assert.ok(t.fitLen(many) > t.fitLen(one), 'a break costs nothing, so banded text is measured as a paragraph');
+  assert.strictEqual(t.fitLen(one), 96, 'text with no break is charged for one');
+  // ...and it reaches the ladder: same characters, smaller type when they are lines
+  assert.ok(parseFloat(t.textFit(t.fitLen(many)).match(/[\d.]+/)[0])
+    < parseFloat(t.textFit(t.fitLen(one)).match(/[\d.]+/)[0]),
+    'eight lines are set at the same size as one paragraph of the same length');
+  // a real Leveler is the case this exists for: 175 characters over 8 lines
+  const kargan = 'Level up {R}\nLEVEL 1-3\n3/3\nFirst strike\nLEVEL 4-7\n4/4\nFirst strike, flying\nLEVEL 8+\n8/8\nFirst strike, flying, trample';
+  assert.ok(t.fitLen(kargan) > kargan.length + 100,
+    'a ten-line Leveler is barely charged for its bands');
 }
 /* Zoom draws the card bigger; a face full of fixed px kept 11px type inside it,
    so the shrink-to-fit was fitting a box that no longer existed. The face

@@ -1045,6 +1045,23 @@ const manaValue = c => (c.cost || []).reduce((t, x) => t + (/^\d+$/.test(x) ? +x
 const textFit = n => n > 560 ? 'text-[0.55em]' : n > 430 ? 'text-[0.64em]' : n > 300 ? 'text-[0.73em]'
   : n > 240 ? 'text-[0.82em]' : n > 180 ? 'text-[0.91em]' : n > 125 ? 'text-[1em]'
   : n > 108 ? 'text-[1.09em]' : 'text-[1.18em]';
+/* A NEWLINE COSTS SPACE THAT ITS CHARACTERS DO NOT. The ladder above was
+   measured against PARAGRAPHS, where the text fills each line to the end and
+   the character count is the height. A forced break leaves the tail of the
+   previous line empty — half a line on average — so text with many short lines
+   is taller than the same number of characters flowing.
+
+   It shows up on Levelers, whose bands are one line each. Measured at a 400px
+   card: **4 of 279 banded cards overflow, and all four are Levelers of 7-8
+   lines carrying only 164-240 characters**, while sixty ordinary cards with
+   more than 200 characters of paragraph overflow none. The ladder was not too
+   generous, it was being asked the wrong question.
+
+   12 is half a line: the box runs 24-28 characters across at these sizes, and
+   half of one is what a break throws away. Not a step on the ladder and not a
+   new size — the same ladder, given the length the text actually behaves as. */
+const BREAK_COST = 12;
+const fitLen = (s = '') => s.length + BREAK_COST * Math.max(0, s.split('\n').length - 1);
 /* The title and type bars shrink the same way rather than ellipsing. A name is
    worth more whole and small than clipped at full size — "Hanweir, the Writhing
    Township" tells you which card it is; "Hanweir, the Writh…" makes you open it.
@@ -1215,7 +1232,7 @@ const flavOf = (f, c) => f.flav || c.flav || '';
 const RulesPlate = (f, c, plate, { banded = false, cls = 'mt-2.5 flex-1', room = 1 } = {}) => {
   const atk = (c.atk || []).map(a => a.n + (a.t || '')).join(' ');
   const flav = flavOf(f, c);
-  const size = textFit(((f.text || '').length + atk.length + flav.length) / room);
+  const size = textFit((fitLen(f.text) + atk.length + fitLen(flav)) / room);
   return `
   <div class="${cls} flex flex-col justify-between overflow-hidden rounded-sm px-1 py-0.5 leading-snug ${size}" style="${plate}">
     <div>
@@ -1342,7 +1359,7 @@ const TrackSide = (c, i, bg, plate) => {
      ordinary cards beside it. */
   const flav = flavOf(f, c);
   const track = `<div class="flex min-w-0 flex-1 flex-col overflow-hidden rounded-sm px-1 py-0.5 leading-snug ${
-    textFit(((f.text || '').length + flav.length) / 1.3)}" style="${plate}">
+    textFit((fitLen(f.text) + fitLen(flav)) / 1.3)}" style="${plate}">
       ${BandedText(f.text)}
       ${!flav ? '' : `<div><hr class="my-1 border-black/50"><p class="italic opacity-70">${flav}</p></div>`}
     </div>`;
@@ -1417,7 +1434,7 @@ const CardSide = (c, i, bg, plate, treat, layout) => {
                standard 0.35W — on a portrait card that is 0.63W, most of twice
                the room (1.5). On a LANDSCAPE one the same 45% is only 0.32W,
                because the card is shorter, which lands back at about parity. */
-            room: over ? (wide ? 0.6 : 1.5) : 1,
+            room: over ? (wide ? 0.5 : 1.5) : 1,
           })}
       ${FootPlate(f, c, plate)}
     </div>
@@ -1501,12 +1518,12 @@ const PairedSide = (c, bg, plate, treat, layout) => {
       style="background:${bg};color:${ink(lum(bg))}">
       ${TitlePlate(a, c, plate)}
       ${TypePlate(a, c, plate, 'mt-1')}
-      ${RulesPlate(a, c, plate, { cls: 'mt-1 flex-1', room: 0.75 })}
+      ${RulesPlate(a, c, plate, { cls: 'mt-1 flex-1', room: 0.65 })}
       ${ArtWindow(c, 0, 'my-1 w-full shrink-0 aspect-[5/2.6]')}
       <div class="rotate-180">
         ${TitlePlate(b, c, plate)}
         ${TypePlate(b, c, plate, 'mt-1')}
-        ${RulesPlate(b, c, plate, { cls: 'mt-1 flex-1', room: 0.75 })}
+        ${RulesPlate(b, c, plate, { cls: 'mt-1 flex-1', room: 0.65 })}
       </div>
       ${FootPlate(a, c, plate)}
     </div>`;
