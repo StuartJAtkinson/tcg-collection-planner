@@ -2548,12 +2548,24 @@ function placeGutter() {
    target whatever shape its photograph is — the wrapper is 0.525 wide, so it
    fills the square's height at 98px across and the rest is margin. Sized by the
    picture, never by the block: a block with fewer rows than the picture needs
-   gets GAP ROWS rather than taller rows, because stretching six sets' worth of
-   row height to fit one picture leaves the names floating in nothing.
-   Six rows because a row is 33px at its shortest and 6 x 33 > 186; the gap rows
-   carry that 33px themselves, or an empty row collapses to nothing and the image
-   stretches the real ones after all. */
-const PACK_ROWS = 7;
+   gets a GAP rather than taller rows, because stretching six sets' worth of row
+   height to fit one picture leaves the names floating in nothing.
+
+   ONE GAP ROW, SIZED TO THE SHORTFALL, not N whole rows. Padding a short block
+   out to seven 33px rows cost **549 blank rows** and took the table from 986 to
+   1535 — a third of it empty — because a block of one set needs six of them and
+   most blocks are one set. The shortfall is a number of PIXELS, so it can be one
+   row that is exactly that tall: a block of one set gets a single 186px row
+   where it used to get six, and a block of six gets one 21px row rather than a
+   whole 33px one it did not need. Same picture, same alignment, ~90 blank rows
+   instead of 549.
+
+   The height has to be stated, because an empty row collapses to nothing and
+   then the image stretches the real rows after all — which is the fault the gap
+   exists to prevent. */
+const PACK_PX = 186;                        // the square the photograph fits in
+const ROW_PX = 33;                          // a set row at its shortest
+const PACK_TALL = PACK_PX + ROW_PX;         // ...plus the Draft chip under it
 /* The picture IS the Draft button — same call, same argument, a target you can
    hit. stopPropagation because the row underneath selects the set on click, and
    a draft that also navigates is two answers to one press. */
@@ -2631,8 +2643,11 @@ const SetList = () => {
     // collated, where the picture stays a picture
     const label = rows.slice(i, j).map(e => `${e.r[0]} (${e.r[1]})`).find(l => packsFor(l)?.length) || null;
     for (let k = i; k < j; k++) out.push({ ...rows[k], packs, draft: label });
-    for (let k = j - i; packs.length && k < PACK_ROWS; k++)
-      out.push({ key: rows[i].key, block: rows[i].block, packs, draft: label });   // no r = a gap
+    // no r = a gap, and `gap` is how many pixels short of the picture this block
+    // runs — one row rather than one per 33px of shortfall
+    const gap = PACK_TALL - (j - i) * ROW_PX;
+    if (packs.length && gap > 0)
+      out.push({ key: rows[i].key, block: rows[i].block, packs, draft: label, gap });
     i = j;
   }
   // counted once rather than re-filtered per row: three spans over a thousand
@@ -2717,7 +2732,7 @@ const SetList = () => {
         const year = gutter(e.key.slice(0, 4), e.key.slice(0, 4), 'text-xl font-semibold text-neutral-300');
         const month = gutter(e.key.slice(0, 7), MONTHS[+e.key.slice(5, 7) - 1], 'text-base text-neutral-500');
         const pack = packCell(e);
-        if (!e.r) return `<tr>${year}${month}${pack}<td colspan="5" class="h-[33px]"></td></tr>`;
+        if (!e.r) return `<tr>${year}${month}${pack}<td colspan="5" style="height:${e.gap}px"></td></tr>`;
         const [name, code, rel, total, owned, child] = e.r;
         const pct = Math.round(100 * owned / total);
         const on = `${name} (${code})` === picked();

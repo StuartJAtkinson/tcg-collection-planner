@@ -13,7 +13,7 @@ const page = readFileSync('index.html', 'utf8');   // the markup too: <body> car
 const src = `${['sets.js', 'trim.js', 'anatomy.js'].map(f => readFileSync(f, 'utf8')).join('\n')}
 ${page.match(/<script>([\s\S]*)<\/script>/)[1]}`;
 const js = src
-  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_ROWS, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, CAN_BE_LOCAL, MISSING_LOCAL, srcBytes, onDisk, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, frameOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, costTokens, CARD_LIMIT, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, setZoom, binderDims, zoomPx, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, BINDER_SORT, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
+  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, CAN_BE_LOCAL, MISSING_LOCAL, srcBytes, onDisk, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, frameOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, costTokens, CARD_LIMIT, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, setZoom, binderDims, zoomPx, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, BINDER_SORT, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
   + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen,'
   + ' setDebug: v => { DEBUG = v; } };';
 
@@ -405,13 +405,14 @@ for (const [cell] of gutters) {
     'the gutter label is either in flow (it will stretch the rows) or not centred on the point it is placed at');
 }
 /* The pack column: one cell per block, sized by the picture. A block with art
-   must span at least PACK_ROWS rows — that is what the gap rows are for, and
-   without them the image stretches the real rows instead. Lazy, because there
-   are 184 of these and only the ones you scroll to should ever be fetched. */
+   must be TALL enough to show it — that is what the gap is for, and without it
+   the image stretches the real rows instead. Height and not a row count, because
+   the gap is now one row sized to the shortfall rather than N whole ones: a
+   block of one set gets a single 186px row where it used to get six. Lazy,
+   because there are 184 of these and only the ones you scroll to are fetched. */
 const packs = spanning.filter(m => m[0].includes('<img'));
 assert.ok(packs.length > 150, 'the pack column has lost most of its art');
-for (const [cell, rows] of packs) {
-  assert.ok(+rows >= t.PACK_ROWS, `a block with pack art spans ${rows} rows, too few to show it`);
+for (const [cell] of packs) {
   assert.ok(/loading="lazy"/.test(cell), 'a pack image is fetched whether or not you scroll to it');
   /* The trim is canvas work this harness can't run, but its preconditions are
      markup and they are the part that goes wrong silently: without crossorigin
@@ -499,9 +500,36 @@ assert.ok(t.PACK_SAT > 1, 'the pack saturation is a no-op — say so or remove i
   assert.ok(!local.includes('trimPack'),
     'a local pack image is trimmed again in the browser, so it is levelled and saturated twice');
 }
-// the gap rows are real rows, with the height the arithmetic assumes
-const gaps = [...painted.matchAll(/<td colspan="5" class="h-\[33px\]"><\/td>/g)];
-assert.ok(gaps.length > 0 && t.PACK_ROWS * 33 > 186 + 33, 'the gap rows are gone, or no longer tall enough to fit the art');
+/* THE GAP IS ONE ROW SIZED TO THE SHORTFALL, and the arithmetic is asserted
+   rather than the row count, because the row count is exactly what stopped
+   meaning anything: padding every short block out to seven 33px rows cost 549
+   blank rows and took the table from 986 to 1535. Walked in document order —
+   every block with art is measured at 33px a real row plus whatever its gap row
+   declares, and must come to at least the picture's 186 + 33. */
+{
+  // `<tr>` and `<tr onclick=...>` both: a gap row is bare, a set row is not
+  const trs = [...painted.matchAll(/<tr[ >][\s\S]*?<\/tr>/g)].map(m => m[0]);
+  const HEIGHT = /<td colspan="5" style="height:(\d+)px">/;
+  const tall = tr => (HEIGHT.exec(tr) ? +HEIGHT.exec(tr)[1] : 33);
+  let blocks = 0, gaps = 0;
+  for (let i = 0; i < trs.length; i++) {
+    const pack = /<td rowspan="(\d+)"[^>]*>(?:(?!<\/td>)[\s\S])*?<img/.exec(trs[i]);
+    if (!pack) continue;
+    blocks++;
+    const n = +pack[1];
+    const rows = trs.slice(i, i + n);
+    assert.ok(rows.reduce((h, r) => h + tall(r), 0) >= 186 + 33,
+      `a block with pack art is ${rows.reduce((h, r) => h + tall(r), 0)}px tall, too short to show its picture`);
+    // at most ONE gap per block — the whole point of sizing it in pixels
+    const g = rows.filter(r => HEIGHT.test(r)).length;
+    assert.ok(g <= 1, `a block padded itself with ${g} gap rows instead of one sized to the shortfall`);
+    gaps += g;
+  }
+  assert.ok(blocks > 150, 'the pack column has lost most of its art');
+  assert.ok(gaps > 0, 'nothing is padded at all, so a one-set block stretches its rows to fit the picture');
+  // the saving is the issue: one per short block, not one per 33px of shortfall
+  assert.ok(gaps < blocks * 2, `${gaps} gap rows over ${blocks} blocks — the gap is per-row again`);
+}
 // and they are blank: a gap row is padding, not a row you can click
 for (const m of painted.matchAll(/<tr>(?:(?!<\/tr>)[\s\S])*colspan="5"[\s\S]*?<\/tr>/g))
   assert.ok(!/onclick/.test(m[0]), 'a gap row is clickable');
