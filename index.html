@@ -180,6 +180,7 @@ const P = {
   // kind of hidden state that makes a page feel like it's arguing with you.
   pick: { printings: null, binders: null, decks: null },
   open: true,      // is the selector band expanded?
+  compare: false,  // #/anatomy only: draw each sample beside its printed scan
   zoom: 1,         // card size, off the Zoom stepper — 1 is the designed size
   dims: [3, 3],    // page shape for binders when none is picked to own it
   across: 4,       // binder pages shown side by side; even, because a page faces one
@@ -218,53 +219,156 @@ const clearPicks = () => { P.pick = { printings: null, binders: null, decks: nul
    art is hotlinked is that number, and a typed number would drift off it. */
 const bytes = n => n >= 1e9 ? (n / 1e9).toFixed(1) + ' GB' : n >= 1e6 ? Math.round(n / 1e6) + ' MB' : Math.round(n / 1e3) + ' KB';
 const PACK_COUNT = Object.values(PACK_ART).reduce((n, o) => n + Object.keys(o).length, 0);
+const PKM_CARDS = 21904;
+/* EVERY SIZE HERE IS A NUMBER OF BYTES PER UNIT, and every one of them was
+   measured — the image sizes over 24 printings sampled across the catalogue,
+   the files off the disk they are sitting on. They used to be prose typed into
+   the row ("372 MB · pulled 2026-08-06 04:10") and every one had drifted: the
+   Scryfall row named a filename that does not exist, the prices row named a
+   file that was never downloaded at all, and the font was out by a factor of
+   six. A number the row DERIVES cannot drift from the thing it describes; a
+   sentence about it always will. `units` is what the number is per — one for a
+   file, a card count for the two image sources. */
 const SOURCES = {
-  scryfall: { name: 'Scryfall', gives: 'card data &middot; set list', def: ['local', 'all_cards'],
-    local: 'data/all_cards.jsonl.gz &middot; 372 MB &middot; pulled 2026-08-06 04:10',
+  scryfall: { name: 'Scryfall', gives: 'card data &middot; set list', kind: 'data',
+    def: ['local', 'all_cards'], full: 'all_cards', units: 1,
+    file: q => `data/scryfall-${q.replace(/_/g, '-')}.jsonl.gz`,
+    cmd: q => `npm run import   # fetches data/scryfall-${q.replace(/_/g, '-')}.jsonl.gz`,
+    local: 'one bulk file, read start to finish with the network off',
     online: 'api.scryfall.com &middot; 10/s, 2/s on search &mdash; ~15 hours for a 108k catalogue',
-    q: [['oracle_cards', '23 MB'], ['default_cards', '74 MB'], ['all_cards', '372 MB &middot; every language'],
-        ['unique_artwork', '36 MB'], ['rulings', '5 MB']] },
-  sfart: { name: 'Scryfall images', gives: 'card art', def: ['online', 'art_crop'],
-    local: () => `${num(MTG_CARDS)} cards &times; the size below &mdash; ${bytes(MTG_CARDS * 1e5)} at normal`,
-    online: 'cards.scryfall.io &middot; unrated-limited, and what Scryfall asks for',
-    q: [['art_crop', '626&times;457'], ['small', '146&times;204'], ['normal', '488&times;680'],
-        ['large', '672&times;936'], ['png', '745&times;1040']] },
-  mtgjson: { name: 'MTGJSON', gives: 'printings &middot; booster collation &middot; sealed products', def: ['local', 'AllPrintings'],
-    local: 'data/AllPrintings.json.gz &middot; 177 MB &middot; pulled 2026-08-06 04:22',
+    q: [['oracle_cards', 'one row per card', 24.5e6], ['default_cards', 'one row per English printing', 77.5e6],
+        ['all_cards', 'every printing, every language', 391.7e6],
+        ['unique_artwork', 'one row per illustration', 37.4e6], ['rulings', 'rulings only', 5.3e6]] },
+  sfart: { name: 'Scryfall images', gives: 'card art', kind: 'images',
+    def: ['online', 'art_crop'], full: 'png', units: MTG_CARDS,
+    file: q => `art/sf/${q}`,
+    cmd: q => `node gen-art.mjs ${q} --all      # or --anatomy for the sample page only`,
+    local: 'art/sf/ &mdash; one file per printing, fetched once',
+    online: 'cards.scryfall.io &middot; unrated-limited, and what Scryfall asks for by default',
+    q: [['art_crop', '626&times;457 &mdash; the only pixels this frame draws', 75e3],
+        ['small', '146&times;204', 14e3], ['normal', '488&times;680', 104e3],
+        ['large', '672&times;936', 169e3], ['png', '745&times;1040', 1231e3]] },
+  mtgjson: { name: 'MTGJSON', gives: 'printings &middot; booster collation &middot; sealed products', kind: 'data',
+    def: ['local', 'AllPrintings'], full: 'AllPrintings', units: 1,
+    file: q => q === 'psql' ? 'data/AllPrintings.psql.gz' : `data/${q}.json.gz`,
+    cmd: q => `curl -o data/${q}.json.gz https://mtgjson.com/api/v5/${q}.json.gz`,
+    local: 'one published file &mdash; the whole point of this source',
     online: null, why: 'MTGJSON publishes files, not an API',
-    q: [['AllPrintings', 'every set'], ['Standard', ''], ['Modern', ''], ['Legacy', ''], ['psql', 'a Postgres dump']] },
-  prices: { name: 'MTGJSON prices', gives: 'price history', def: ['local', 'AllPrices'],
-    local: 'data/AllPrices.json.gz &middot; 250 MB &middot; nightly',
+    q: [['AllPrintings', 'every set', 178.1e6], ['Standard', 'Standard-legal sets', 16.4e6],
+        ['Modern', 'Modern-legal sets', 93.6e6], ['Legacy', 'Legacy-legal sets', 151.1e6],
+        ['psql', 'a Postgres dump', 220e6]] },
+  prices: { name: 'MTGJSON prices', gives: 'price history', kind: 'data',
+    def: ['local', 'AllPrices'], full: 'AllPrices', units: 1,
+    file: q => `data/${q}.json.gz`,
+    cmd: q => `curl -o data/${q}.json.gz https://mtgjson.com/api/v5/${q}.json.gz`,
+    local: 'republished nightly, so a local copy is a day old at worst',
     online: null, why: 'same source, same files',
-    q: [['AllPrices', '90 days'], ['AllPricesToday', 'today only']] },
+    q: [['AllPrices', '90 days', 149.3e6], ['AllPricesToday', 'today only', 5.5e6]] },
   /* The local side costs FOUR TIMES the online one and is still the better
-     buy: the CDN's 26 KB is a JPEG on a white card, the 118 KB is a PNG that has
+     buy: the CDN's 26 KB is a JPEG on a white card, the 110 KB is a PNG that has
      already been cut out, white balanced, levelled and saturated. The difference
      is the alpha channel and the post-processing — paid once by gen-packs.mjs
-     instead of by a canvas pass per picture per page, forever. 118 KB is
-     measured over the fetched set, not guessed. */
-  tcg: { name: 'TCGplayer', gives: 'booster pack art', def: ['online', '200w'],
-    local: () => `packs/ &middot; ${PACK_COUNT} packs over ${Object.keys(PACK_ART).length} sets &mdash; ${
-      bytes(PACK_COUNT * 118e3)} at 200w, trimmed on the way in &middot; <code>node gen-packs.mjs</code>`,
+     instead of by a canvas pass per picture per page, forever. 110 KB is
+     measured over the fetched set, not guessed; the 1000px figure is an
+     estimate until somebody runs it, and the row says which it is showing. */
+  tcg: { name: 'TCGplayer', gives: 'booster pack art', kind: 'images',
+    def: ['online', '200w'], full: 'in_1000x1000', units: PACK_COUNT,
+    file: q => `packs/${q}`,
+    cmd: q => `node gen-packs.mjs ${q}`,
+    local: 'packs/ &mdash; trimmed to alpha on the way in, so the browser does no canvas pass',
     online: 'tcgplayer-cdn.tcgplayer.com &middot; by product id, trimmed live in the browser',
-    q: [['200w', '200&times;366 &middot; 26 KB'], ['in_1000x1000', '525&times;1000 &middot; 82 KB']] },
-  ptcg: { name: 'pokemon-tcg-data', gives: 'Pok&eacute;mon card data', def: ['local', 'master'],
-    local: 'data/pokemon-tcg-data.tar.gz &middot; 3 MB &middot; a GitHub repo, not an API key',
+    q: [['200w', '200&times;366', 110e3], ['in_1000x1000', '525&times;1000', 600e3]] },
+  ptcg: { name: 'pokemon-tcg-data', gives: 'Pok&eacute;mon card data', kind: 'data',
+    def: ['local', 'master'], full: 'master', units: 1,
+    file: () => 'data/pokemon-tcg-data.tar.gz',
+    cmd: () => 'curl -Lo data/pokemon-tcg-data.tar.gz https://github.com/PokemonTCG/pokemon-tcg-data/archive/master.tar.gz',
+    local: 'a GitHub repo, not an API key',
     online: null, why: 'the API needs a key; the repo behind it does not',
-    q: [['master', 'the whole repo']] },
-  ptcgart: { name: 'pokemontcg.io', gives: 'Pok&eacute;mon card art', def: ['online', 'small'],
-    local: () => `21,904 cards &times; the size below &mdash; ${bytes(21904 * 16e4)} at small`,
+    q: [['master', 'the whole repo', 2.7e6]] },
+  ptcgart: { name: 'pokemontcg.io', gives: 'Pok&eacute;mon card art', kind: 'images',
+    def: ['online', 'small'], full: 'hires', units: PKM_CARDS,
+    file: q => `art/ptcg/${q}`,
+    cmd: () => null, noLocalYet: true,
+    why_local: 'nothing enumerates the Pok&eacute;mon catalogue here yet &mdash; the page still runs on mock rows, so there is no id list to fetch against',
+    local: 'art/ptcg/ &mdash; whole cards, frame and all',
     online: 'images.pokemontcg.io &middot; whole cards, frame and all &mdash; there is no art crop',
-    q: [['small', '245&times;342 &middot; 160 KB'], ['hires', '734&times;1024 &middot; 845 KB']] },
-  mana: { name: 'Mana font', gives: 'mana &amp; set symbols', def: ['local', 'woff2'],
-    local: 'mana.woff2 &middot; 32 KB &middot; vendored, already in the repo',
+    q: [['small', '245&times;342', 160e3], ['hires', '734&times;1024', 845e3]] },
+  mana: { name: 'Mana font', gives: 'mana &amp; set symbols', kind: 'data',
+    def: ['local', 'woff2'], full: 'woff2', units: 1,
+    file: () => 'mana.woff2',
+    cmd: () => null, why_local: 'vendored &mdash; it is already in the repo',
+    local: 'vendored, already in the repo',
     online: null, why: 'a font you serve is a font that always renders',
-    q: [['woff2', 'the only build we ship']] },
+    q: [['woff2', 'the only build we ship', 187e3]] },
 };
 const CFG = { src: Object.fromEntries(Object.entries(SOURCES).map(([k, s]) => [k, { at: s.def[0], q: s.def[1] }])) };
 // a side that doesn't exist can't be selected — the chip says why instead
 const setSrc = (k, at) => { if (SOURCES[k][at]) CFG.src[k].at = at; render(); };
 const setQuality = (k, q) => { CFG.src[k].q = q; render(); };
+
+/* WHAT A SOURCE COSTS, at whatever quality it is set to. One function, so the
+   row, the group subtotal and the two offline buttons cannot disagree. */
+const srcBytes = (k, q = CFG.src[k].q) =>
+  (SOURCES[k].q.find(x => x[0] === q)?.[2] || 0) * (SOURCES[k].units || 1);
+
+/* WHAT IS ACTUALLY ON DISK. serve.py answers this from the filesystem, because
+   a page cannot stat one and a generated manifest goes stale exactly the way
+   the hand-typed sizes it replaces did. Null until it answers, and it may never
+   answer — check.mjs has no server and an older serve.py 404s — so every reader
+   below treats "not checked" as its own state rather than as "missing". */
+let DISK = null;
+async function loadDisk() {
+  if (typeof fetch !== 'function') return;
+  try {
+    const r = await fetch('data-index.json');
+    if (!r.ok) return;
+    DISK = await r.json();
+    render();
+  } catch { /* no server is a supported state, not an error */ }
+}
+/* Three answers, not two: on disk, not fetched, or nobody asked. `have` is a
+   file for the data sources and a directory-with-a-count for the two image
+   ones, which is why the group case reports how many of the expected units it
+   actually holds — half a download is not "on disk". */
+const onDisk = (k, q = CFG.src[k].q) => {
+  if (!DISK) return null;
+  const path = SOURCES[k].file(q);
+  if (DISK.files[path]) return { ...DISK.files[path], n: 1 };
+  const g = DISK.groups[path];
+  return g ? { ...g, of: SOURCES[k].units } : false;
+};
+const ago = (mtime) => {
+  const d = (Date.now() / 1000 - mtime) / 86400;
+  return d < 1 ? 'today' : d < 2 ? 'yesterday' : `${Math.round(d)} days ago`;
+};
+
+/* THE ONE QUESTION THIS PAGE EXISTS TO ANSWER: can I use this with the network
+   off? It was previously answerable only by reading eight rows and doing the
+   arithmetic, so it is now a button — and there are two of them because the
+   difference between them is 140 GB and that is the user's call, not a default.
+   Sources with no local side are skipped rather than silently failed. */
+const OFFLINE_MODES = {
+  drawn: { label: 'as the app draws it', q: k => SOURCES[k].def[1] },
+  full: { label: 'at the fullest size each offers', q: k => SOURCES[k].full },
+};
+/* A source with no local side can never be switched to one, so it is NAMED
+   rather than counted. "6 of 8 offline" with no way to reach 8 is a broken
+   promise, and flipping such a row to Local anyway would be worse: it would
+   read as done while every request still went to the network. */
+const CAN_BE_LOCAL = Object.keys(SOURCES).filter(k => SOURCES[k].local && !SOURCES[k].noLocalYet);
+const MISSING_LOCAL = Object.keys(SOURCES).filter(k => SOURCES[k].noLocalYet);
+const offlineBytes = mode => CAN_BE_LOCAL.reduce((n, k) => n + srcBytes(k, OFFLINE_MODES[mode].q(k)), 0);
+function goOffline(mode) {
+  for (const k of CAN_BE_LOCAL) { CFG.src[k].at = 'local'; CFG.src[k].q = OFFLINE_MODES[mode].q(k); }
+  render();
+}
+// the inverse, for getting back to the defaults without reloading
+function goOnline() {
+  for (const [k, s] of Object.entries(SOURCES)) { CFG.src[k].at = s.def[0]; CFG.src[k].q = s.def[1]; }
+  render();
+}
+const onlineNow = () => CAN_BE_LOCAL.filter(k => CFG.src[k].at === 'online');
+const allLocal = () => onlineNow().length === 0;
 let DEBUG = false;
 const game = () => GAMES[P.game] || GAMES.mtg;
 const tab = () => TABS[P.tab] || TABS.search;
@@ -567,13 +671,24 @@ let CATALOGUE = null;
 // "{1}{G/P}{X}" -> ['1','G/P','X'], which is the token list costPip draws
 const costTokens = (s) => (s.match(/\{[^}]+\}/g) || []).map(t => t.slice(1, -1));
 /* One object per printing, built once. The oracle fields are shared by reference
-   — 107k objects pointing at 37.5k strings — so this costs pointers, not text. */
-const materialise = ({ o, p }) => p.map(([oi, set, num, rar, art_id, usd]) => {
-  const [n, cost, type, text, pt, col, cmc] = o[oi];
-  // qty/foil are holdings, not catalogue: you own nothing until something says so
-  return { n, set, num, rar, art_id, usd, col, cmc, type, text, pt,
-           cost: costTokens(cost), lang: 'en', qty: 0, foil: 0 };
-});
+   — 107k objects pointing at 37.5k strings — so this costs pointers, not text.
+   `faces` is shared the same way: a transform card's two faces are built once
+   per oracle, not once per printing of it. */
+const materialiseFace = ([n, cost, type, text, pt, loy, col]) =>
+  ({ n, cost: costTokens(cost), type, text, pt, loy, col });
+const materialise = ({ o, p }) => {
+  const faceCache = new Map();
+  return p.map(([oi, set, num, rar, art_id, usd, treat]) => {
+    const [n, cost, type, text, pt, col, cmc, layout, loy, faces] = o[oi];
+    if (faces && !faceCache.has(oi)) faceCache.set(oi, faces.map(materialiseFace));
+    // qty/foil are holdings, not catalogue: you own nothing until something says so
+    return { n, set, num, rar, art_id, usd, col, cmc, type, text, pt, loy,
+             // the two anatomy facts, defaulted here so nothing downstream has to
+             layout: layout || 'normal', treat: treat || 'framed',
+             faces: faces ? faceCache.get(oi) : null,
+             cost: costTokens(cost), lang: 'en', qty: 0, foil: 0 };
+  });
+};
 // `seed` skips the fetch and takes the payload as given — how check.mjs, which has
 // no network, exercises the catalogue paths the mocks can't reach
 async function loadCards(seed) {
@@ -605,7 +720,11 @@ const ALL = () => (CATALOGUE && P.game === 'mtg') ? CATALOGUE : (CARD_ROWS[P.gam
    (`BINDER_RULE`), so it can say which catalogue cards are its own. */
 const scopedCards = () => {
   const mocks = CARD_ROWS[P.game] || CARD_ROWS.mtg;
-  if (P.tab === 'decks') return mocks;
+  /* A deck kept from a draft carries its own cards — index 4 — because that
+     pool is the only membership this app has ever actually known. The four
+     sample decks have none and still fall through to the mocks, which is the
+     honest render for a deck whose contents were never stated. */
+  if (P.tab === 'decks') return listRow()?.[4] || mocks;
   const all = ALL();
   if (P.tab === 'binders')
     return all === mocks || !picked() ? mocks : all.filter(binderHolds(picked()));
@@ -648,18 +767,107 @@ const rarityName = r => (RARITY_NAME[P.game] || RARITY_NAME.mtg)[r - 1] || '';
 const frameOf = c => c.energy ? (PKM_FRAME[c.energy] || '#8c8c8c')
   : !c.col ? '#8c8c8c' : c.col.length > 1 ? '#cfa036' : (FRAME[c.col] || '#8c8c8c');
 
-/* Hotlinked, never stored — Scryfall asks for exactly that, and it's also the
-   honest shape: the catalogue holds an id, the image is somebody else's server.
-   `art_crop` is the illustration alone, no frame and no text, so it drops
-   straight into the art window.
+/* ======================= CARD ANATOMY ==================================
+   MockCard was written for the shape almost every card has: one name, one art
+   window, one type line, one rules box. That is 85,145 of the catalogue's
+   107,214 paper printings. The other 22,069 are a different SHAPE, and until
+   `gen-cards.mjs` started carrying it they all arrived here claiming to be the
+   first kind — a Saga, a split card, a transform and a full-art basic drew as
+   the same rectangle with the back half of the card missing entirely.
 
-   Pokémon has no equivalent: pokemontcg.io serves whole cards, frame and all.
+   The shape is two independent facts, and they compose: layout × treatment is
+   66 real classes, 51 of them with six or more printings. `#/anatomy` draws six
+   of each, which is what that page is for.
+
+   LAYOUT — how many faces there are and where they sit. Four cases matter,
+   because they are the four that change the geometry rather than the words:
+     SIDED     two faces, one on each physical side: you turn the card over.
+     PAIRED    two faces printed on ONE side: both readable without turning it.
+     LANDSCAPE read with the card rotated ninety degrees.
+     BANDED    a rules box that is a numbered sequence, not a paragraph.
+   Everything not named below is single-faced and portrait — mutate, prototype,
+   vanguard, host, augment and meld differ from a normal card in their RULES,
+   not in their frame, so they need no case here and deliberately don't get one.
+
+   TREATMENT — how the illustration relates to the frame. `framed` and
+   `showcase` put it in a window; the rest do not, which is the "breakout art"
+   problem: the art is no longer contained by the box the layout drew for it. */
+const SIDED = new Set(['transform', 'modal_dfc', 'double_faced_token', 'art_series', 'reversible_card']);
+const PAIRED = new Set(['split', 'adventure', 'flip', 'prepare']);
+const LANDSCAPE = new Set(['planar', 'scheme', 'split']);
+const BANDED = new Set(['saga', 'class', 'leveler']);
+// the two treatments where the art IS the card and the text is laid over it
+const OVERLAID = new Set(['fullart', 'textless']);
+// the face list only matters when there are two of them to draw
+const twoFaced = c => (c.faces?.length > 1 ? c.faces : null);
+const faceAt = (c, i) => c.faces?.[i] || c;
+
+/* NOT EVERY PRINTING IS A CARD A FRAME CAN DESCRIBE. A frame exists to hold a
+   mana cost, a type line and a rules box; some printings have none of the
+   three. An art card is an illustration and a signature. A Jumpstart theme
+   divider's entire text is "(Theme color: {G})". A punchcard, a "Poison
+   Counter", a "Double-Faced Substitute Card", an artist bio — all of them are
+   a name over a picture. Drawing the frame anyway is what made art series
+   render as two-thirds empty box, which was the single most visible fault on
+   the anatomy page at 2,649 printings.
+
+   The test is on the FACE, not on a list of layouts, and that is the whole
+   point: `front_card` appeared in the catalogue after this was written and was
+   handled without an edit. A list would have missed it silently, which is how
+   the anatomy taxonomy is built everywhere else here too.
+
+   `Card` is Scryfall's literal placeholder type line, not a type — it is what
+   the source puts there when there is nothing to put. 3,249 of 107,347
+   printings fail this; every one of them is a picture with a name on it. */
+const bareType = t => !t || t === 'Card';
+const framable = c => ((twoFaced(c) || [c]).some(f => f.cost?.length || !bareType(f.type)));
+
+/* Hotlinked by default, never stored — that is what Scryfall asks for, and it
+   is also the honest shape: the catalogue holds an id, the image is somebody
+   else's server. `art_crop` is the illustration alone, no frame and no text, so
+   it drops straight into the art window.
+
+   `side` is why no second id is stored for a double-faced card: Scryfall keys
+   the back off the SAME id with /back/ in place of /front/, so the back of a
+   transform is one character away from its front.
+
+   Local is `gen-art.mjs`'s output and the same fall-through the pack art
+   already uses — a file that was never fetched degrades to the CDN rather than
+   to a broken image, so an un-run download costs nothing but the request.
+
+   Pokémon has no art crop: pokemontcg.io serves whole cards, frame and all.
    ponytail: crop the top of the card with object-position instead of an art
    window that fits. Upgrade path is a real crop, if one ever exists. */
-const artUrl = c => c.energy
-  ? `https://images.pokemontcg.io/${c.art_id}${CFG.src.ptcgart.q === 'hires' ? '_hires' : ''}.png`
-  : `https://cards.scryfall.io/${CFG.src.sfart.q}/front/${c.art_id[0]}/${c.art_id[1]}/${c.art_id}.${
-      CFG.src.sfart.q === 'png' ? 'png' : 'jpg'}`;
+const artSide = (c, i) => (i && SIDED.has(c.layout) ? 'back' : 'front');
+const artKey = c => c.energy ? 'ptcgart' : 'sfart';
+/* `q` is the size, and it defaults to the configured one rather than reading it
+   directly, because one caller needs a DIFFERENT size at the same time: the
+   anatomy page's compare mode puts the whole printed card beside the drawn one,
+   and a whole card is `normal` while the art window is `art_crop`. Everything
+   else passes nothing and gets whatever Config says. */
+const artQ = c => CFG.src[artKey(c)].q;
+const artCdn = (c, i, q = artQ(c)) => c.energy
+  ? `https://images.pokemontcg.io/${c.art_id}${q === 'hires' ? '_hires' : ''}.png`
+  : `https://cards.scryfall.io/${q}/${artSide(c, i)}/${c.art_id[0]}/${c.art_id[1]}/${c.art_id}.${
+      q === 'png' ? 'png' : 'jpg'}`;
+const artLocal = (c, i, q = artQ(c)) => c.energy
+  ? `art/ptcg/${q}/${c.art_id}.png`
+  : `art/sf/${q}/${artSide(c, i)}/${c.art_id[0]}/${c.art_id[1]}/${c.art_id}.${q === 'png' ? 'png' : 'jpg'}`;
+const artUrl = (c, i, q) => CFG.src[artKey(c)].at === 'local' ? artLocal(c, i, q) : artCdn(c, i, q);
+// set Local, but that file was never fetched: fall through to the CDN once,
+// then give up — `onerror` is cleared first or a dead CDN loops forever
+const artAttrs = (c, i, q) => CFG.src[artKey(c)].at === 'local'
+  ? ` onerror="this.onerror=null;this.removeAttribute('onerror');this.src='${artCdn(c, i, q)}'"` : '';
+
+/* The whole printed card, for the printings a frame has nothing to say about.
+   `art_crop` is the illustration alone, so it is the one configured size that
+   cannot be used here; the other four are whole cards already and are honoured,
+   because someone who set `large` for the art window wants large here too.
+   Pokémon has only whole-card sizes, so its setting always passes through. */
+const WHOLE_CARD = new Set(['small', 'normal', 'large', 'png']);
+const cardQ = c => (c.energy || WHOLE_CARD.has(artQ(c)) ? artQ(c) : 'normal');
+const PrintedFace = (c, i) => `<img src="${artUrl(c, i, cardQ(c))}" loading="lazy"${
+  artAttrs(c, i, cardQ(c))} alt="${jsArg(c.n)}" class="h-full w-full rounded-lg object-cover">`;
 
 /* The vendored Mana font carries far more than the five colours, and the rest of
    these codepoints were read off it rather than guessed — rendered as a grid and
@@ -766,59 +974,383 @@ const rarityMark = (c) => {
          title="${tip}" style="${c.rar ? `background:${ink}` : ''}"></span>`;
 };
 
-const MockCard = (c, fit) => {
+/* THE FIVE PLATES, each buildable on its own, because the anatomies need them
+   in different orders and different numbers. A split card wants two title
+   plates and two rules plates over one art window; a full-art card wants all
+   five over the art rather than beside it; a Saga wants its rules plate banded.
+   Pulling them out of one template is what makes those four lines each instead
+   of four copies of the whole card.
+
+   `f` is the FACE being drawn and `c` is the printing it belongs to — they are
+   the same object for an ordinary card, and differ for everything with two
+   faces. Set, rarity, collector number and finish are printing facts, so they
+   always come off `c`; name, cost, type, text and P/T are face facts. */
+const TitlePlate = (f, c, plate, cls = '') => `
+  <div class="flex items-center justify-between gap-1 rounded-md px-1.5 py-0.5 ${cls}" style="${plate}">
+    <span class="truncate font-bold leading-tight ${nameFit((f.n || '').length + 2 * ((f.cost || []).length + (c.hp ? 3 : 0)))}">${f.n}</span>
+    <span class="flex shrink-0 items-center gap-0.5">${c.hp
+      ? `<span class="text-[1em] font-bold">${c.hp} HP</span>`
+      : (f.cost || []).map(facePip).join('')}</span>
+  </div>`;
+
+const TypePlate = (f, c, plate, cls = 'relative z-10 -my-2.5') => `
+  <div class="${cls} flex items-center gap-1 rounded-md px-1.5 py-0.5 font-semibold ${
+    typeFit((f.type || UNK).length + 3)}" style="${plate}">
+    <span class="min-w-0 flex-1 truncate">${f.type || UNK}</span>
+    ${rarityMark(c)}
+  </div>`;
+
+/* A Saga's rules box is not a paragraph, it is a numbered sequence, and the
+   same is true of a Class's levels and a Leveler's bands. The source writes
+   them as one string with the steps on their own lines, so the box splits on
+   the newline it already has rather than on a parser: chapter marks go in a
+   gutter down the left, which is where the card prints them. */
+const CHAPTER = /^(?:([IVX]+(?:,\s*[IVX]+)*)\s*(?:—|-)\s*)|^(?:(Level\s+\d+[-+\d]*)\s*)/;
+const BandedText = (text) => (text || '').split('\n').map((line) => {
+  const m = line.match(CHAPTER);
+  return !m ? `<p class="whitespace-pre-line">${symbolise(line)}</p>`
+    : `<div class="flex gap-1"><span class="w-[3.2em] shrink-0 border-r border-black/40 pr-1 text-right font-bold">${
+        m[1] || m[2]}</span><span class="min-w-0 flex-1">${symbolise(line.slice(m[0].length))}</span></div>`;
+}).join('');
+
+/* `room` is this box's CAPACITY relative to an ordinary card's rules box, and
+   it exists because textFit's ladder was measured against that box and nothing
+   else. Give the ladder a different box without telling it and it picks the
+   wrong step: too big and the text overruns, too small and it shrinks a card
+   that had room to spare.
+
+   The numbers are derived, not chosen. Type size is set in `cqw`, so it follows
+   the card's WIDTH; characters that fit therefore go as
+   (box width x box height) / (font size)^2, with font size proportional to the
+   card width. Every value below is that quantity over the standard card's own
+   0.95W x 0.35W at 4.91cqw, with about a tenth held back the way the base
+   ladder already does.
+
+   THEY WERE ALL TOO SMALL. The first set was picked by eye against the STACKED
+   frames — one narrow rules box at the bottom of the card — and then the frames
+   underneath them were rebuilt: a Saga became two columns, a Plane and the
+   full-art treatments became overlays with most of the card to play with. The
+   divisors were never revisited, so a Saga's track column, which is now HALF
+   AGAIN the standard box, was still being told to shrink as though it were half
+   the size. Above 1 is normal here and was previously unreachable. */
+const RulesPlate = (f, c, plate, { banded = false, cls = 'mt-2.5 flex-1', room = 1 } = {}) => {
+  const atk = (c.atk || []).map(a => a.n + (a.t || '')).join(' ');
+  const size = textFit(((f.text || '').length + atk.length + (c.flav || '').length) / room);
+  return `
+  <div class="${cls} flex flex-col justify-between overflow-hidden rounded-sm px-1 py-0.5 leading-snug ${size}" style="${plate}">
+    <div>
+      ${!f.text ? '' : banded ? BandedText(f.text) : `<p class="whitespace-pre-line">${symbolise(f.text)}</p>`}
+      ${(c.atk || []).map(a => `
+        <div class="mt-0.5 flex items-baseline justify-between gap-1">
+          <span class="flex items-center gap-0.5">${(a.cost || []).map(energyPip).join('')}<span class="ml-0.5 font-semibold">${a.n}</span></span>
+          ${a.dmg ? `<span class="font-bold">${a.dmg}</span>` : ''}</div>
+        ${a.t ? `<p class="opacity-80">${symbolise(a.t)}</p>` : ''}`).join('')}
+    </div>
+    ${!c.flav ? '' : `<div><hr class="my-1 border-black/50"><p class="italic opacity-70">${c.flav}</p></div>`}
+  </div>`;
+};
+
+// The collector bar carries the printing, so it is drawn once per CARD even
+// when the card has two faces — except for power/toughness and loyalty, which
+// belong to whichever face is showing.
+const FootPlate = (f, c, plate) => `
+  <div class="mt-0 flex items-center justify-between gap-1 rounded-sm px-1 py-0.5 text-[0.73em]" style="${plate}">
+    <span class="truncate">${[
+      c.set && `<span class="uppercase">${c.set}${c.num ? ` ${c.num}` : ''}</span>`,
+      c.lang && `<span class="${c.lang === 'en' ? '' : 'font-bold'}">${c.lang}</span>`,
+      c.art && `Illus. ${c.art}`,
+    ].filter(Boolean).join(' &middot; ') || '<span class="opacity-40">no printing</span>'}</span>
+    ${f.pt ? `<span class="shrink-0 rounded-sm border border-black/30 bg-black/20 px-1 text-[0.95em] font-bold">${f.pt}</span>` : ''}
+    ${f.loy ? `<span class="shrink-0 rounded-full border border-black/30 bg-black/40 px-1.5 text-[0.95em] font-bold">${f.loy}</span>` : ''}
+    ${c.retreat ? `<span class="flex shrink-0 items-center gap-0.5" title="Retreat cost">${
+      Array.from({ length: c.retreat }, () => energyPip('Colorless')).join('')}</span>` : ''}
+  </div>`;
+
+/* THE BREAKOUT ART. `framed` and `showcase` put the illustration in a window
+   with the frame around it; the other four do not, and each fails differently
+   if it is drawn as though it did:
+     extendedart  the art runs out to the card's left and right edges but the
+                  frame stays — negative margin equal to the black edge, which
+                  is a percentage, so it tracks the card at any size.
+     borderless   there is no black edge to run out to; the wrapper drops it.
+     fullart      the art is the whole card and the plates float on top of it.
+     textless     the same, with no rules plate at all. */
+/* THE CROP'S SHAPE IS NOT IN THE CATALOGUE, AND IT IS NOT ONE SHAPE. Scryfall
+   crops an ordinary card 626x457 landscape, a Saga 312x752 portrait, a token
+   684x722 square-ish, an Ikoran mutate 745x505, a full-art land 626x747 — and
+   nothing in the bulk data says which you are about to get. Only the image
+   does, after it has loaded.
+
+   That is survivable in the art WINDOW, whose 5/3.52 is within a few percent of
+   the common landscape crop. It is not survivable when the art is the whole
+   card: `object-cover` fits a 1.37-wide crop to a 0.71-tall card by matching
+   HEIGHT, so it scales the image 2x and throws away 49% of its width. That is
+   the "misscaled" full art — the picture is not merely cropped, it is zoomed
+   into the middle of itself.
+
+   `whole` is the fix, and it is CSS doing the arithmetic precisely because the
+   ratio cannot be known in advance: the illustration is `contain`ed, so all of
+   it is visible whatever shape it is, over a `cover`ed copy of itself that is
+   blurred and scaled out to fill whatever contain leaves. A portrait crop
+   covers ~85% of the card and the seam is invisible; a landscape one keeps the
+   whole picture instead of half of it. One rule, no branch, nothing to know. */
+const ArtWindow = (c, i, cls, whole) => `
+  <div class="${cls} ${whole ? 'relative' : ''} overflow-hidden rounded border border-black/20 bg-black/10">
+    ${!c.art_id ? '<div class="flex h-full w-full items-center justify-center text-[0.82em] italic opacity-50">no art loaded</div>'
+      : whole
+        ? `<img src="${artUrl(c, i)}" alt="" aria-hidden="true" loading="lazy"${artAttrs(c, i)}
+             class="absolute inset-0 h-full w-full scale-110 object-cover blur-md">
+           <!-- Anchored TOP, not centred. Centring splits the leftover between
+                both ends and puts half the blur across the top of the card,
+                which is the half you can see; the bottom half is under the type
+                line and the rules box already. Top-anchored, the sharp art
+                starts at the card's edge and the soft part lands behind the
+                plates. -->
+           <img src="${artUrl(c, i)}" alt="" loading="lazy"${artAttrs(c, i)}
+             class="relative h-full w-full object-contain object-top">`
+        : `<img src="${artUrl(c, i)}" alt="" loading="lazy"${artAttrs(c, i)} class="h-full w-full ${
+          c.energy ? 'object-cover object-[50%_22%]' : 'object-cover'}">`}
+  </div>`;
+
+/* One physical side of a card: the five plates in their normal order, with the
+   treatment deciding whether the art is a window between them or a sheet
+   behind them. Two of these stacked is a transform; one is everything else. */
+/* SAGAS AND CLASSES ARE TWO-COLUMN CARDS. The printed article runs the
+   illustration as a tall strip down one side with the numbered track beside it
+   and the type line ACROSS THE BOTTOM — not the stacked title/art/type/rules of
+   an ordinary card, which is what these were drawn as until the side-by-side
+   made it obvious.
+
+   The source agrees, and that is the part worth knowing: Scryfall's `art_crop`
+   for a Saga or a Class is **312x752**, a portrait strip, where an ordinary
+   card's is 626x457 landscape. So the column is sized by the crop's own aspect
+   rather than a percentage picked by eye, and the art fills it without cropping.
+
+   Saga puts the art on the RIGHT and reads its chapters down the left; a Class
+   is the mirror, art LEFT and levels down the right. Both checked against the
+   scans. Which one it is comes off the TYPE LINE, not the layout, for the same
+   reason the banding does: 127 printings are a Saga on the front of a card
+   whose layout says `transform`. */
+const TRACKED = /\b(Saga|Class)\b/;
+const isTracked = (f, layout) => layout === 'saga' || layout === 'class' || TRACKED.test(f.type || '');
+const TrackSide = (c, i, bg, plate) => {
+  const f = faceAt(c, i);
+  const artLeft = /\bClass\b/.test(f.type || '');
+  /* A WIDTH, not the crop's aspect ratio. Sizing the column by `aspect-[312/752]
+     h-full w-auto` is circular — the row's height comes from the flex fill and
+     the column's width would come from that height — and the browser resolved it
+     by letting the strip overrun the track, which then spilled its text across
+     the art. 42% of the card gets there anyway: the row is ~72% of a 5/7 card's
+     height, so 0.42 / (0.72 x 1.4) = 0.417, against the crop's own 0.415. */
+  const art = `<div class="w-[42%] shrink-0">${ArtWindow(c, i, 'h-full w-full')}</div>`;
+  /* 1.3, and it is above 1 on purpose. The track column runs 0.55W wide by
+     almost the full 1.0W between the title and the type line — 0.55W squared
+     against the standard box's 0.3325, so 1.65 on area alone. The chapter
+     gutter eats 3.2em of that width on every numbered line, which is what
+     takes it back to 1.3. This was 0.45 while the frame was still stacked, and
+     0.45 is why every Saga on the page was set two steps smaller than the
+     ordinary cards beside it. */
+  const track = `<div class="flex min-w-0 flex-1 flex-col overflow-hidden rounded-sm px-1 py-0.5 leading-snug ${
+    textFit(((f.text || '').length + (c.flav || '').length) / 1.3)}" style="${plate}">
+      ${BandedText(f.text)}
+      ${!c.flav ? '' : `<div><hr class="my-1 border-black/50"><p class="italic opacity-70">${c.flav}</p></div>`}
+    </div>`;
+  return `
+  <div class="flex h-full w-full flex-col overflow-hidden rounded p-1.5 text-[4.91cqw] ${c.foil ? 'foil' : ''}"
+    style="background:${bg};color:${ink(lum(bg))}">
+    ${TitlePlate(f, c, plate)}
+    <div class="my-1 flex min-h-0 flex-1 gap-1">${artLeft ? art + track : track + art}</div>
+    ${TypePlate(f, c, plate, '')}
+    ${FootPlate(f, c, plate)}
+  </div>`;
+};
+
+const CardSide = (c, i, bg, plate, treat, layout) => {
+  const f = faceAt(c, i);
+  /* A full-art Saga has no columns to put anything in — the art is the card —
+     so the treatment wins there and the track frame only applies to the ones
+     that actually have a frame. */
+  if (isTracked(f, layout) && !OVERLAID.has(treat)) return TrackSide(c, i, bg, plate);
+  /* Planes and Schemes are printed full-bleed — the illustration runs to all
+     four edges and the title, type and rules sit ON it — even though Scryfall
+     reports them as `framed`, because `full_art` is a flag about the frame and
+     these have no frame to flag. Checked against the scans: every Plane in the
+     sample is edge-to-edge art. So the layout forces the treatment here rather
+     than the treatment being taken at its word. */
+  const over = OVERLAID.has(treat) || LANDSCAPE.has(layout) && layout !== 'split';
+  /* The art window is sized as a RATIO OF THE CARD'S WIDTH, so a card that is
+     read sideways needs its own: 5/3.52 inside a 7/5 box is taller than the
+     whole card, which is exactly what a Plane looked like — a title bar, an
+     illustration, and its rules pushed off the bottom edge. */
+  const wide = LANDSCAPE.has(layout);
+  /* 7/1.8, not the 7/2.3 tried first. A Plane's rules run two or three
+     sentences and the shrink ladder bottoms out at 0.55em — below that the text
+     is not worth reading — so past a point the only way to fit them is to give
+     the box the height rather than take it off the type. The art is still half
+     the card, which is what the printed card does. */
+  const aspect = wide ? 'aspect-[7/1.8]'
+    : treat === 'extendedart' ? 'aspect-[5/3.2]' : 'aspect-[5/3.52]';
+  const art = over
+    ? `<div class="absolute inset-0">${ArtWindow(c, i, 'h-full w-full rounded-none border-0', true)}</div>`
+    : ArtWindow(c, i, `my-1 w-full shrink-0 ${aspect} ${treat === 'extendedart' ? '-mx-[3.65%] w-[107.3%]' : ''}`);
+  /* The type plate tucks up under the art window's lower edge on a portrait
+     card, which is what the negative margin is for. A landscape card has less
+     than half the height to spend, so the same overlap is a collision rather
+     than a tuck — it sat on top of the rules box. */
+  const tight = over || wide;
+  return `
+  <div class="relative flex h-full w-full flex-col overflow-hidden rounded p-1.5 text-[4.91cqw] ${c.foil ? 'foil' : ''}"
+    style="background:${bg};color:${ink(lum(bg))}">
+    ${over ? art : ''}
+    <div class="relative flex h-full w-full flex-col">
+      ${TitlePlate(f, c, plate)}
+      ${over ? '' : art}
+      <!-- THE SPACER GOES HERE, not after the rules box. On a full-art card the
+           printed article puts the title at the top and everything else in the
+           BOTTOM half, so the illustration is unobstructed through the middle —
+           which is the entire reason to print one. Stacking all four plates
+           under the title covered the top third of the art and left the bottom
+           two-thirds empty, i.e. exactly the wrong half of the card. -->
+      ${over ? '<div class="flex-1"></div>' : ''}
+      ${TypePlate(f, c, plate, tight ? 'mt-1' : 'relative z-10 -my-2.5')}
+      ${treat === 'textless'
+        ? (over ? '' : '<div class="flex-1"></div>')
+        : RulesPlate(f, c, plate, {
+            /* Off the TYPE LINE as well as the layout, because a Saga is not
+               always `layout: saga`. Kumano Faces Kakkazan is `transform` with a
+               Saga on its front, and there are 205 more like it — keying off the
+               layout alone left their chapter marks as a run-on paragraph. */
+            banded: BANDED.has(layout) || /\b(Saga|Class)\b/.test(f.type || ''),
+            cls: over ? 'mt-1 max-h-[45%] flex-none' : tight ? 'mt-1 flex-1' : 'mt-2.5 flex-1',
+            /* Overlaid, the box may run to 45% of the card's height against the
+               standard 0.35W — on a portrait card that is 0.63W, most of twice
+               the room (1.5). On a LANDSCAPE one the same 45% is only 0.32W,
+               because the card is shorter, which lands back at about parity. */
+            room: over ? (wide ? 0.6 : 1.5) : 1,
+          })}
+      ${FootPlate(f, c, plate)}
+    </div>
+  </div>`;
+};
+
+/* Two faces printed on ONE side, which is three different pictures:
+     split      the card is turned ninety degrees and read as two half-cards
+                side by side under one illustration. Scryfall's crop is of the
+                whole card, so it is drawn once across the top rather than
+                invented twice.
+     adventure  one card with its rules box halved — the adventure on the left
+                with its own name, cost and type, the creature's rules on the
+                right. `prepare` prints the same way.
+     flip       the second face is the same card upside down, so it is drawn
+                upside down: rotate-180 on the lower block, which is what the
+                printed card does to the reader. */
+const PairedSide = (c, bg, plate, treat, layout) => {
+  const [a, b] = c.faces;
+  if (layout === 'split') return `
+    <div class="flex h-full w-full flex-col overflow-hidden rounded p-1.5 text-[3.4cqw] ${c.foil ? 'foil' : ''}"
+      style="background:${bg};color:${ink(lum(bg))}">
+      <!-- 7/1.7, not the 7/2.2 first drawn. A split card is landscape, so it has
+           only 0.714W of height to divide, and an art strip at 7/2.2 was taking
+           44% of it and squeezing both rules columns into what was left — which
+           showed up as four of six samples clipping. The lever is the strip, not
+           the type size: the printed card's art is nearer a third of the card,
+           and taking 10% of the height off it gives the columns beneath about a
+           third more room. -->
+      ${ArtWindow(c, 0, 'mb-1 w-full shrink-0 aspect-[7/1.7]')}
+      <div class="flex min-h-0 flex-1 gap-1.5">
+        ${[a, b].map(f => `<div class="flex min-w-0 flex-1 flex-col">
+          ${TitlePlate(f, c, plate)}
+          ${TypePlate(f, c, plate, 'mt-1')}
+          ${RulesPlate(f, c, plate, { cls: 'mt-1 flex-1', room: 0.5 })}</div>`).join('')}
+      </div>
+      ${FootPlate(a, c, plate)}
+    </div>`;
+  if (layout === 'flip') return `
+    <div class="flex h-full w-full flex-col overflow-hidden rounded p-1.5 text-[4.91cqw] ${c.foil ? 'foil' : ''}"
+      style="background:${bg};color:${ink(lum(bg))}">
+      ${TitlePlate(a, c, plate)}
+      ${TypePlate(a, c, plate, 'mt-1')}
+      ${RulesPlate(a, c, plate, { cls: 'mt-1 flex-1', room: 0.75 })}
+      ${ArtWindow(c, 0, 'my-1 w-full shrink-0 aspect-[5/2.6]')}
+      <div class="rotate-180">
+        ${TitlePlate(b, c, plate)}
+        ${TypePlate(b, c, plate, 'mt-1')}
+        ${RulesPlate(b, c, plate, { cls: 'mt-1 flex-1', room: 0.75 })}
+      </div>
+      ${FootPlate(a, c, plate)}
+    </div>`;
+  // adventure and prepare: one frame, a rules box split in two
+  return `
+    <div class="flex h-full w-full flex-col overflow-hidden rounded p-1.5 text-[4.91cqw] ${c.foil ? 'foil' : ''}"
+      style="background:${bg};color:${ink(lum(bg))}">
+      ${TitlePlate(a, c, plate)}
+      ${ArtWindow(c, 0, 'my-1 w-full shrink-0 aspect-[5/3.52]')}
+      ${TypePlate(a, c, plate)}
+      <div class="mt-2.5 flex min-h-0 flex-1 gap-1">
+        <div class="flex min-w-0 flex-1 flex-col rounded-sm" style="${plate}">
+          ${TitlePlate(b, c, plate, 'text-[0.85em]')}
+          ${TypePlate(b, c, plate, 'mt-0.5 text-[0.85em]')}
+          ${RulesPlate(b, c, plate, { cls: 'mt-0.5 flex-1', room: 0.4 })}
+        </div>
+        ${RulesPlate(a, c, plate, { cls: 'min-w-0 flex-1', room: 0.5 })}
+      </div>
+      ${FootPlate(a, c, plate)}
+    </div>`;
+};
+
+/* `side` opens the card on that face instead of the front. Only the anatomy
+   page's compare mode passes it: a two-sided card has to be checked a side at a
+   time against the printed article, and a flip you have to remember to click on
+   both halves is a comparison that goes out of step. The button still works
+   afterwards — this sets the starting state, it does not replace it. */
+const MockCard = (c, fit, side) => {
+  const layout = c.layout || 'normal';
+  const treat = c.treat || 'framed';
   const bg = frameOf(c);
   const plate = `background:color-mix(in srgb, ${bg} 45%, #000);color:${ink(lum(bg) * 0.45)}`;
-  const atk = (c.atk || []).map(a => a.n + (a.t || '')).join(' ');
-  const size = textFit((c.text || '').length + atk.length + (c.flav || '').length);
+  const wide = LANDSCAPE.has(layout);
+  const sided = SIDED.has(layout) && twoFaced(c);
+  /* Nothing for a frame to hold, so the scan IS the render. It still goes
+     through the same wrapper and the same flip button — an art series card has
+     two genuinely different sides and turning it over is the point of it.
+     No art id and there is no scan to fall back TO, so the empty frame stands:
+     that is the mock rows and anything hand-built, never the catalogue. */
+  const scan = !framable(c) && !!c.art_id;
+  const paired = PAIRED.has(layout) && twoFaced(c) && !scan;
+  const draw = (i, dbg, dplate) => (scan ? PrintedFace(c, i) : CardSide(c, i, dbg, dplate, treat, layout));
   /* The black edge is padding on a wrapper, not a border: border-width takes no
      percentage, so the real component's fixed 7.84px (3.5% of its fixed w-56) can't
      follow a card that's now as wide as its grid track. Percentage padding resolves
-     against width, so it stays 3.5% at any size. */
+     against width, so it stays 3.5% at any size. A borderless printing is exactly
+     the card that has none of it. */
+  // a scan already carries its own printed border, so the wrapper adds none
+  const edge = treat === 'borderless' || scan ? 'p-0' : 'p-[3.5%]';
+  const body = paired ? PairedSide(c, bg, plate, treat, layout)
+    : sided
+      /* Both sides are DRAWN, one is hidden, and the corner button swaps which:
+         no state, no re-render, and it works identically in the grid, the binder
+         and the draw window because the card carries its own flip. The back's
+         frame colour is its own — a transform's back is routinely a different
+         colour from its front, and inheriting the front's was the tell. */
+      ? `<div class="side-a h-full w-full">${draw(0, bg, plate)}</div>
+         <div class="side-b h-full w-full">${(() => {
+           const back = faceAt(c, 1);
+           const bbg = frameOf({ col: back.col, energy: c.energy });
+           return draw(1, bbg, `background:color-mix(in srgb, ${bbg} 45%, #000);color:${ink(lum(bbg) * 0.45)}`);
+         })()}</div>
+         <!-- In the ART WINDOW's top corner, not the title bar's: the title bar's
+              right end is where the mana cost is drawn, and the first position
+              tried put the button straight on top of it. Below the title plate is
+              illustration under every treatment there is, including the full-art
+              ones where the illustration is the whole card. -->
+         <button onclick="event.stopPropagation();this.closest('[data-anat]').classList.toggle('flipped')"
+           title="Turn the card over" aria-label="Turn the card over"
+           class="anat-flip absolute right-[7%] top-[15%] z-20 flex h-[8%] w-[8%] cursor-pointer items-center justify-center rounded-full border border-black/40 bg-black/60 text-[0.6em] text-white">&#8635;</button>`
+      : draw(0, bg, plate);
   return `
-  <div title="${jsArg(c.n)}" style="container-type:inline-size"
-    class="relative aspect-[5/7] ${fit ? 'h-full w-auto' : 'w-full'} overflow-hidden rounded-lg bg-black/70 p-[3.5%] shadow-lg">
-   <div style="background:${bg};color:${ink(lum(bg))}"
-    class="flex h-full w-full flex-col overflow-hidden rounded p-1.5 text-[4.91cqw] ${c.foil ? 'foil' : ''}">
-    <div class="flex items-center justify-between gap-1 rounded-md px-1.5 py-0.5" style="${plate}">
-      <span class="truncate font-bold leading-tight ${nameFit((c.n || '').length + 2 * ((c.cost || []).length + (c.hp ? 3 : 0)))}">${c.n}</span>
-      <span class="flex shrink-0 items-center gap-0.5">${c.hp
-        ? `<span class="text-[1em] font-bold">${c.hp} HP</span>`
-        : (c.cost || []).map(facePip).join('')}</span>
-    </div>
-    <div class="my-1 aspect-[5/3.52] w-full shrink-0 overflow-hidden rounded border border-black/20 bg-black/10">
-      ${!c.art_id ? '<div class="flex h-full w-full items-center justify-center text-[0.82em] italic opacity-50">no art loaded</div>'
-        : `<img src="${artUrl(c)}" alt="" loading="lazy" class="h-full w-full ${
-            c.energy ? 'object-cover object-[50%_22%]' : 'object-cover'}">`}
-    </div>
-    <div class="relative z-10 -my-2.5 flex items-center gap-1 rounded-md px-1.5 py-0.5 font-semibold ${
-      typeFit((c.type || UNK).length + 3)}" style="${plate}">
-      <span class="min-w-0 flex-1 truncate">${c.type || UNK}</span>
-      ${rarityMark(c)}
-    </div>
-    <div class="mt-2.5 flex flex-1 flex-col justify-between overflow-hidden rounded-sm px-1 py-0.5 leading-snug ${size}" style="${plate}">
-      <div>
-        ${c.text ? `<p class="whitespace-pre-line">${symbolise(c.text)}</p>` : ''}
-        ${(c.atk || []).map(a => `
-          <div class="mt-0.5 flex items-baseline justify-between gap-1">
-            <span class="flex items-center gap-0.5">${(a.cost || []).map(energyPip).join('')}<span class="ml-0.5 font-semibold">${a.n}</span></span>
-            ${a.dmg ? `<span class="font-bold">${a.dmg}</span>` : ''}</div>
-          ${a.t ? `<p class="opacity-80">${symbolise(a.t)}</p>` : ''}`).join('')}
-      </div>
-      ${!c.flav ? '' : `<div><hr class="my-1 border-black/50"><p class="italic opacity-70">${c.flav}</p></div>`}
-    </div>
-    <div class="mt-0 flex items-center justify-between gap-1 rounded-sm px-1 py-0.5 text-[0.73em]" style="${plate}">
-      <span class="truncate">${[
-        c.set && `<span class="uppercase">${c.set}${c.num ? ` ${c.num}` : ''}</span>`,
-        c.lang && `<span class="${c.lang === 'en' ? '' : 'font-bold'}">${c.lang}</span>`,
-        c.art && `Illus. ${c.art}`,
-      ].filter(Boolean).join(' &middot; ') || '<span class="opacity-40">no printing</span>'}</span>
-      ${c.pt ? `<span class="shrink-0 rounded-sm border border-black/30 bg-black/20 px-1 text-[0.95em] font-bold">${c.pt}</span>` : ''}
-      ${c.loy ? `<span class="shrink-0 rounded-full border border-black/30 bg-black/40 px-1.5 text-[0.95em] font-bold">${c.loy}</span>` : ''}
-      ${c.retreat ? `<span class="flex shrink-0 items-center gap-0.5" title="Retreat cost">${
-        Array.from({ length: c.retreat }, () => energyPip('Colorless')).join('')}</span>` : ''}
-    </div>
-   </div>
+  <div title="${jsArg(c.n)}" data-anat="${layout}/${treat}" style="container-type:inline-size"
+    class="relative ${wide ? 'aspect-[7/5]' : 'aspect-[5/7]'} ${fit ? 'h-full w-auto' : 'w-full'} overflow-hidden rounded-lg bg-black/70 ${edge} shadow-lg ${side ? 'flipped' : ''}">
+    ${body}
   </div>`;
 };
 
@@ -2541,7 +3073,7 @@ async function reveal() {
 
     // 5 — and it deals itself out, tracking the scroll as it goes
     const order = deck.map((c) => pile.find((it) => it.id === c.id)).filter(Boolean);
-    let sent = 0;
+    let sent = 0, lastFrame = 0;
     const dealFrom = performance.now();
     const deal = (now) => {
       if (!running || !P.draw || !P.draw.all) return finish();
@@ -2555,8 +3087,15 @@ async function reveal() {
       sx = gridBox.left + mid - at - size.w / 2;
       sy = gridBox.top + gridBox.h / 2 - size.h / 2;
       swing = Math.max(20, (gridBox.h - size.h) * STACK_SWING);
+      const dt = lastFrame ? now - lastFrame : 16.67;
+      lastFrame = now;
       const want = Math.floor((now - dealFrom) / DEAL_MS) + 1;
-      while (sent < order.length && sent < want) {
+      /* ...and no more than BURST of them in any one frame. After a stall the
+         clock says a dozen cards are due at once, and launching a dozen is
+         another long frame, which makes the next backlog bigger — the jank
+         feeds itself. Capped, the deal simply runs a few milliseconds long. */
+      let started = 0;
+      while (sent < order.length && sent < want && started++ < BURST) {
         const it = order[sent++];
         it.slot = slots.get(it.id) || null;
         if (!it.slot) { it.landed = true; it.g.remove(); continue; }
@@ -2568,7 +3107,7 @@ async function reveal() {
       const lead = order[Math.max(0, sent - 1)];
       if (lead && lead.slot) {
         const to = Math.max(0, lead.slot.offsetLeft - (grid.clientWidth - lead.slot.offsetWidth) / 2);
-        grid.scrollLeft += (to - grid.scrollLeft) * 0.08;
+        grid.scrollLeft += (to - grid.scrollLeft) * ease(dt, 0.08);
       }
       if (sent < order.length || pile.some((it) => !it.landed)) return requestAnimationFrame(deal);
       finish();
@@ -2605,9 +3144,8 @@ function revealSequential(fromRight) {
   render();                                      // once, and once only
   const order = fromRight ? [...cards].reverse() : cards;
   const box = document.querySelector(`[${SCROLL_KEEP}]`);
-  const step = 70;
   let turned = 0;
-  let t0 = 0;                       // set on the first frame, not before it
+  let t0 = 0, lastFrame = 0;        // set on the first frame, not before it
   /* The old sweep re-rendered the WHOLE PAGE per card and then asked
      scrollIntoView to smooth-scroll to it — eighty-four full rebuilds, each
      throwing away the scroll the one before it had started animating, and
@@ -2619,8 +3157,14 @@ function revealSequential(fromRight) {
     if (!P.draw || !P.draw.all) return;           // closed, or switched view
     if (!t0) t0 = now;              // the clock starts when the frames do
     const t = now - t0;
-    const want = Math.min(order.length, Math.floor(t / step) + 1);
-    while (turned < want) {
+    const dt = lastFrame ? now - lastFrame : 16.67;
+    lastFrame = now;
+    const want = Math.min(order.length, Math.floor(t / SWEEP_MS) + 1);
+    // capped per frame for the same reason as the deal: swapping a card's
+    // markup is the expensive part, and a backlog of them in one frame is what
+    // makes the next backlog worse
+    let flipped = 0;
+    while (turned < want && flipped++ < BURST) {
       const c = order[turned++];
       P.draw.shownAll.push(c.id);
       markSeen(c.id);                 // the sidebar's tally fills as the sweep runs
@@ -2629,10 +3173,12 @@ function revealSequential(fromRight) {
     }
     const at = box && box.querySelector(`[data-card-id="${order[turned - 1].id}"]`);
     if (box && at) {
-      const want = Math.max(0, at.offsetLeft - (box.clientWidth - at.offsetWidth) / 2);
-      box.scrollLeft += (want - box.scrollLeft) * 0.12;      // ease, never jump
+      const to = Math.max(0, at.offsetLeft - (box.clientWidth - at.offsetWidth) / 2);
+      box.scrollLeft += (to - box.scrollLeft) * ease(dt, 0.12);   // ease, never jump
     }
-    if (t < order.length * step + 900) return requestAnimationFrame(tick);
+    // the cap can push the last card past the clock, so the end is the CARDS
+    // being turned, not the time being up — a clock-only exit cut the sweep short
+    if (turned < order.length || t < order.length * SWEEP_MS + 900) return requestAnimationFrame(tick);
     render();                                     // the header's count, at the end
   };
   /* STAGE 5 — a beat, then the frames. The pool has only just been laid out;
@@ -2657,8 +3203,15 @@ function keepDraw() {
   const cards = pool();
   let name = `${P.draw.set} draft`;
   for (let i = 2; LISTS.decks.some(([n]) => n === name); i++) name = `${P.draw.set} draft ${i}`;
+  /* THE CARDS GO IN THE ROW. They were computed here and thrown away, so the
+     deck arrived with the right counts printed on it and the mock rows inside —
+     the pool you had just spent five minutes opening was gone. Index 4 is the
+     membership; `scopedCards` reads it, and nothing else in the row renderer
+     goes past index 3. Copied with qty 0: a drafted pool is cards you have seen,
+     not cards you own, and that zero is the shopping list. */
   LISTS.decks.unshift([name, cards.length, `${new Set(cards.map((c) => c.n)).size} distinct`,
-    `${P.draw.n} &times; ${packLabel(P.draw.kind)} &middot; ${MODES.find(([m]) => m === P.draw.mode)[1]}`]);
+    `${P.draw.n} &times; ${packLabel(P.draw.kind)} &middot; ${MODES.find(([m]) => m === P.draw.mode)[1]}`,
+    cards.map((c) => ({ ...c, qty: 0 }))]);
   P.draw = null; P.ask = null; P.drawBack = null;
   location.hash = '#/decks'; render(); selectItem(name);
 }
@@ -2938,9 +3491,26 @@ function tearOpen(el, delay = 0) {
 const GHOST_SCALE = 0.8;         // small enough to hide inside any wrapper art
 const FLY_MS = 900;
 const OPEN_MS = 900;             // cap on the tear if it cannot be asked
-const DEAL_MS = 55;              // one card off the stack to the next
+const DEAL_MS = 90;              // one card off the stack to the next
+const SWEEP_MS = 110;            // ...and one card to the next in the reveal sweep
+const BURST = 3;                 // most cards any ONE frame may start
 const BEAT = 140;                // the gap between one stage and the next
 const HOLD = 300;                // the longer gap before the reveal sweep starts
+
+/* EASING HAS TO BE A FUNCTION OF TIME, NOT OF FRAMES, and this is the whole of
+   why the pool trailed the cards being dealt into it.
+
+   Both loops pick WHICH card to send from the clock — `(now - start) / DEAL_MS`
+   — and both used to move the scroll a fixed fraction per frame. Those two
+   disagree the moment a frame is dropped: the cards keep leaving on schedule
+   because their schedule is real time, while the scroll only advances once per
+   frame, so at 30fps it travels half as far in the same second. The view falls
+   behind precisely when the deal is heaviest, which reads as the grid lagging
+   the cards, and no amount of tuning the constant fixes it — it is the units.
+
+   Compounding per millisecond instead makes a dropped frame cost nothing: two
+   frames' worth of time in one frame moves two frames' worth of distance. */
+const ease = (dt, k) => 1 - Math.pow(1 - k, Math.min(dt, 100) / 16.67);
 
 /* STAGE TIMING, and why it is not a list of setTimeouts.
 
@@ -3812,52 +4382,118 @@ PAGES.io = () => Frame('io', {
 });
 
 /* ======================= CONFIG ======================================= */
-/* One row per source, four slots in the same order every time: what it gives,
-   local or online, which variant, and what that costs on each side. The costs
-   sit under the chip they belong to, so "why is art online" is answered in the
-   row rather than in a paragraph underneath. */
+/* One row per source, and the row now answers three questions in the order
+   somebody actually asks them:
+
+     1. is it here?      a status chip, from serve.py's view of the disk
+     2. where from?      Local / Online, the choice
+     3. what will it cost, and what do I type to get it?
+
+   It used to answer only (2) and (3), and (3) with a hand-typed sentence per
+   side that had drifted from the truth on five of the eight rows. "Is it here"
+   was not answerable at all, which is the question that decides whether the
+   app works on a train. */
+const DiskChip = (k) => {
+  const s = SOURCES[k], have = onDisk(k);
+  if (have === null) return `<span class="rounded-full border border-neutral-800 px-2 py-0.5 text-[10px] text-neutral-600"
+    title="serve.py answers this; run it, or this is check.mjs with no server">not checked</span>`;
+  if (!have) return `<span class="rounded-full border border-amber-800/60 bg-amber-950/20 px-2 py-0.5 text-[10px] text-amber-500/90"
+    title="${esc(s.file(CFG.src[k].q))}">not fetched</span>`;
+  // a directory that holds a tenth of what it should is not "on disk", and
+  // saying so is the whole reason the count is carried through from serve.py
+  const part = have.of && have.n < have.of;
+  return `<span class="rounded-full border ${part ? 'border-amber-800/60 bg-amber-950/20 text-amber-500/90'
+      : 'border-emerald-800/60 bg-emerald-950/20 text-emerald-400/90'} px-2 py-0.5 text-[10px]"
+    title="${esc(s.file(CFG.src[k].q))} &mdash; ${bytes(have.bytes)}, ${ago(have.mtime)}">${
+    have.of ? `${num(have.n)} of ${num(have.of)}` : 'on disk'} &middot; ${bytes(have.bytes)}</span>`;
+};
+
 const SourceRow = (k) => {
   const s = SOURCES[k], c = CFG.src[k], out = c.at === 'online';
   const side = (at, label) => s[at]
     ? `<span onclick="setSrc('${k}','${at}')">${chip(label, c.at === at ? '+' : '')}</span>`
     : `<span class="${CHIP_NEUTRAL} cursor-default opacity-30" title="${esc(s.why)}">${label}</span>`;
-  const cost = (at) => typeof s[at] === 'function' ? s[at]() : s[at];
+  const cmd = s.cmd(c.q);
+  const have = onDisk(k);
   return `<div class="mb-2 rounded border ${out ? 'border-sky-900/70 bg-sky-950/20' : 'border-neutral-800 bg-neutral-900'} px-3 py-2">
     <div class="flex flex-wrap items-center gap-2 text-xs">
       <span class="w-28 shrink-0 font-medium text-neutral-200">${s.name}</span>
       <span class="min-w-0 flex-1 truncate text-[11px] text-neutral-500">${s.gives}</span>
+      ${DiskChip(k)}
       <span class="flex shrink-0 gap-1.5">${side('local', 'Local')}${side('online', 'Online')}</span></div>
     <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
       <span class="w-28 shrink-0 text-[10px] uppercase tracking-wide text-neutral-600">quality</span>
-      ${s.q.map(([v, d]) => `<span onclick="setQuality('${k}','${v}')" class="text-xs">${
-        chip(v, c.q === v ? '+' : '', d ? ` <span class="text-neutral-600">${d}</span>` : '')}</span>`).join('')}</div>
+      ${s.q.map(([v, d, b]) => `<span onclick="setQuality('${k}','${v}')" class="text-xs">${
+        chip(v, c.q === v ? '+' : '', ` <span class="text-neutral-600">${
+          bytes(b * (s.units || 1))}${d ? ` &middot; ${d}` : ''}</span>`)}</span>`).join('')}</div>
     <div class="mt-1.5 flex flex-wrap gap-x-2 font-mono text-[10px]">
       <span class="w-28 shrink-0 uppercase tracking-wide ${out ? 'text-neutral-700' : 'text-neutral-600'}">local</span>
-      <span class="min-w-0 flex-1 ${out ? 'text-neutral-700' : 'text-neutral-500'}">${cost('local')}</span></div>
+      <span class="min-w-0 flex-1 ${out ? 'text-neutral-700' : 'text-neutral-500'}">${
+        bytes(srcBytes(k))}${s.units > 1 ? ` over ${num(s.units)} files` : ''} &middot; ${s.local}${
+        have && have.bytes ? ` &mdash; <span class="text-emerald-600">${bytes(have.bytes)} here, ${ago(have.mtime)}</span>` : ''}</span></div>
     <div class="flex flex-wrap gap-x-2 font-mono text-[10px]">
       <span class="w-28 shrink-0 uppercase tracking-wide ${out ? 'text-sky-700' : 'text-neutral-700'}">online</span>
       <span class="min-w-0 flex-1 ${out ? 'text-sky-400/80' : 'text-neutral-700'}">${s.online || '&mdash; ' + s.why}</span></div>
+    <!-- The command, because this page is static and CANNOT download anything.
+         It used to carry a "Download & cache now" button that did nothing, which
+         is worse than no button: it says the job is one click away when it is
+         one paste away. -->
+    <div class="mt-1 flex flex-wrap gap-x-2 font-mono text-[10px]">
+      <span class="w-28 shrink-0 uppercase tracking-wide text-neutral-700">to fetch</span>
+      <span class="min-w-0 flex-1 ${cmd ? 'text-neutral-400' : 'text-neutral-700'}">${
+        cmd ? `<code>${esc(cmd)}</code>` : `&mdash; ${s.why_local || s.why}`}</span></div>
   </div>`;
 };
 
 PAGES.config = () => Frame('config', {
-  desc: '<span class="text-neutral-200">Config.</span> Two columns: <span class="text-neutral-300">where data comes from and where it lives</span> on the left, <span class="text-neutral-300">how the app behaves</span> on the right. Every row is a constant that exists in the repo today with no way to see or change it.',
+  desc: '<span class="text-neutral-200">Config.</span> Two columns: <span class="text-neutral-300">where data comes from and where it lives</span> on the left, <span class="text-neutral-300">how the app behaves</span> on the right. The source rows are live &mdash; the sizes are derived from bytes-per-unit rather than typed, and the status chip is <code>serve.py</code> looking at the actual disk. Everything on the right is still a constant that exists in the repo with no way to change it.',
   body: `<div class="grid items-start gap-5 xl:grid-cols-2">
 
     <!-- ================= COLUMN A — DATA ================= -->
     <div class="${PANEL} px-4 pt-4">
 
       ${Band('sources', `
-        <p class="mb-3 text-[11px] text-neutral-500">Eight sources, one shape. <span class="text-neutral-300">Local</span> is a file in <code>data/</code> you can work from with the network off; <span class="text-neutral-300">Online</span> is somebody else&rsquo;s server answering per request. Where one of the two doesn&rsquo;t exist the chip says why rather than going missing. The importer is <span class="text-neutral-300">MTGJSON-primary</span>: it streams AllPrintings and cross-references Scryfall by <code>identifiers.scryfallId</code>.</p>
-        ${Object.keys(SOURCES).map(SourceRow).join('')}
-        <div class="flex flex-wrap items-center gap-2">
-          <button class="${BTN_PRIMARY}">Download &amp; cache now</button>
-          <button class="${BTN_SECONDARY}">Verify against upstream</button>
-          <span class="text-[10px] text-neutral-600">802 MB of files &rarr; data/ &mdash; art is counted per source, not here</span></div>
-        <p class="mt-2 text-[11px] text-amber-400/90">Two of these are online by default and it is not an oversight. Card art at 108k &times; 100 KB is ${bytes(MTG_CARDS * 1e5)} and Scryfall asks you to hotlink it; pack art is ${bytes(PACK_COUNT * 26e3)}, small enough to cache, and the only reason it isn&rsquo;t is that nothing has needed it offline yet. <span class="text-neutral-500">The image rows are live &mdash; changing a size re-requests the art on every page.</span></p>`,
+        <p class="mb-2 text-[11px] text-neutral-500">Eight sources, one shape. <span class="text-neutral-300">Local</span> is a file on this disk you can work from with the network off; <span class="text-neutral-300">Online</span> is somebody else&rsquo;s server answering per request. Where one of the two doesn&rsquo;t exist the chip says why rather than going missing. The importer is <span class="text-neutral-300">MTGJSON-primary</span>: it streams AllPrintings and cross-references Scryfall by <code>identifiers.scryfallId</code>.</p>
+
+        <!-- THE OFFLINE CONTROL, above the rows rather than below them: "can I
+             use this with the network off" is the question the whole band is
+             for, and it was previously answerable only by reading eight rows
+             and doing the arithmetic yourself. Two buttons because the two
+             answers are 140 GB apart and that is not a default anyone should
+             pick on your behalf. -->
+        <div class="mb-3 rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2.5">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-xs font-medium text-neutral-200">Work offline</span>
+            ${Object.entries(OFFLINE_MODES).map(([m, o]) => `
+              <button onclick="goOffline('${m}')" class="${BTN_SECONDARY}">${o.label}
+                <span class="ml-1 tabular-nums text-neutral-500">${bytes(offlineBytes(m))}</span></button>`).join('')}
+            <button onclick="goOnline()" class="${BTN_SECONDARY} ml-auto">Back to defaults</button>
+          </div>
+          <p class="mt-2 text-[11px] ${allLocal() ? 'text-emerald-400/90' : 'text-neutral-500'}">${
+            allLocal()
+              ? 'Every source that has a local side is set to it. Nothing on this page needs the network.'
+              : `<span class="text-neutral-300">${onlineNow().length} of 8 still online</span> &mdash; ${
+                  onlineNow().map(k => SOURCES[k].name).join(', ')}. ${
+                  MISSING_LOCAL.map(k => SOURCES[k].name).join(' and ')} is not counted &mdash; it cannot go local at all: ${
+                  MISSING_LOCAL.map(k => SOURCES[k].why_local).join('; ')}.`}</p>
+          <p class="mt-1 text-[11px] text-neutral-600">Setting a size does not fetch it &mdash; this page is static and downloads nothing. Each row carries the command that does, and a file that was never fetched falls through to the CDN rather than breaking the picture.</p>
+        </div>
+
+        ${['data', 'images'].map(kind => `
+          <div class="mb-1 flex items-baseline gap-2 px-1">
+            <span class="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">${
+              kind === 'data' ? 'catalogue data' : 'pictures'}</span>
+            <span class="text-[10px] text-neutral-600">${kind === 'data'
+              ? 'megabytes, and the app is wrong without them'
+              : 'gigabytes, and the app draws a frame without them'}</span>
+            <span class="ml-auto text-[10px] font-mono text-neutral-600">${
+              bytes(Object.keys(SOURCES).filter(k => SOURCES[k].kind === kind)
+                .reduce((n, k) => n + srcBytes(k), 0))} at the sizes set below</span>
+          </div>
+          ${Object.keys(SOURCES).filter(k => SOURCES[k].kind === kind).map(SourceRow).join('')}`).join('')}`,
         { note: 'what comes from where', right: `<span class="text-[10px] font-mono ${
-          Object.values(CFG.src).some(c => c.at === 'online') ? 'text-sky-400' : 'text-neutral-600'}">${
-          Object.values(CFG.src).filter(c => c.at === 'online').length}/8 online</span>` })}
+          allLocal() ? 'text-emerald-400' : 'text-sky-400'}">${
+          allLocal() ? 'offline ready' : `${onlineNow().length}/8 online`}</span>` })}
 
       ${Band('schema source map', `
         <div class="mb-1 flex items-center gap-2 px-1 text-[10px] font-semibold uppercase tracking-wide text-neutral-600">
@@ -3945,7 +4581,8 @@ PAGES.config = () => Frame('config', {
           Show the resolved scope, sort, grouping and SQL on every page</label>
         <div class="mt-3 flex flex-wrap items-center gap-2">
           <a href="#/kit" class="${BTN_SECONDARY}">Control kit</a>
-          <span class="text-[11px] text-neutral-600">Every control rendered once &mdash; the reference the pages are checked against. Not a user-facing page, which is why it&rsquo;s no longer in the nav.</span></div>`)}
+          <a href="#/anatomy" class="${BTN_SECONDARY}">Card anatomy</a>
+          <span class="text-[11px] text-neutral-600">Every control rendered once, and ${ANATOMY_SAMPLES} printings of every shape of card there is &mdash; the two references the pages are checked against. Neither is user-facing, which is why they are not in the nav.</span></div>`)}
 
       <div class="pb-4"></div>
     </div>
@@ -3992,6 +4629,188 @@ function pickGame(k) {
   location.hash = '#/' + NAV[0][0];
   render();
 }
+
+/* ======================= CARD ANATOMY ==================================
+   Six of every shape of card there is, so "does the frame hold" is a thing you
+   can LOOK AT rather than reason about. It is the same argument as the control
+   kit one page down — a mock only the kit renders is a mock of a mock — applied
+   to the half of the catalogue the mock rows never covered.
+
+   The classes are counted off the real catalogue, not listed here. A hand-typed
+   list of layouts is a list that silently stops matching the data the first
+   time Wizards prints something new, and they do: `prepare` and `case` are both
+   younger than this app, and neither needed a code change to appear below. */
+const ANATOMY_SAMPLES = 6;
+const anatomyKey = c => `${c.layout || 'normal'} | ${c.treat || 'framed'}`;
+let ANATOMY = null, ANATOMY_OF = null;
+const anatomyClasses = () => {
+  const all = ALL();
+  if (ANATOMY_OF === all) return ANATOMY;      // one pass per catalogue, not per render
+  const total = new Map();
+  for (const c of all) total.set(anatomyKey(c), (total.get(anatomyKey(c)) || 0) + 1);
+  /* The six are STRIDED across the class, not taken off the front. The
+     catalogue arrives in Scryfall's bulk order, which is near enough set order,
+     so the first six of anything are six cards from one set printed the same
+     week — which is the one sample that cannot show you whether the frame
+     survives the range. Every (n/6)th printing spans it instead. */
+  const seen = new Map(), out = new Map();
+  for (const c of all) {
+    const k = anatomyKey(c), n = total.get(k), i = seen.get(k) || 0;
+    seen.set(k, i + 1);
+    if (!out.has(k)) out.set(k, { k, n, s: [], nf: 0, layout: c.layout || 'normal', treat: c.treat || 'framed' });
+    const e = out.get(k);
+    if (!framable(c)) e.nf++;                    // how much of the class has no frame to draw
+    if (e.s.length < ANATOMY_SAMPLES && i >= Math.floor(e.s.length * n / ANATOMY_SAMPLES)) e.s.push(c);
+  }
+  ANATOMY_OF = all;
+  ANATOMY = [...out.values()].sort((a, b) => b.n - a.n);
+  return ANATOMY;
+};
+
+/* What each class is SUPPOSED to look like, so a wrong render is recognisable
+   as wrong. Without this the page is 51 rows of cards and no way to tell a
+   layout that is drawing correctly from one that is drawing plausibly. */
+const LAYOUT_NOTE = {
+  normal: 'one face, art in a window',
+  token: 'no mana cost, no collector rarity to speak of',
+  art_series: 'two sides, both of them art — the back is the signed print',
+  front_card: 'a Jumpstart theme divider: a name, a picture and a colour',
+  transform: 'two sides, turn it over; the back is often a different colour',
+  modal_dfc: 'two sides, either one castable — neither is "the back"',
+  double_faced_token: 'two sides, both tokens',
+  reversible_card: 'two sides of the same card, printed twice',
+  saga: 'a numbered chapter track instead of a paragraph',
+  class: 'levels you pay to unlock, banded down the box',
+  leveler: 'three stat bands, one per level',
+  planar: 'read sideways — a plane, not a card you cast',
+  scheme: 'read sideways — an Archenemy scheme',
+  split: 'two half-cards side by side, read sideways',
+  adventure: 'the rules box halved: the adventure on the left',
+  prepare: 'same shape as an adventure — a newer name for it',
+  flip: 'the second face is the same card upside down',
+  meld: 'a half of a bigger card; the other half is a different printing',
+  emblem: 'no cost, no type line worth the name',
+  mutate: 'ordinary frame, the mutate cost is in the rules',
+  prototype: 'ordinary frame, a second smaller cost in the rules',
+  vanguard: 'no cost; hand and life modifiers instead of P/T',
+  host: 'an Unstable host half',
+  augment: 'an Unstable augment half — the name is deliberately unfinished',
+  case: 'ordinary frame, three-part rules',
+};
+const TREAT_NOTE = {
+  framed: 'art inside its window',
+  showcase: 'an alternate frame, same anatomy',
+  extendedart: 'art runs out to the left and right edges, frame intact',
+  borderless: 'no black edge at all',
+  fullart: 'art is the whole card and the text sits on top of it',
+  textless: 'art is the whole card and there is no rules box',
+};
+
+/* COMPARE MODE — the drawn card beside the printed one, at the same width.
+   Judging "does this render well" against nothing is judging it against memory,
+   and memory is generous. Side by side, an orientation that is ninety degrees
+   out or a plate in the wrong third of the card is obvious at a glance.
+
+   The printed card is `normal` (488x680, the whole card) while the art window
+   is `art_crop` (the illustration alone) — two different sizes of the same id,
+   needed at the same time, which is why artUrl takes an explicit one.
+
+   A two-sided card is shown a SIDE AT A TIME rather than with a flip: two
+   flips that have to be kept in step is a comparison that silently goes out of
+   step. `MockCard`'s third argument opens it on the matching face. */
+/* THE SCAN IS NORMALISED AND THE CARD IS NOT. Every Scryfall image is 488x680
+   portrait — measured, all 24 layouts — which means a Plane, a Scheme and a
+   split card, all of which you physically turn sideways to read, are served as
+   that landscape card ROTATED INTO a portrait frame. Put one beside a landscape
+   render and it looks like the render got the orientation wrong; it is the scan
+   that is turned, and this rotates it back so the two are actually comparable.
+
+   The numbers fall out rather than being tuned: rotated, the image's visual
+   width is its unrotated HEIGHT, so to fill a container of width W it needs an
+   unrotated width of W x 488/680 = 71.8%. The resulting 680/488 = 1.393 is what
+   `aspect-[7/5]` (1.4) was already drawing. */
+const ScanImage = (c, i) => LANDSCAPE.has(c.layout)
+  ? `<div class="relative aspect-[7/5] w-full">
+       <img src="${artUrl(c, i, 'normal')}" loading="lazy"${artAttrs(c, i, 'normal')} alt=""
+         class="absolute left-1/2 top-1/2 w-[71.8%] -translate-x-1/2 -translate-y-1/2 rotate-90 rounded-lg shadow-lg"></div>`
+  : `<img src="${artUrl(c, i, 'normal')}" loading="lazy"${artAttrs(c, i, 'normal')} alt=""
+       class="w-full rounded-lg shadow-lg">`;
+const AnatomyPair = (c, i) => `
+  <div class="flex min-w-0 gap-2">
+    <div class="min-w-0 flex-1">${MockCard(c, false, i)}</div>
+    <div class="min-w-0 flex-1">${ScanImage(c, i)}</div>
+  </div>`;
+const AnatomySample = (c) => {
+  // comparing a scan against itself: an unframable printing IS its scan, so a
+  // pair would be the same image twice
+  if (!P.compare || !framable(c)) return MockCard(c);
+  // every face gets its own pair: one for a single-sided card, two for a card
+  // you physically turn over. PAIRED layouts are one physical side, so one pair.
+  const sides = SIDED.has(c.layout) && twoFaced(c) ? [0, 1] : [0];
+  return sides.map(i => AnatomyPair(c, i)).join('<div class="h-2"></div>');
+};
+const setCompare = v => { P.compare = v; render(); };
+
+PAGES.anatomy = () => {
+  const classes = anatomyClasses();
+  const live = CATALOGUE && P.game === 'mtg';
+  const six = classes.filter(c => c.n >= ANATOMY_SAMPLES).length;
+  return Frame('anatomy', {
+    desc: `<span class="text-neutral-200">Card anatomy.</span> Every distinct shape of card in the catalogue, ${
+      ANATOMY_SAMPLES} printings of each. A class is <span class="text-neutral-300">layout &times; treatment</span> &mdash;
+      how many faces there are and where they sit, crossed with how the illustration relates to the frame.
+      Both are read off the source per printing; neither is inferred here.`,
+    body: `
+    <div class="${PANEL} mb-4 px-4 py-3 text-xs text-neutral-400">
+      ${live ? `<p><span class="font-mono text-neutral-200">${classes.length}</span> classes over
+        <span class="font-mono text-neutral-200">${num(ALL().length)}</span> printings &mdash;
+        <span class="font-mono text-neutral-200">${six}</span> of them have ${ANATOMY_SAMPLES} printings or more,
+        the rest show every printing they have.</p>`
+        : `<p class="text-amber-400/90">The catalogue has not loaded, so this is the ${classes.length}-class
+           view of the mock rows. Run <code>node gen-cards.mjs</code> and reload for the real ${'≈'}66.</p>`}
+      <p class="mt-1.5 text-[11px] text-neutral-600">A card with two sides draws both and shows one &mdash;
+        the <span class="text-neutral-400">&#8635;</span> in its top corner turns it over. Cards are strided across
+        their class, not taken off the front, so six samples are six different sets rather than six from one.</p>
+      <div class="mt-2 flex flex-wrap items-center gap-2">
+        <span class="text-xs text-neutral-400">Show</span>
+        <span onclick="setCompare(false)">${chip('drawn only', P.compare ? '' : '+')}</span>
+        <span onclick="setCompare(true)">${chip('beside the printed card', P.compare ? '+' : '')}</span>
+        <span class="text-[11px] text-neutral-600">${P.compare
+          ? 'Left is this app, right is Scryfall&rsquo;s scan of the same printing. A two-sided card is shown a side at a time, both pairs stacked.'
+          : `Needs the whole-card images: <code>node gen-art.mjs normal --anatomy</code> &mdash; 411 files, 41 MB.`}</span>
+      </div>
+    </div>
+    ${classes.map(a => `
+      <section class="${PANEL} mb-3 px-4 py-3">
+        <div class="mb-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <span class="font-mono text-sm font-semibold text-neutral-100">${a.layout}</span>
+          <span class="text-neutral-700">&times;</span>
+          <span class="font-mono text-sm ${a.treat === 'framed' ? 'text-neutral-400' : 'text-sky-300'}">${a.treat}</span>
+          <span class="text-xs tabular-nums text-neutral-500">${num(a.n)} printing${a.n === 1 ? '' : 's'}</span>
+          ${a.s.length < ANATOMY_SAMPLES
+            ? `<span class="text-[10px] text-amber-500/80">only ${a.s.length} exist${a.s.length === 1 ? 's' : ''}</span>` : ''}
+          <!-- Said on the class because it is a property OF the class, not a
+               fault in the render: these printings carry no cost, no type line
+               and no rules, so there is nothing a frame could put in them. -->
+          ${!a.nf ? '' : `<span class="rounded bg-fuchsia-500/15 px-1.5 py-0.5 text-[10px] text-fuchsia-300">${
+            a.nf === a.n ? 'no frame to draw' : `${num(a.nf)} of ${num(a.n)} have no frame to draw`
+            } &mdash; printed card shown</span>`}
+        </div>
+        <p class="mb-2.5 text-[11px] text-neutral-500">${LAYOUT_NOTE[a.layout] || 'no note written for this layout yet'}
+          <span class="text-neutral-700"> &middot; </span>${TREAT_NOTE[a.treat] || a.treat}</p>
+        <!-- GRID, not an interpolated grid-template-columns: build.mjs scans this
+             file as TEXT, so a class name assembled at runtime is a class Tailwind
+             never sees and never emits. Every arbitrary value on this page is a
+             literal for that reason. -->
+        <div class="grid gap-3 ${P.compare ? GRID[3] : GRID[ANATOMY_SAMPLES]}">
+          ${a.s.map(c => `<div>
+            ${AnatomySample(c)}
+            <div class="mt-1 truncate text-[10px] text-neutral-600" title="${jsArg(c.n)}">${
+              c.set} ${c.num} &middot; ${esc(c.n)}</div></div>`).join('')}
+        </div>
+      </section>`).join('')}`,
+  });
+};
 
 /* ---- control kit ------------------------------------------------------ */
 PAGES.kit = () => Frame('kit', {
@@ -4200,7 +5019,7 @@ PAGES.card = () => Frame(P.tab, {
     </div>`,
 });
 
-const ORDER = ['home', 'printings', 'binders', 'decks', 'io', 'search', 'card', 'config', 'kit', 'draw'];
+const ORDER = ['home', 'printings', 'binders', 'decks', 'io', 'search', 'card', 'config', 'kit', 'anatomy', 'draw'];
 let lastRoute = null;
 function render() {
   // ORDER is the whitelist, not just a list: an unknown hash lands on home
@@ -4273,6 +5092,7 @@ render();
 // 5 MB is in flight, and re-renders itself when the real catalogue lands
 loadCards();
 loadPackIndex();   // 3.4 KB: which booster kinds each set actually has
+loadDisk();        // what serve.py can see on disk, for Config's Local column
 </script>
 </body>
 </html>

@@ -191,3 +191,26 @@
    in a layout that does not exist until the answer is rendered, and a keyframe
    can state neither the size change nor a start it has not measured. */
 
+
+/* ---- double-faced cards ------------------------------------------------
+   A transform, a modal DFC, an art series card and a Secret Lair reversible
+   all have a second face on the OTHER SIDE of the card, so the only way to
+   read it is to turn the card over.
+
+   Both sides are rendered and one is hidden, rather than a state flag deciding
+   which to build. That is what lets the flip work everywhere MockCard is drawn
+   — grid, binder pocket, draw window, the card page — with no re-render and
+   nothing for a page to remember: the card carries its own side. It also means
+   the back's art is requested lazily like every other, so a page of 240 cards
+   does not pay for 240 backs nobody turned over.
+
+   Not a 3-D rotate. `transform-style: preserve-3d` on a card that is itself
+   inside a `zoom: 0.8` body and a `container-type: inline-size` wrapper stacks
+   three separate containing blocks, and the back arrived mirrored and a pixel
+   out on Chrome. A swap reads the same at this size and cannot go wrong. */
+[data-anat] .side-b { display: none; }
+[data-anat].flipped .side-a { display: none; }
+[data-anat].flipped .side-b { display: block; }
+/* The button is the affordance, so it must be visible against art of any
+   brightness — hence its own dark disc rather than a bare glyph. */
+.anat-flip:hover { background: rgb(0 0 0 / 0.85); }

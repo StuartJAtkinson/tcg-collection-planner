@@ -1,5 +1,19 @@
 // Fetch every booster photograph once and TRIM IT ON THE WAY IN.
-//   node gen-packs.mjs [size]        size: 200w (default) | in_1000x1000
+//   node gen-packs.mjs [size] [--force]   size: 200w (default) | in_1000x1000
+//
+// ONCE MEANS ONCE, AND THE MANIFEST IS HOW IT KNOWS. Skipping on "is there a
+// file with that name" was the whole of the old test, which answers a different
+// question: it says a picture was made, not that it was made THE WAY THIS FILE
+// MAKES ONE. Change PACK_SAT, or a line of the flood fill, and 388 stale PNGs
+// keep being served with nothing to notice — and since Local and Online are
+// supposed to be the same picture, that is Config's chip silently changing how
+// the app looks, which is the one thing the port below exists to prevent.
+//
+// So `packs/.recipe.json` records the fingerprint the files were made with: the
+// five constants AND the source of trim() itself, hashed, so editing either is a
+// new recipe. A file is skipped only when it is on disk AND the manifest says it
+// was made with the recipe now in force. Anything else is reprocessed. --force
+// reprocesses regardless.
 //
 // Config's TCGplayer row has always described a Local side — "388 packs over N
 // sets, 10 MB at 200w" — and nothing implemented it, so the row priced a choice
@@ -22,9 +36,12 @@
 // Config changes how the app LOOKS, which is not what that chip is for.
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, existsSync, statSync, readdirSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 
 const SIZES = { '200w': 1, in_1000x1000: 1 };
-const size = process.argv[2] || '200w';
+const args = process.argv.slice(2);
+const force = args.includes('--force');
+const size = args.find((a) => !a.startsWith('--')) || '200w';
 if (!SIZES[size]) { console.error(`size must be one of: ${Object.keys(SIZES).join(', ')}`); process.exit(1); }
 
 // same constants as index.html — see the note above about staying in step
@@ -130,11 +147,49 @@ function trim(d, w, h) {
 
 mkdirSync(OUT, { recursive: true });
 const have = new Set(readdirSync(OUT));
+
+/* THE FINGERPRINT IS THE NUMBERS AND THE CODE. Hashing the five constants alone
+   would call a rewritten flood fill the same recipe, which is the more likely
+   edit of the two — `trim.toString()` is the function's own source, so any
+   change to either side of it is a different recipe and every picture is made
+   again. Twelve hex digits is plenty to tell recipes apart; this is not a
+   security boundary, it is a cache key. */
+const CONSTANTS = { TRIM_TOL, PACK_SAT, WHITE, MAX_GAIN, LEVELS };
+const recipe = createHash('sha1').update(JSON.stringify(CONSTANTS))
+  .update(trim.toString()).digest('hex').slice(0, 12);
+const MANIFEST = `${OUT}/.recipe.json`;
+let man = null;
+try { man = JSON.parse(readFileSync(MANIFEST, 'utf8')); } catch { /* first run */ }
+
+/* No manifest but pictures on disk is the ONE case worth special-casing: it is
+   every install that predates this file, and re-fetching 770 images to learn
+   what we already know is a bad trade. They were made by the recipe that was
+   in force when they were made, and nothing has changed it since, so they are
+   adopted as current. Said out loud rather than done quietly — if the recipe HAS
+   moved on since, --force is the answer and this line is the hint to use it. */
+if (!man) {
+  const found = readdirSync(OUT).filter((f) => f.endsWith('.png'));
+  man = { recipe, constants: CONSTANTS, generated: new Date().toISOString(), files: {} };
+  for (const f of found) man.files[f] = 'adopted';
+  if (found.length) console.log(`${found.length} image${found.length === 1 ? '' : 's'
+    } already on disk with no record of how — adopting as recipe ${recipe}; --force to redo them`);
+}
+const stale = man.recipe !== recipe;
+if (stale) console.log(`recipe changed ${man.recipe} → ${recipe} — every image is remade`);
+else if (force) console.log(`recipe ${recipe} — --force, every image is remade`);
+else console.log(`recipe ${recipe}`);
+// the manifest describes ONE recipe, so a stale one is discarded rather than merged
+if (stale || force) man = { recipe, constants: CONSTANTS, generated: new Date().toISOString(), files: {} };
+
 let done = 0, skipped = 0, plain = 0, failed = 0;
+const save = () => writeFileSync(MANIFEST,
+  `${JSON.stringify({ ...man, recipe, constants: CONSTANTS, size }, null, 1)}\n`);
 
 for (const id of ids) {
   const name = `${id}_${size}.png`;
-  if (have.has(name)) { skipped++; continue; }
+  // on disk AND on the record, made by the recipe in force. Two of the three is
+  // not enough: a file the manifest has never heard of was made by something else
+  if (have.has(name) && man.files[name]) { skipped++; continue; }
   try {
     const res = await fetch(`https://tcgplayer-cdn.tcgplayer.com/product/${id}_${size}.jpg`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -149,15 +204,23 @@ for (const id of ids) {
     writeFileSync(`${OUT}/${name}`, ff(['-f', 'rawvideo', '-pix_fmt', 'rgba', '-video_size',
       `${w}x${h}`, '-i', 'pipe:0', '-frames:v', '1', '-f', 'image2', '-c:v', 'png',
       'pipe:1'], Buffer.from(d.buffer, d.byteOffset, d.length)));
+    // WHY it came out the way it did, not just that it did: "kept untrimmed"
+    // is the outcome worth being able to look up a year later, when a pack in
+    // the drawer still has its white card and nobody remembers whether that is
+    // this script giving up or the photograph never having had a border.
+    man.files[name] = why ? `plain: ${why}` : 'trimmed';
     done++;
   } catch (e) {
     failed++;
     console.error(`  ${id}: ${e.message}`);
   }
-  if ((done + skipped + failed) % 25 === 0) process.stdout.write('.');
+  // written as it goes, so an interrupted run keeps what it finished. The other
+  // way round — one write at the end — means a Ctrl-C an hour in has done nothing
+  if ((done + skipped + failed) % 25 === 0) { process.stdout.write('.'); save(); }
 }
+save();
 
 const kb = readdirSync(OUT).reduce((n, f) => n + statSync(`${OUT}/${f}`).size, 0) / 1e6;
-console.log(`\n${done} fetched, ${skipped} already on disk, ${plain} kept untrimmed, ${failed} failed`);
+console.log(`\n${done} processed, ${skipped} already on disk at this recipe, ${plain} kept untrimmed, ${failed} failed`);
 console.log(`${OUT}/ — ${kb.toFixed(1)} MB at ${size}`);
 console.log(existsSync('serve.py') ? 'Config → TCGplayer → Local now has files to serve.' : '');

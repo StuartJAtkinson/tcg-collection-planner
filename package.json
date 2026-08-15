@@ -3,35 +3,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev -p 5253",
-    "build": "next build",
-    "start": "next start -p 5253",
-    "db:up": "docker compose up -d --wait",
-    "db:push": "drizzle-kit push",
-    "import:mtg": "node src/import/mtg.ts",
-    "import:pokemon": "node src/import/pokemon.ts",
-    "import": "node src/import/mtg.ts && node src/import/pokemon.ts",
-    "db:prices": "node src/import/prices.ts",
-    "import:collectr": "node src/import/collectr.ts",
-    "verify": "node src/verify.ts",
-    "schema:counts": "python scripts/build_schema_xlsx.py && node scripts/count_schema_fields.ts && python scripts/build_schema_xlsx.py",
-    "probe:composite-key": "node scripts/probe_composite_key.ts"
-  },
-  "dependencies": {
-    "drizzle-orm": "^0.45.2",
-    "next": "^16.2.10",
-    "postgres": "^3.4.9",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "serve": "python serve.py",
+    "build": "node build.mjs",
+    "check": "node check.mjs",
+    "data": "node gen-data.mjs",
+    "gen": "node gen-cards.mjs && node gen-sets.mjs && node gen-boosters.mjs",
+    "art": "node gen-art.mjs",
+    "packs": "node gen-packs.mjs"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.2",
-    "@types/node": "^26.1.1",
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
-    "drizzle-kit": "^0.31.10",
     "postcss": "^8.5.19",
-    "tailwindcss": "^4.3.2",
-    "typescript": "7.0.2"
+    "tailwindcss": "^4.3.2"
   }
 }

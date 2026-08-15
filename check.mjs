@@ -1,7 +1,7 @@
 // ponytail: the smallest thing that fails if the draft's rules break. Renders every
 // route under a stubbed DOM and asserts the decisions we keep re-making, so they stop
 // regressing silently. Run: node check.mjs
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import vm from 'node:vm';
 import assert from 'node:assert';
 const MONTHS_3 = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -11,7 +11,7 @@ const page = readFileSync('index.html', 'utf8');   // the markup too: <body> car
 const src = readFileSync('sets.js', 'utf8')
   + page.match(/<script>([\s\S]*)<\/script>/)[1];
 const js = src
-  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_ROWS, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, bytes, CARDS, MockCard, TitleRow, MANA, frameOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, costTokens, CARD_LIMIT, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, setZoom, binderDims, zoomPx, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, BINDER_SORT, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, dragSort, moveSort, applySort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
+  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_ROWS, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, CAN_BE_LOCAL, MISSING_LOCAL, srcBytes, onDisk, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, frameOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, costTokens, CARD_LIMIT, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, setZoom, binderDims, zoomPx, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, BINDER_SORT, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
   + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen,'
   + ' setDebug: v => { DEBUG = v; } };';
 
@@ -417,6 +417,51 @@ for (const [cell, rows] of packs) {
 // the balance rides on the trim's own reference, so it can't be dialled out to
 // nothing without saying so
 assert.ok(t.PACK_SAT > 1, 'the pack saturation is a no-op — say so or remove it');
+
+/* LOCAL AND ONLINE MUST BE THE SAME PICTURE. gen-packs.mjs is a hand-written
+   port of trimPack() — it has no way to import from a page — and the two only
+   stay one algorithm because something checks. If they drift, flipping Config's
+   TCGplayer chip changes how the app LOOKS, which is not what that chip is for,
+   and it does it silently because both sides render something plausible. */
+{
+  const gp = readFileSync('gen-packs.mjs', 'utf8');
+  const consts = src => Object.fromEntries([...src.matchAll(
+    /\b(TRIM_TOL|PACK_SAT|WHITE|MAX_GAIN|LEVELS)\s*=\s*([\d.]+)/g)].map(m => [m[1], +m[2]]));
+  const page = consts(readFileSync('index.html', 'utf8'));
+  assert.strictEqual(Object.keys(page).length, 5, 'index.html no longer states all five trim constants');
+  assert.deepStrictEqual(consts(gp), page,
+    'gen-packs.mjs and index.html disagree about the trim, so Local and Online are different pictures');
+
+  /* ONCE MEANS ONCE, and the manifest is the mechanism. Skipping on "a file of
+     that name exists" answers a different question — it says a picture was made,
+     not that it was made by the recipe now in force — so a changed constant left
+     stale PNGs on disk with nothing to notice. The fingerprint has to cover the
+     CODE as well as the numbers, or a rewritten flood fill is called the same
+     recipe, and that is the likelier edit of the two. */
+  assert.ok(/createHash\(/.test(gp) && /\.update\(trim\.toString\(\)\)/.test(gp),
+    'the pack recipe fingerprint does not cover trim() itself, so changing the algorithm reuses stale images');
+  assert.ok(/have\.has\(name\) && man\.files\[name\]/.test(gp),
+    'gen-packs.mjs skips on the filename alone, which cannot tell a current image from a stale one');
+  // ...and what it wrote has to describe what is actually there
+  if (existsSync('packs/.recipe.json')) {
+    const man = JSON.parse(readFileSync('packs/.recipe.json', 'utf8'));
+    assert.deepStrictEqual(man.constants, page,
+      'packs/ was built with different constants from the ones in force — re-run gen-packs.mjs');
+    const onDisk = readdirSync('packs').filter(f => f.endsWith('.png'));
+    const unrecorded = onDisk.filter(f => !man.files[f]);
+    assert.strictEqual(unrecorded.length, 0,
+      `${unrecorded.length} pack images have no recipe recorded (e.g. ${unrecorded[0]})`);
+  }
+}
+/* The render side of "once": a local PNG was already trimmed on the way in, so
+   trimming it again would level and saturate it a second time — the same fault
+   as no trim at all, in the other direction. Local carries no onload. */
+{
+  const gp = readFileSync('index.html', 'utf8');
+  const local = gp.match(/const packAttrs = \(id\) => packLocal\(\) \? ([^\n]+)/)[1];
+  assert.ok(!local.includes('trimPack'),
+    'a local pack image is trimmed again in the browser, so it is levelled and saturated twice');
+}
 // the gap rows are real rows, with the height the arithmetic assumes
 const gaps = [...painted.matchAll(/<td colspan="5" class="h-\[33px\]"><\/td>/g)];
 assert.ok(gaps.length > 0 && t.PACK_ROWS * 33 > 186 + 33, 'the gap rows are gone, or no longer tall enough to fit the art');
@@ -1425,7 +1470,36 @@ for (let i = 1; i < groups.length; i++)
 // the source split the user called out: MTGJSON owns rows Scryfall doesn't
 for (const s of ['AllPrintings', 'all_cards', 'mtg_card_printings', 'identifiers.scryfallId'])
   assert.ok(painted.includes(s), `schema source map is missing "${s}"`);
-assert.ok(painted.includes('Download &amp; cache now'), 'no download-and-cache control');
+/* The page is STATIC and downloads nothing, so the control that matters is the
+   command, not a button. There used to be a "Download & cache now" button here
+   that did nothing at all — asserting it existed was asserting the lie. */
+for (const [k, s] of Object.entries(t.SOURCES)) {
+  const cmd = s.cmd(t.CFG.src[k].q);
+  assert.ok(cmd || s.why_local, `"${s.name}" offers no command and no reason it needs none`);
+  if (cmd) assert.ok(painted.includes(cmd.replace(/&/g, '&amp;').replace(/</g, '&lt;')),
+    `"${s.name}" does not show the command that fetches it`);
+}
+// the one question the band exists to answer, and both answers to it
+assert.ok(painted.includes('Work offline'), 'config has no offline control');
+for (const m of Object.keys(t.OFFLINE_MODES))
+  assert.ok(painted.includes(`goOffline('${m}')`), `offline mode "${m}" is not offerable`);
+/* Sizes are DERIVED from bytes-per-unit now, so the two that used to be typed
+   prose and had drifted have to come out of the arithmetic. 135 GB is what the
+   fullest card art actually costs and it must be visible before it is chosen. */
+assert.ok(t.offlineBytes('full') > t.offlineBytes('drawn') * 5,
+  'the fullest-size offline total is not dramatically bigger — is srcBytes wired up?');
+assert.ok(/1[0-9]{2}\.[0-9] GB/.test(painted), 'the full-size offline cost is not stated on the page');
+// a source that cannot go local is named, not counted as an outstanding chore
+assert.ok(t.MISSING_LOCAL.length && t.MISSING_LOCAL.every(k => !t.CAN_BE_LOCAL.includes(k)),
+  'a source with no local side is being counted as one that has one');
+t.goOffline('full');
+assert.ok(t.allLocal(), 'going offline left a source online');
+for (const k of t.CAN_BE_LOCAL)
+  assert.strictEqual(t.CFG.src[k].q, t.SOURCES[k].full, `${k} went local but not at its fullest size`);
+assert.ok(t.artUrl(t.CARDS()[0]).startsWith('art/'), 'offline mode still hotlinks card art');
+t.goOnline();
+assert.strictEqual(t.CFG.src.sfart.at, 'online', 'back-to-defaults did not restore the art source');
+go('#/config');
 
 /* Every source reads the same way or the row is not doing its job: each one
    names what it gives, offers BOTH sides, and prices both — a source that
@@ -1843,6 +1917,29 @@ assert.strictEqual(t.P.draw.shownAll.length, up.size + 1, 'turning one card over
 // change what is in it — the cards already turned over stay exactly as they were
 assert.ok(pack.every(c => combined.some(x => x.n === c.n && x.num === c.num)),
   'revealing everything changed what was already face up');
+/* THE SCROLL EASE IS IN TIME, NOT IN FRAMES. Both the deal and the reveal sweep
+   choose WHICH card to send off the clock — `(now - start) / DEAL_MS` — and both
+   used to move the scroll a fixed fraction per frame. Those units disagree the
+   moment a frame is dropped: cards keep leaving on schedule while the scroll
+   advances once per frame, so at 30fps it covers half the ground in the same
+   second and the pool visibly trails the cards being dealt into it. Compounding
+   per millisecond makes a dropped frame free — two frames' worth of time in one
+   frame moves two frames' worth of distance. */
+{
+  const per = 1 / 60 * 1000;
+  assert.ok(Math.abs(t.ease(per, 0.1) - 0.1) < 0.002,
+    'one frame of easing no longer moves one frame of distance');
+  // two frames' worth of time in ONE frame must cover what two frames would
+  const one = t.ease(per, 0.1);
+  assert.ok(Math.abs(t.ease(per * 2, 0.1) - (1 - (1 - one) ** 2)) < 1e-9,
+    'a dropped frame costs the scroll its distance, so the view falls behind the deal');
+  // ...and a tab that was backgrounded for a second may not teleport it
+  assert.ok(t.ease(5000, 0.1) < 0.5, 'a long stall makes the scroll jump rather than ease');
+  assert.ok(t.DEAL_MS >= 80 && t.SWEEP_MS >= 100,
+    'the deal and sweep are back to the cadence that read as frantic');
+  assert.ok(t.BURST >= 1 && t.BURST <= 5,
+    'the per-frame cap is gone, so a stall launches its whole backlog in one frame');
+}
 /* The two buttons that are NOT there any more, pinned as absences because both
    were doing something worse than nothing. `Booster by booster` offered a view
    that was already the default and threw the draw back to pack one on the way;
@@ -1858,6 +1955,38 @@ assert.ok(painted.includes('disabled'), 'Keep as deck is live before every card 
 t.revealSequentialSync ? 0 : 0;
 for (const c of t.allDrawn()) t.revealOne(c.id);
 assert.ok(!painted.includes('disabled'), 'Keep as deck stayed dead after every card was turned over');
+
+/* KEEPING IT HAS TO KEEP THE CARDS. The pool was computed, counted, and thrown
+   away: the deck arrived on #/decks with the right numbers printed on its row
+   and the MOCK rows inside it, so five minutes of opening packs bought you a
+   name. The cards go in the row at index 4 and `scopedCards` reads them. */
+{
+  const kept = t.pool().map(c => c.n);
+  const before = t.LISTS.decks.length;
+  t.keepDraw();
+  assert.strictEqual(t.LISTS.decks.length, before + 1, 'keeping the draw made no deck');
+  const [name, count, , , cards] = t.LISTS.decks[0];
+  assert.ok(Array.isArray(cards) && cards.length, `"${name}" was kept without its cards`);
+  assert.strictEqual(cards.length, count, `"${name}" says ${count} cards and holds ${cards.length}`);
+  assert.deepStrictEqual(cards.map(c => c.n), kept, `"${name}" holds cards the draw never dealt`);
+  // a drafted pool is cards you have SEEN, and the zero is the shopping list
+  assert.ok(cards.every(c => c.qty === 0), 'a drafted deck arrives claiming you own it');
+  // ...and selecting it shows those cards, not the mocks
+  t.goTab('decks'); t.selectItem(name);
+  assert.deepStrictEqual(t.scopedCards().map(c => c.n), kept,
+    'a kept deck shows the mock rows instead of the pool that was drafted into it');
+  // a deck tab has five layouts and so no default one; nothing paints until a
+  // view is picked, which is the page's own rule and not this deck's problem
+  t.setView('grid'); t.render();
+  for (const n of [...new Set(kept)].slice(0, 3))
+    assert.ok(painted.includes(n), `the kept deck does not paint "${n}"`);
+  // the four sample decks state no membership, so they still fall through
+  t.selectItem('Mono-Red Burn');
+  assert.ok(t.scopedCards().length && t.scopedCards() !== cards,
+    'a deck with no stated membership stopped falling through to the mocks');
+}
+t.askDraw(`${drawable[0]} (${drawable[1]})`); t.setPackMode('complete'); t.nextPack();
+for (const c of t.allDrawn()) t.revealOne(c.id);
 // Discard goes back to the question, not out of the window
 t.discardDraw();
 assert.ok(t.P.ask && !t.P.draw && t.P.ask.mode === null,
@@ -1931,3 +2060,268 @@ t.pickGame('mtg');
 const noArt = t.MockCard({ n: 'Lighming Bolt' });
 assert.ok(noArt.includes('no art loaded') && !noArt.includes('<img'),
   'a card with no art id tries to load one anyway');
+
+// --- card anatomy: every shape of card, and the frame that survives it -----
+/* The mock rows are all one shape — one face, art in a window — so they cannot
+   exercise the half of the catalogue that isn't. This seeds the real thing:
+   one printing per layout family and one per art treatment, in the payload
+   shape gen-cards.mjs actually writes, and asserts the frame CHANGES for each.
+   A renderer that quietly drew all of them as a normal card would pass every
+   assertion above this line. */
+t.pickGame('mtg');
+const anatOracle = (name, layout, faces) =>
+  [name, '{1}{G}', 'Creature — Elf', 'Rules text.', '1/1', 'G', 2, layout, '', faces || 0];
+const twoFaces = (a, b) => [
+  [a, '{G}', 'Creature — Elf', 'Front rules.', '1/1', '', 'G'],
+  [b, '{U}', 'Instant', 'Back rules.', '', '', 'U'],
+];
+const ANAT = {
+  o: [
+    anatOracle('Plain Card', 'normal'),
+    anatOracle('Turner // Turned', 'transform', twoFaces('Turner', 'Turned')),
+    anatOracle('Left // Right', 'split', twoFaces('Left', 'Right')),
+    anatOracle('Hero // Quest', 'adventure', twoFaces('Hero', 'Quest')),
+    anatOracle('Upright // Inverted', 'flip', twoFaces('Upright', 'Inverted')),
+    anatOracle('A Plane', 'planar'),
+    ['A Saga', '{2}{W}', 'Enchantment — Saga', 'I, II — Do a thing.\nIII — Do another.', '', 'W', 3, 'saga', '', 0],
+    ['A Class', '{1}{U}', 'Enchantment — Class', 'Base ability.\n{2}{U}: Level 2\nSecond ability.', '', 'U', 2, 'class', '', 0],
+    /* NOTHING FOR A FRAME TO HOLD. No cost, no type line ("Card" is Scryfall's
+       placeholder for absence, not a type), and either no rules or one
+       parenthetical. An art card and a Jumpstart theme divider, 3% of the real
+       catalogue between them and their kin. */
+    ['Art // Art', '', 'Card', '', '', '', 0, 'art_series', '',
+      [['Art', '', 'Card', '', '', '', ''], ['Art', '', 'Card', '', '', '', '']]],
+    ['Theme', '', 'Card', '(Theme color: {G})', '', '', 0, 'front_card', '', 0],
+    // ...and the near miss that must still get a frame: no cost either, but a
+    // real type line, which is every token, land, emblem, plane and scheme
+    ['A Token', '', 'Token Creature — Bear', '', '2/2', 'G', 0, 'token', '', 0],
+  ],
+  // one printing per treatment on the plain card, then one per layout
+  p: [
+    [0, 'AAA', '1', 1, '00000000-0000-4000-8000-000000000001', 1, 0],
+    [0, 'AAA', '2', 1, '00000000-0000-4000-8000-000000000002', 1, 'fullart'],
+    [0, 'AAA', '3', 1, '00000000-0000-4000-8000-000000000003', 1, 'borderless'],
+    [0, 'AAA', '4', 1, '00000000-0000-4000-8000-000000000004', 1, 'textless'],
+    [0, 'AAA', '5', 1, '00000000-0000-4000-8000-000000000005', 1, 'extendedart'],
+    [1, 'AAA', '6', 3, '00000000-0000-4000-8000-000000000006', 1, 0],
+    [2, 'AAA', '7', 2, '00000000-0000-4000-8000-000000000007', 1, 0],
+    [3, 'AAA', '8', 2, '00000000-0000-4000-8000-000000000008', 1, 0],
+    [4, 'AAA', '9', 2, '00000000-0000-4000-8000-000000000009', 1, 0],
+    [5, 'AAA', '10', 3, '00000000-0000-4000-8000-000000000010', 1, 0],
+    [6, 'AAA', '11', 3, '00000000-0000-4000-8000-000000000011', 1, 0],
+    [7, 'AAA', '12', 3, '00000000-0000-4000-8000-000000000012', 1, 0],
+    [8, 'AAA', '13', 1, '00000000-0000-4000-8000-000000000013', 1, 'borderless'],
+    [9, 'AAA', '14', 1, '00000000-0000-4000-8000-000000000014', 1, 0],
+    [10, 'AAA', '15', 1, '00000000-0000-4000-8000-000000000015', 1, 0],
+  ],
+};
+t.loadCards(ANAT);
+const byName = Object.fromEntries(t.ALL().map(c => [`${c.n}|${c.treat}`, c]));
+
+// the four families are what the geometry branches on, so nothing may be in two
+for (const l of t.LANDSCAPE) assert.ok(!t.SIDED.has(l), `"${l}" is both landscape and two-sided`);
+for (const l of t.SIDED) assert.ok(!t.PAIRED.has(l), `"${l}" has its faces on one side and on two`);
+
+// LANDSCAPE turns the card, and a turned card must not keep the portrait art box
+const plane = t.MockCard(byName['A Plane|framed']);
+assert.ok(plane.includes('aspect-[7/5]'), 'a Plane is drawn portrait');
+assert.ok(!plane.includes('aspect-[5/3.52]'), 'a Plane keeps the portrait art window and loses its rules');
+assert.ok(plane.includes('Rules text.'), 'a Plane draws no rules at all');
+assert.ok(t.MockCard(byName['Plain Card|framed']).includes('aspect-[5/7]'), 'an ordinary card is not portrait');
+
+// SIDED draws both faces and hides one; the back is the same id at /back/
+const dfc = t.MockCard(byName['Turner // Turned|framed']);
+for (const s of ['side-a', 'side-b', 'anat-flip']) assert.ok(dfc.includes(s), `a transform has no ${s}`);
+assert.ok(dfc.includes('>Turner<') && dfc.includes('>Turned<'), 'a transform drops one of its faces');
+assert.ok(dfc.includes('/front/') && dfc.includes('/back/'), 'a transform asks for one side twice');
+assert.ok(dfc.includes('Back rules.'), 'the back face has no rules text');
+// ...and a single-faced card must not grow a flip control it cannot honour
+assert.ok(!t.MockCard(byName['Plain Card|framed']).includes('anat-flip'), 'an ordinary card offers a flip');
+
+// PAIRED puts both faces on ONE side, so there is no flip and both are visible
+for (const [name, want] of [['Left // Right', 'Right'], ['Hero // Quest', 'Quest'], ['Upright // Inverted', 'Inverted']]) {
+  const one = t.MockCard(byName[`${name}|framed`]);
+  assert.ok(!one.includes('anat-flip'), `${name}: two faces on one side should not offer a flip`);
+  assert.ok(one.includes(`>${want}<`), `${name}: the second face is not drawn`);
+}
+assert.ok(t.MockCard(byName['Left // Right|framed']).includes('aspect-[7/5]'), 'a split card is not turned sideways');
+assert.ok(t.MockCard(byName['Upright // Inverted|framed']).includes('rotate-180'), 'a flip card draws its lower half the right way up');
+
+// BANDED: a chapter line goes in the gutter, an ordinary line does not
+const saga = t.MockCard(byName['A Saga|framed']);
+assert.ok(/border-r border-black\/40/.test(saga), 'a Saga draws its chapters as a paragraph');
+assert.ok(!/border-r border-black\/40/.test(t.MockCard(byName['Plain Card|framed'])),
+  'an ordinary card grows a chapter gutter');
+
+/* TWO-COLUMN: a Saga and a Class are not stacked cards. The illustration is a
+   tall strip down one side — Scryfall crops them 312x752 rather than the 626x457
+   an ordinary card gets, which is the tell — with the track beside it and the
+   type line ACROSS THE BOTTOM. Drawn stacked they are legible and the wrong
+   shape, which is exactly the failure a render-only test cannot see, so it is
+   asserted structurally: the art column exists, and the type line follows it. */
+const klass = t.MockCard(byName['A Class|framed']);
+for (const [name, html] of [['Saga', saga], ['Class', klass]]) {
+  assert.ok(html.includes('w-[42%]'), `a ${name} is not drawn as a two-column card`);
+  assert.ok(html.indexOf('w-[42%]') < html.indexOf(`Enchantment — ${name}`),
+    `a ${name} puts its type line above the art instead of across the bottom`);
+  assert.ok(!html.includes('aspect-[5/3.52]'), `a ${name} kept the stacked card's art band`);
+}
+// ...and they are mirrors: Saga reads its chapters left of the art, Class right
+// probed against the RULES TEXT, not the chapter gutter: a Class does not
+// currently band (its level marker sits at the end of the line, which the
+// gutter regex misses and ISSUES.md tracks), so a probe that assumed banding
+// was testing that open bug rather than which side the art is on
+const artFirst = (h, txt) => h.indexOf('w-[42%]') < h.indexOf(txt) ? 'art-first' : 'track-first';
+assert.strictEqual(artFirst(saga, 'Do a thing'), 'track-first', 'a Saga has its art on the wrong side');
+assert.strictEqual(artFirst(klass, 'Base ability'), 'art-first', 'a Class has its art on the wrong side');
+/* SHRINK TO FIT, NOT SHRINK ON PRINCIPLE. `room` tells textFit how much box
+   this plate has relative to an ordinary card's, and the first set of values
+   was picked by eye against the STACKED frames, then never revisited when the
+   frames were rebuilt underneath them — so a Saga, whose track column is half
+   again the standard rules box, was still being set two steps smaller than the
+   ordinary cards beside it. This is that complaint as an assertion: given the
+   same text, a frame with MORE room may not choose a smaller type size.
+   (The clip rate itself cannot be asserted here — it needs layout, and this
+   harness has a stubbed DOM with none. It is measured in the browser: 14 of 411
+   samples, all of them either on the standard room-1 path or under 13px.) */
+const smallestEm = h => Math.min(...[...h.matchAll(/text-\[([\d.]+)em\]/g)].map(m => +m[1]));
+const LONG = 'Whenever a creature you control deals combat damage to a player, exile the top card of that player library face down. You may look at it for as long as it remains exiled.';
+const asNormal = t.MockCard({ n: 'X', type: 'Creature', text: LONG, cost: [], layout: 'normal', treat: 'framed' });
+const asSaga = t.MockCard({ n: 'X', type: 'Enchantment — Saga', text: LONG, cost: [], layout: 'saga', treat: 'framed' });
+const asFullArt = t.MockCard({ n: 'X', type: 'Creature', text: LONG, cost: [], layout: 'normal', treat: 'fullart' });
+assert.ok(smallestEm(asSaga) >= smallestEm(asNormal),
+  'a Saga is set smaller than an ordinary card with the same text, and its box is bigger');
+assert.ok(smallestEm(asFullArt) >= smallestEm(asNormal),
+  'a full-art card is set smaller than an ordinary card with the same text, and its box is bigger');
+
+/* A Saga is not always `layout: saga` — 127 printings are one on the front of a
+   card whose layout says transform — so the frame is chosen off the TYPE LINE. */
+assert.ok(t.MockCard({ n: 'Front // Back', layout: 'transform', treat: 'framed',
+  faces: [{ n: 'Front', type: 'Enchantment — Saga', text: 'I — Go.', cost: [] },
+          { n: 'Back', type: 'Creature — Human', text: 'Hi.', cost: [] }] }).includes('w-[42%]'),
+  'a Saga printed under another layout does not get the Saga frame');
+
+// THE BREAKOUT ART: each treatment has to change something, or it is decoration
+const treat = n => t.MockCard(byName[`Plain Card|${n}`]);
+// anchored to the wrapper's own class, not a bare substring: the plates inside
+// are padded `p-0.5`, which contains "p-0" and made the naive test always true
+const edge = h => h.match(/bg-black\/70 (\S+) shadow-lg/)[1];
+assert.strictEqual(edge(treat('borderless')), 'p-0', 'a borderless printing keeps its black edge');
+assert.strictEqual(edge(treat('framed')), 'p-[3.5%]', 'an ordinary printing lost its black edge');
+assert.ok(treat('fullart').includes('absolute inset-0'), 'a full-art printing puts its art in a window');
+/* THE CROP'S SHAPE IS NOT IN THE DATA. Measured across the overlaid classes,
+   Scryfall's art_crop comes back 626x457, 626x747, 684x722, 745x505, 619x808
+   and 312x752, and the bulk file says which for none of them. `object-cover`
+   therefore cannot be right when the art is the whole card: fitting a 1.37-wide
+   crop to a 0.71-tall card by height scales it 2x and discards 49% of its
+   width, which is what made full-art transforms look zoomed into their own
+   middles. Contain shows all of it whatever shape it is; the cover copy behind
+   is blurred filler, and top-anchoring puts that filler under the type line
+   instead of across the visible top of the card. */
+for (const n of ['fullart', 'textless']) {
+  const h = treat(n);
+  assert.ok(h.includes('object-contain object-top'),
+    `"${n}" scales the art to cover a card-shaped box, which crops a landscape illustration in half`);
+  assert.ok(h.includes('blur-md') && h.includes('object-cover'),
+    `"${n}" contains the art but leaves the rest of the card empty`);
+  assert.strictEqual((h.match(/object-contain/g) || []).length, 1,
+    `"${n}" contains the blurred backdrop too, so nothing fills the card`);
+}
+// ...and the art WINDOW keeps cover: 5/3.52 is within a few percent of the
+// common landscape crop, so covering it loses a sliver and contain would letterbox
+const framedArt = treat('framed');
+assert.ok(framedArt.includes('object-cover') && !framedArt.includes('object-contain'),
+  'the ordinary art window letterboxes its crop instead of filling');
+assert.ok(!treat('textless').includes('Rules text.'), 'a textless printing draws a rules box');
+assert.ok(treat('extendedart').includes('-mx-[3.65%]'), 'extended art stays inside the window');
+for (const n of ['fullart', 'borderless', 'textless', 'extendedart'])
+  assert.notStrictEqual(treat(n), treat('framed'), `"${n}" renders identically to a framed card`);
+
+/* WHEN THERE IS NO FRAME TO DRAW, DRAW THE CARD. A frame holds a cost, a type
+   line and a rules box; an art card, a theme divider and a punchcard have none
+   of the three, and the frame drawn over them is a name above two-thirds of
+   empty box — which is what art series looked like, at 2,649 printings the
+   fifth most common class in the catalogue. The test is structural, on the
+   face, so the layout Wizards prints next is covered without an edit: that is
+   not hypothetical, `front_card` arrived after the rule was written. */
+assert.ok(t.framable(byName['Plain Card|framed']), 'an ordinary card is treated as unframable');
+assert.ok(t.framable(byName['A Token|framed']),
+  'a token has no mana cost and a real type line — a frame draws it fine');
+assert.ok(t.framable(byName['A Saga|framed']) && t.framable(byName['A Plane|framed']),
+  'a Saga or a Plane was mistaken for something with no frame');
+for (const k of ['Art // Art|borderless', 'Theme|framed'])
+  assert.ok(!t.framable(byName[k]), `"${k}" has no cost, no type and no rules, yet claims a frame`);
+
+const printed = t.MockCard(byName['Art // Art|borderless']);
+assert.ok(!printed.includes('color-mix'), 'an unframable printing still draws frame plates');
+assert.ok(/cards\.scryfall\.io\/normal\//.test(printed) && !printed.includes('art_crop'),
+  'an unframable printing asks for the art crop rather than the whole printed card');
+assert.strictEqual(edge(printed), 'p-0', 'the scan is padded as though the wrapper drew its border');
+// an art series card is still two-sided, and its back is the whole point of it
+assert.ok(printed.includes('anat-flip') && printed.includes('/front/') && printed.includes('/back/'),
+  'an unframable two-sided card lost the control that turns it over');
+// ...and the size follows Config, because art_crop is the only one that cannot work
+t.setQuality('sfart', 'large');
+assert.ok(/cards\.scryfall\.io\/large\//.test(t.MockCard(byName['Theme|framed'])),
+  'the printed card ignores the configured image size');
+t.setQuality('sfart', 'art_crop');
+
+// the class carries the count, so the page can say so rather than looking broken
+const nf = Object.fromEntries(t.anatomyClasses().map(a => [a.k, a.nf]));
+assert.strictEqual(nf['art_series | borderless'], 1, 'the census did not count the unframable art card');
+assert.strictEqual(nf['normal | framed'], 0, 'the census called an ordinary card unframable');
+
+// the page: one section per class, six each, strided rather than taken off the front
+const classes = t.anatomyClasses();
+assert.strictEqual(classes.length, new Set(t.ALL().map(t.anatomyKey)).size, 'the anatomy census lost a class');
+for (const a of classes) {
+  assert.ok(a.s.length <= t.ANATOMY_SAMPLES, `${a.k}: more than ${t.ANATOMY_SAMPLES} samples`);
+  assert.strictEqual(a.s.length, Math.min(a.n, t.ANATOMY_SAMPLES), `${a.k}: wrong sample count`);
+}
+assert.ok(classes.every((a, i) => i === 0 || classes[i - 1].n >= a.n), 'classes are not ordered by how common they are');
+go('#/anatomy');
+for (const a of classes) assert.ok(painted.includes(`>${a.layout}</span>`), `#/anatomy lost the "${a.k}" section`);
+assert.ok(painted.includes('no frame to draw'),
+  '#/anatomy shows a scan in place of a frame and says nothing about why');
+
+/* gen-art.mjs keeps its own copy of SIDED — it has no way to import from a page
+   — and it decides whether to fetch a back. Out of step, the page asks for
+   files the downloader never wrote. */
+const genArt = readFileSync('gen-art.mjs', 'utf8');
+const genSided = genArt.match(/const SIDED = new Set\(\[([^\]]*)\]\)/)[1]
+  .split(',').map(s => s.trim().replace(/'/g, '')).filter(Boolean);
+assert.deepStrictEqual(genSided.sort(), [...t.SIDED].sort(),
+  'gen-art.mjs and index.html disagree about which layouts have a second side');
+assert.ok(genArt.includes('User-Agent'),
+  'gen-art.mjs sends the default node UA, which Scryfall 400s with a reason only the body carries');
+
+/* ...and its own copy of `framable`, for the same reason and with the same
+   consequence reversed: the page draws the WHOLE printed card for a printing a
+   frame has nothing to say about, so art_crop is the one size those rows cannot
+   use and the downloader fetches `normal` for them instead. Disagree, and Local
+   has a hole in exactly the 3% of the catalogue the frame cannot cover for.
+   Lifted out of the source and run against the same fixtures rather than
+   grepped for, because "the file mentions framable" is not the property. */
+const genFramable = new Function('or', `
+  ${genArt.match(/const bareType = [^\n]+\nconst framable = or =>[\s\S]*?;\n/)[0]}
+  return framable(or);`);
+for (const [i, or] of ANAT.o.entries()) {
+  const card = t.ALL().find(c => c.n === or[0]);
+  assert.strictEqual(genFramable(or), t.framable(card),
+    `gen-art.mjs and index.html disagree about whether "${or[0]}" (o[${i}]) has a frame to draw`);
+}
+assert.ok(/size === 'art_crop' && !framable\(or\)/.test(genArt),
+  'gen-art.mjs fetches the art crop for printings that are drawn as whole cards');
+
+// local art is a path, online art is a URL, and both key the back off /back/
+t.setSrc('sfart', 'local');
+assert.ok(t.artUrl(byName['Turner // Turned|framed'], 1).startsWith('art/sf/art_crop/back/'),
+  'the local back-face path is wrong');
+assert.ok(t.MockCard(byName['Turner // Turned|framed']).includes('onerror='),
+  'local art does not fall through to the CDN when the file was never fetched');
+t.setSrc('sfart', 'online');
+assert.ok(t.artUrl(byName['Turner // Turned|framed'], 1).startsWith('https://cards.scryfall.io/art_crop/back/'),
+  'the online back-face URL is wrong');
+
+console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-sided layouts, ${
+  t.PAIRED.size} paired, ${t.LANDSCAPE.size} sideways, ${t.OVERLAID.size} with the art under the text.`);

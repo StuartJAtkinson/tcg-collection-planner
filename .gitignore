@@ -19,6 +19,10 @@ ref/
 # fetched booster photographs — regenerate with: node gen-packs.mjs
 packs/
 
+# fetched card art — regenerate with: node gen-art.mjs. 34 MB for the anatomy
+# sample page, 8.1 GB for the whole catalogue at art_crop, 132 GB at png.
+art/
+
 # screenshots dropped at the repo root while working. Only the root, so anything
 # deliberate under a folder still commits; no .png is tracked anywhere today.
 /*.png
