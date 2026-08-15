@@ -116,9 +116,13 @@ class NoCache(SimpleHTTPRequestHandler):
         path = self.path.split('?')[0]
         if path == '/cards.json.gz':
             self.send_header('Content-Encoding', 'gzip')
-            # the one file worth caching: 5 MB re-fetched on every iteration
-            # reload is the opposite of helpful
-            self.send_header('Cache-Control', 'max-age=86400')
+            # max-age=86400 held a REGENERATED catalogue out of the page for a
+            # day: gen-cards.mjs rewrites this file in place, so its name cannot
+            # change with its contents the way an art URL's does, and the browser
+            # had no reason to ask.  no-cache is not "do not cache", it is "ask
+            # first" -- and send_head() already answers If-Modified-Since with a
+            # 304, so an unchanged catalogue costs one empty round trip, not 7 MB.
+            self.send_header('Cache-Control', 'no-cache')
         elif PACK.match(path) or ART.match(path):
             # a photograph keyed by product id and size cannot change without
             # changing its name, so re-fetching it on every reload is pure cost

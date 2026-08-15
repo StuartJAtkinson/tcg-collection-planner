@@ -764,15 +764,21 @@ const costTokens = (s) => (s.match(/\{[^}]+\}/g) || []).map(t => t.slice(1, -1))
    — 107k objects pointing at 37.5k strings — so this costs pointers, not text.
    `faces` is shared the same way: a transform card's two faces are built once
    per oracle, not once per printing of it. */
+const EMPTY = [];   // the one "nothing here" array, shared rather than allocated
 const materialiseFace = ([n, cost, type, text, pt, loy, col]) =>
   ({ n, cost: costTokens(cost), type, text, pt, loy, col });
 /* The two dictionaries default to a lone empty string so an older cards.json.gz
    — one generated before either field existed — reads as "no artist, no
    flavour" rather than throwing. Absent, not invented. */
-const materialise = ({ o, p, artists = [''], flavour = [''] }) => {
+const materialise = ({ o, p, artists = [''], flavour = [''], kws = [''] }) => {
   const faceCache = new Map();
+  /* One array per distinct COMBINATION of keywords, shared by every card that
+     has it — 2,944 arrays for 107,347 printings, the same by-reference trick the
+     oracle strings and the faces use. Split per card it would be 44,684 arrays
+     of the same handful of strings. */
+  const kwCache = kws.map(s => (s ? s.split('|') : EMPTY));
   return p.map(([oi, set, num, rar, art_id, usd, treat, fin, lang, art, flav, dfc]) => {
-    const [n, cost, type, text, pt, col, cmc, layout, loy, faces, legal, meld] = o[oi];
+    const [n, cost, type, text, pt, col, cmc, layout, loy, faces, legal, meld, kw] = o[oi];
     if (faces && !faceCache.has(oi)) faceCache.set(oi, faces.map(materialiseFace));
     /* Flavour is the one per-printing field that has to reach a FACE, and faces
        are shared by reference across every printing of an oracle — so a card
@@ -803,6 +809,10 @@ const materialise = ({ o, p, artists = [''], flavour = [''] }) => {
              dfc: dfc || '',
              // [result, partA, partB] — the group this card melds in, or null
              meld: meld || null,
+             /* Scryfall's own keyword list for the card, shared by reference.
+                Empty is the SAME array every time, so "has no keywords" costs
+                one pointer rather than 62,663 empty arrays. */
+             kw: kwCache[kw] || EMPTY,
              /* Read off the printing, not assumed. 2,634 of these are not English
                 — Foreign Black Border, Rinascimento, Phyrexian, Quenya — and the
                 identity key prints this beside the set and number, where a
@@ -912,7 +922,13 @@ const CARDS = () => { const s = sortCards(filtered()); return s.length > P.page 
    observer would otherwise be watching a node no longer in the document, and
    the list would simply stop at 240 with no way to say why. */
 let MORE = null;
-const Sentinel = () => (CARDS().length >= filtered().length ? ''
+/* NO DISPLAY CHOSEN IS NOT A LIST WITH AN END. A fresh page draws no cards at
+   all — it asks which display you want — so a sentinel there sits on screen with
+   nothing above it, comes into view immediately, and pages the entire filtered
+   list in a tight render loop: 9,838 flying cards drawn in a second by a page
+   nobody scrolled, and 107k if the filter is empty. There is nothing to reach
+   the end of until something is drawn. */
+const Sentinel = () => (!P.view || CARDS().length >= filtered().length ? ''
   : `<div data-more class="py-6 text-center text-[11px] text-neutral-600">${
       num(filtered().length - CARDS().length)} more &mdash; loading as you reach them</div>`);
 function watchMore() {
@@ -1784,7 +1800,7 @@ const DebugBand = () => !DEBUG ? '' : `
 // the window, so it can't live inside a <main> that scrolls under it.
 const Frame = (section, { desc = '', stats = '', sub = '', body, over = '' }) => `${TopNav(section, stats)}
   ${sub}
-  <main class="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+  <main data-scroll class="min-h-0 flex-1 overflow-y-auto px-6 py-5">
     ${desc ? `<p class="mb-4 max-w-3xl text-sm text-neutral-400">${desc}</p>` : ''}
     ${body}
     ${DebugBand()}
@@ -2069,9 +2085,6 @@ const topN = (cards, of, n) => {
    cards are in scope, the filter says which ones they are, and that is the same
    sentence asked twice. Two copies is exactly how a chip comes to promise
    74,428 and hand back a different set. */
-// built once — a keyword test is a regex per card per chip, and there are 107k
-const KW_RE = new Map();
-const kwRe = k => KW_RE.get(k) || (KW_RE.set(k, new RegExp(`\\b${k}\\b`, 'i')), KW_RE.get(k));
 const RAR_OF = new Map(RARITIES);
 const FACET = {
   Legality: (c, v) => !!(c.legal & (1 << FORMATS.indexOf(v))),
@@ -2079,7 +2092,11 @@ const FACET = {
   // the tail is space-separated on the card and one fact each here, so a chip
   // matches a whole word rather than a substring — "Elf" is not "Elder"
   Subtype: (c, v) => typeTail(c).trim().split(/\s+/).includes(v),
-  Keywords: (c, v) => kwRe(v).test(c.text || ''),
+  /* The card's own keyword list, not a regex over its rules text. `\bFlying\b`
+     said yes to every card that talks about flying — "target creature with
+     flying" — and no to the ones that keyword it on a face. A list membership
+     is also the cheaper test, which matters at 107k cards a chip. */
+  Keywords: (c, v) => (c.kw || EMPTY).includes(v),
   Rarity: (c, v) => c.rar === RAR_OF.get(v),
   Language: (c, v) => (c.lang || 'en') === v,
   Finish: (c, v) => !!(c.fin & (1 << FINISHES.indexOf(v))),
@@ -2192,13 +2209,16 @@ const facetCounts = () => {
   const scoped = (skip) => pool.get(skip)
     || (pool.set(skip, cards.filter(c => matchesFilter(c, P.filter, skip))), pool.get(skip));
   const n = (test, skip) => scoped(skip).reduce((t, c) => t + (test(c) ? 1 : 0), 0);
-  const kw = (GAMES.mtg.anatomy.find(x => x[1] === 'Keywords') || [])[2] || [];
   FACETS_OF = cards; FACETS_KEY = key;
   FACETS = {
     Legality: FORMATS.map(f => [f, n(c => FACET.Legality(c, f), 'Legality')]),
     Type: CARD_TYPES.map(t => [t, n(c => FACET.Type(c, t), 'Type')]),
     Subtype: topN(scoped('Subtype'), c => typeTail(c).trim().split(/\s+/).filter(Boolean), 12),
-    Keywords: kw.map(([k]) => [k, n(c => FACET.Keywords(c, k), 'Keywords')]),
+    /* Most-printed first, out of the catalogue, the same as Subtype and Artist.
+       The four hand-picked words in the anatomy spec were a sample presented as
+       a vocabulary — there are 868, and which twelve matter depends on what you
+       have already narrowed to. In a Kamigawa binder this reads Ninjutsu. */
+    Keywords: topN(scoped('Keywords'), c => c.kw || EMPTY, 12),
     Rarity: RARITIES.map(([label]) => [label, n(c => FACET.Rarity(c, label), 'Rarity')]),
     Language: topN(scoped('Language'), c => [c.lang || 'en'], 6),
     Finish: FINISHES.map(f => [f, n(c => FACET.Finish(c, f), 'Finish')]),
@@ -5399,13 +5419,14 @@ const finishOf = c => FINISH[cardKey()][c.foil ? 1 : 0];
 const factsOf = c => {
   const [head, sub] = (c.type || '').split(' &mdash; ');
   const [pow, tou] = (c.pt || '').split('/');
-  const kw = (game().anatomy.find(x => x[1] === 'Keywords') || [])[2] || [];
   return {
     Legality: LEGALITY[cardKey()], Colour: c.col, Language: c.lang, Rarity: rarityName(c.rar),
     Artist: c.art, Illustrator: c.art, Finish: c.foil == null ? '' : finishOf(c),
     // the type line's subtypes are space-separated on the card, one fact each here
     'Mana value': c.cost ? String(manaValue(c)) : '', Type: c.energy || head, Subtype: (sub || '').split(' ').join(' &middot; '),
-    Keywords: kw.filter(([k]) => (c.text || '').includes(k)).map(([k]) => k).join(' &middot; '),
+    // the card's own list; the mocks have none, so this is blank rather than
+    // whichever of four hand-picked words happened to appear in their text
+    Keywords: (c.kw || []).join(' &middot; '),
     Power: pow, Toughness: tou, HP: c.hp || '', 'Retreat cost': c.retreat ? String(c.retreat) : '',
     'Card type': !head ? '' : /Trainer/.test(head) ? 'Trainer' : /Energy/.test(head) ? 'Energy' : 'Pok&eacute;mon',
     Stage: (head.match(/Basic|Stage 1|Stage 2/) || [''])[0] + (/ ex$/.test(head) ? ' ex' : / V$/.test(head) ? ' V' : ''),
@@ -5624,6 +5645,7 @@ function render() {
       P.sortDraft = [];
     }
   }
+  const sameRoute = route === lastRoute;
   lastRoute = route;
   // the route owns the tab; the selection within it is state
   if (TABS[route]) P.tab = route;
@@ -5637,10 +5659,22 @@ function render() {
      times over. Carried across by hand because the element is replaced, not
      updated; there is nothing for the browser to preserve it on. */
   const wasAt = document.querySelector('[data-draw-scroll]')?.scrollLeft || 0;
+  /* THE SAME ARGUMENT, VERTICALLY, AND THE PAGING DEPENDS ON IT. Reaching the
+     end of the list re-renders it one page longer, and innerHTML hands back a
+     fresh <main> scrolled to the top — so every page-in threw you back to card
+     one, which is an infinite scroll you cannot scroll. The list only ever grows
+     at its end, so the offset that was true before the render is still true
+     after it. Within a route only: arriving at a tab starts at the top, because
+     that is where a list you have not read yet begins. */
+  const wasDown = sameRoute ? document.querySelector('[data-scroll]')?.scrollTop || 0 : 0;
   document.getElementById('app').innerHTML = PAGES[route]();
   if (wasAt) {
     const box = document.querySelector('[data-draw-scroll]');
     if (box) box.scrollLeft = wasAt;
+  }
+  if (wasDown) {
+    const pane = document.querySelector('[data-scroll]');
+    if (pane) pane.scrollTop = wasDown;
   }
   document.title = 'Draft — ' + route;
   measureGutter();

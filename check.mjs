@@ -2793,11 +2793,15 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
    Asserted against answers written out here rather than asked of the app: the
    app agreeing with itself is what a shared bug looks like. */
 {
-  const FIX = { o: [
-      ['Bear',   '{1}{G}', 'Creature — Bear',  'Text.', '2/2', 'G', 2, 'normal', '', 0, 0b000000100],
+  /* Bear HAS flying; Sliver only TALKS about it, and Sliver's oracle tuple stops
+     before the keyword slot the way a cards.json.gz generated before the field
+     existed does. Between them they are the whole keyword fix: the regex over
+     the rules text said yes to both. */
+  const FIX = { kws: ['', 'Flying|Trample'], o: [
+      ['Bear',   '{1}{G}', 'Creature — Bear',  'Text.', '2/2', 'G', 2, 'normal', '', 0, 0b000000100, 0, 1],
       ['Bolt',   '{R}',    'Instant',          'Text.', '',    'R', 1, 'normal', '', 0, 0b000000100],
       ['Wrath',  '{2}{W}{W}', 'Sorcery',       'Text.', '',    'W', 4, 'normal', '', 0, 0],
-      ['Sliver', '{U}',    'Creature — Sliver', 'Flying', '1/1', 'U', 1, 'normal', '', 0, 0b000000100],
+      ['Sliver', '{U}',    'Creature — Sliver', 'Creatures you control have flying.', '1/1', 'U', 1, 'normal', '', 0, 0b000000100],
   ], p: [
       [0, 'AAA', '1', 1, '00000000-0000-4000-8000-000000000041', 0, 0, 1],
       [1, 'AAA', '2', 3, '00000000-0000-4000-8000-000000000042', 0, 0, 1],
@@ -2857,6 +2861,22 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
   t.clearFilter(); t.toggleChip('Legality', 'Modern'); t.applyFilter();
   assert.strictEqual(only(), 'Bear,Bolt,Sliver', 'the legality chip reads the wrong bit');
 
+  /* KEYWORDS ARE THE CARD'S OWN LIST, NOT A SEARCH OF ITS TEXT. Sliver says
+     "creatures you control have flying" and does not have flying; the regex this
+     replaces could not tell the difference, and no amount of \b fixes it. */
+  t.clearFilter(); t.toggleChip('Keywords', 'Flying'); t.applyFilter();
+  assert.strictEqual(only(), 'Bear', 'a card that only mentions a keyword is filtered as having it');
+  // a card whose payload predates the field has no keywords, not every keyword
+  t.toggleChip('Keywords', 'Flying'); t.applyFilter();
+  assert.strictEqual(only(), 'Bolt,Sliver,Wrath', 'excluding a keyword took out cards that never had one');
+  /* And the vocabulary is the catalogue's, not four words hardcoded in the
+     anatomy spec — which is why Exalted, one of those four, is not in it. */
+  t.clearFilter();
+  // stringified because the page's arrays are built in the vm's realm, where
+  // deepStrictEqual's prototype check fails on values that are otherwise equal
+  assert.strictEqual(JSON.stringify(t.facetCounts().Keywords), '[["Flying",1],["Trample",1]]',
+    'the keyword chips are still the hand-picked list rather than what is in scope');
+
   /* COUNTS ARE TAKEN WITH THE OTHER GROUPS APPLIED AND THIS ONE'S IGNORED, so a
      chip reads what you would get by ALSO clicking it. Counted against the whole
      filter, everything you have not picked reads 0 and the sidebar becomes a
@@ -2874,13 +2894,24 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
      drawn now, and the sentinel at the end asks for the next page. */
   t.clearFilter();
   assert.strictEqual(t.P.page, t.PAGE, 'clearing the filter did not put the paging back to the top');
+  // a display first: with none chosen the page draws no cards, and the sentinel
+  // is deliberately absent there — see the assertion at the end of this block
+  t.setView('compact');
   t.P.page = 2; go('#/search');
   assert.strictEqual(t.CARDS().length, 2, 'the page size is not what gets drawn');
   assert.ok(painted.includes('data-more'), 'there is no sentinel, so the rest of the list is unreachable');
   assert.ok(painted.includes('2 more'), 'the sentinel does not say how many are still to come');
   t.P.page = 99; go('#/search');
   assert.ok(!painted.includes('data-more'), 'the sentinel survives a fully drawn list');
-  t.P.page = t.PAGE;
+  /* ...and a page that draws NO cards has no end to reach. The sentinel used to
+     render under "No display chosen", where it is on screen from the first frame
+     with nothing above it: it came into view, paged, re-rendered, came into view
+     again, and had the whole filtered list drawn — 9,838 cards — before anyone
+     touched the scroll wheel. */
+  const view = t.P.view; t.P.view = null; t.P.page = 2; go('#/search');
+  assert.ok(!painted.includes('data-more'),
+    'a page with nothing drawn still asks for more, which pages the whole list on its own');
+  t.P.view = view; t.P.page = t.PAGE;
 
   // and the controls are controls now, where there is a rule behind them
   t.clearFilter(); go('#/search');

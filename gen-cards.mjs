@@ -151,8 +151,24 @@ const meldOf = (c) => {
   return [res.name, ...parts];
 };
 
+/* KEYWORDS COME FROM THE SOURCE, NOT FROM A REGEX OVER THE RULES TEXT. The page
+   was matching /\bFlying\b/ against the oracle text, which counts every card
+   that MENTIONS flying — "creatures you control gain flying", "target creature
+   with flying" — as having it, and misses the 1,088 cards whose keyword sits in
+   a face rather than the root. Scryfall already resolves this: 868 distinct
+   keywords across 44,684 of the 107,347 paper printings, its own vocabulary
+   (evergreen abilities, keyword actions and ability words alike), which is the
+   same list its `keyword:` search uses.
+
+   Stored as ONE interned index per oracle over the joined COMBINATION, not a
+   list of word ids: 868 words make 2,944 distinct sets in practice, so the whole
+   vocabulary is a 66 KB dictionary and every card is a single integer. A
+   per-word id array would have cost more and bought nothing — no card carries a
+   combination the dictionary hasn't already seen. */
+const [kws, kwIdx] = dict();
+
 const oracleIdx = new Map();
-const oracles = [];      // [name, cost, type, text, pt, col, cmc, layout, loy, faces, legal, meld]
+const oracles = [];      // [name, cost, type, text, pt, col, cmc, layout, loy, faces, legal, meld, kw]
 const printings = [];    // [oracle, set, number, rarity, artId, usd, treatment, finishes, lang, artist, flavour, dfc]
 
 const rl = readline.createInterface({
@@ -203,6 +219,7 @@ for await (const raw of rl) {
       faces,
       legalOf(c),
       meldOf(c),
+      intern([kws, kwIdx], (c.keywords || []).join('|')),
     ]);
   }
   printings.push([
@@ -252,7 +269,7 @@ for await (const raw of rl) {
   ]);
 }
 
-const json = JSON.stringify({ o: oracles, p: printings, artists, flavour });
+const json = JSON.stringify({ o: oracles, p: printings, artists, flavour, kws });
 writeFileSync('cards.json.gz', gzipSync(json, { level: 9 }));
 
 // The anatomy census, printed because it is the input to the /anatomy page and
@@ -270,7 +287,9 @@ console.log(`cards.json.gz — ${oracles.length.toLocaleString('en-GB')} cards �
   skipped ? ` · skipped ${skipped.toLocaleString('en-GB')} digital/unparsed of ${lines.toLocaleString('en-GB')}` : ''}`);
 console.log(`dictionaries — ${(artists.length - 1).toLocaleString('en-GB')} artists · ${
   (flavour.length - 1).toLocaleString('en-GB')} distinct flavour texts over ${
-  printings.filter(p => p[10]).length.toLocaleString('en-GB')} printings that carry one`);
+  printings.filter(p => p[10]).length.toLocaleString('en-GB')} printings that carry one · ${
+  (kws.length - 1).toLocaleString('en-GB')} keyword combinations over ${
+  new Set(kws.flatMap(s => s.split('|')).filter(Boolean)).size.toLocaleString('en-GB')} distinct keywords`);
 console.log(`anatomy — ${census.size} classes, ${
   [...census.values()].filter(n => n >= 6).length} of them with six printings or more`);
 for (const [k, n] of [...census].sort((a, b) => b[1] - a[1]))
