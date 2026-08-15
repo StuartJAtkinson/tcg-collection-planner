@@ -442,6 +442,31 @@ assert.ok(t.PACK_SAT > 1, 'the pack saturation is a no-op — say so or remove i
     'the pack recipe fingerprint does not cover trim() itself, so changing the algorithm reuses stale images');
   assert.ok(/have\.has\(name\) && man\.files\[name\]/.test(gp),
     'gen-packs.mjs skips on the filename alone, which cannot tell a current image from a stale one');
+
+  /* PACK_ART PROMISES A PHOTOGRAPH, NOT AN ID. MTGJSON lists a
+     tcgplayerProductId for three products whose picture 403s at every size on
+     the only host that still resolves, so gen-sets.mjs asks the CDN and drops
+     the ones that answer no. Two things have to hold for that to be safe, and
+     the second is here because the first version of the probe broke it: the
+     question must be asked with a request this CDN answers (it accepts a HEAD
+     and never replies, which scored all 391 ids as missing), and an
+     implausible answer must be refused rather than emitted — an empty PACK_ART
+     passes every other test in this file and removes the wrapper from every
+     pack in the app. */
+  const gs = readFileSync('gen-sets.mjs', 'utf8');
+  assert.ok(!/method: 'HEAD'/.test(gs),
+    'gen-sets.mjs probes the pack CDN with HEAD, which it accepts and never answers');
+  assert.ok(/dead\.length > all\.length \/ 4/.test(gs),
+    'gen-sets.mjs will emit an empty PACK_ART if the probe breaks, with nothing to notice');
+  assert.ok(/catch \{ errors\+\+; \}/.test(gs),
+    'an unreachable id is recorded as having no photograph, so one bad run deletes it for good');
+
+  // ...and the emitted map has to still describe real packs
+  const packs = Object.values(t.PACK_ART).reduce((n, o) => n + Object.keys(o).length, 0);
+  assert.ok(packs > 300, `PACK_ART is down to ${packs} packs — the availability probe has misfired`);
+  for (const dead of [31840, 244377, 34469])
+    assert.ok(!JSON.stringify(t.PACK_ART).includes(String(dead)),
+      `PACK_ART still carries ${dead}, which has no photograph at any size`);
   // ...and what it wrote has to describe what is actually there
   if (existsSync('packs/.recipe.json')) {
     const man = JSON.parse(readFileSync('packs/.recipe.json', 'utf8'));

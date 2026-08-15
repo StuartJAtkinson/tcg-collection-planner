@@ -4,7 +4,7 @@
 // ponytail: generated once and committed, not fetched at runtime. The draft is a
 // static file served by serve.py and check.mjs runs with no network; a live fetch
 // would make both of those conditional on Scryfall being up.
-import { writeFileSync, statSync, createReadStream } from 'node:fs';
+import { writeFileSync, readFileSync, statSync, createReadStream } from 'node:fs';
 import { createGunzip } from 'node:zlib';
 
 /* Which sets actually print a booster is NOT derivable from Scryfall: it lives in
@@ -138,6 +138,83 @@ async function scanPrintings() {
   return [hits, bySet, coll];
 }
 const [BOOSTERS, ART, COLLATION] = await scanPrintings();
+
+/* PACK_ART PROMISES AN ID WHOSE PHOTO TCGPLAYER SERVES, and MTGJSON only
+   promises an id. Three of them — Alara Reborn's booster, Worldwake's, and the
+   M11 six-card — are listed with a `tcgplayerProductId` that 403s at every size
+   on the only host that still resolves; the old `product-images` host does not
+   answer at all. So the products are real and the photographs are not, and an
+   id emitted for them is a broken image in the online path and a guaranteed
+   failure in gen-packs.mjs on every run forever.
+
+   Checked rather than listed. A hardcoded skip of those three is a list that
+   rots in both directions: it goes stale when TCGplayer adds a photo, and it
+   silently misses the fourth one that goes dark next year — and, being in a
+   GENERATED file's generator, "just delete the line from sets.js" un-deletes
+   itself the next time this runs, which is what the issue said would happen.
+
+   Cached, because the answer per id never changes and 480-odd HEADs is a minute
+   this script should spend once. A new set adds its own ids and only those are
+   asked about. Delete data/pack-art.json to re-ask everything. */
+const AVAIL = 'data/pack-art.json';
+async function haveArt(ids) {
+  let known = {};
+  try { known = JSON.parse(readFileSync(AVAIL, 'utf8')); } catch { /* first run */ }
+  const ask = ids.filter((id) => known[id] === undefined);
+  if (!ask.length) return known;
+  process.stdout.write(`pack art — checking ${ask.length} id${ask.length === 1 ? '' : 's'} `);
+  let errors = 0;
+  // 8 at a time: enough not to take a minute per hundred, few enough that a CDN
+  // doing us a favour is not being hammered for it
+  for (let i = 0; i < ask.length; i += 8) {
+    await Promise.all(ask.slice(i, i + 8).map(async (id) => {
+      try {
+        /* GET one byte, NOT a HEAD. This CDN does not answer HEAD at all — it
+           accepts the connection and never replies, so the first version of
+           this sat there until it gave up and scored all 391 ids as having no
+           photograph. `Range: bytes=0-0` comes back 206 with a single byte,
+           which costs the same as the HEAD was supposed to and actually
+           arrives. The body has to be consumed or the socket is left open and
+           the next batch waits on the pool. */
+        const r = await fetch(`https://tcgplayer-cdn.tcgplayer.com/product/${id}_200w.jpg`, {
+          headers: { 'User-Agent': 'card-collection-draft/1.0', Range: 'bytes=0-0' },
+          signal: AbortSignal.timeout(20000),
+        });
+        await r.arrayBuffer();
+        known[id] = r.ok ? 1 : 0;                // 200/206 yes, 403/404 no
+      } catch { errors++; }                      // unreachable is NOT "no photo": leave it
+    }));                                         // unrecorded so the next run asks again
+    process.stdout.write('.');
+  }
+  process.stdout.write('\n');
+  if (errors) console.log(`pack art — ${errors} id${errors === 1 ? '' : 's'
+    } could not be reached and were left undecided; re-run to settle them`);
+  writeFileSync(AVAIL, `${JSON.stringify(known)}\n`);
+  return known;
+}
+{
+  const all = [...new Set([...ART.values()].flatMap((o) => Object.values(o)))].map(String);
+  const known = await haveArt(all);
+  const dead = all.filter((id) => known[id] === 0);
+  /* THE SANITY GUARD, and it is here because the HEAD version tripped it: a
+     broken probe looks exactly like every product losing its photograph on the
+     same day, and the difference is that one of those is possible. Rather than
+     quietly emit an empty PACK_ART — which passes every test in this file and
+     removes the wrapper from every pack in the app — refuse the whole result
+     when it is implausible and keep what was already known to work. */
+  if (dead.length > all.length / 4) {
+    console.error(`pack art — ${dead.length} of ${all.length} ids reported no photograph.`);
+    console.error('  That is the probe failing, not TCGplayer. Keeping every id; delete');
+    console.error(`  ${AVAIL} and re-run once the cause is found.`);
+  } else if (dead.length) {
+    for (const [, kinds] of ART)
+      for (const [kind, id] of Object.entries(kinds)) if (known[id] === 0) delete kinds[kind];
+    // a set whose only product had no photograph is not a set with pack art
+    for (const [set, kinds] of [...ART]) if (!Object.keys(kinds).length) ART.delete(set);
+    console.log(`pack art — ${dead.length} product${dead.length === 1 ? ' has' : 's have'
+      } no photograph and ${dead.length === 1 ? 'was' : 'were'} dropped`);
+  }
+}
 
 const res = await fetch('https://api.scryfall.com/sets', {
   headers: { 'User-Agent': 'card-collection-draft/1.0', Accept: 'application/json' },
