@@ -2315,10 +2315,27 @@ const Results = () => {
     /* A spread is a real element, not four columns and one gap. With one gap the
        join between two facing pages and the join between two different spreads
        are the same distance, so you cannot see which pair is open together. */
+    /* OFFSCREEN SPREADS SKIP LAYOUT AGAIN, and the intrinsic size is measured
+       rather than picked. `content-visibility: auto` was dropped when the binder
+       stopped being sized in px, because it needs a height to stand in for what
+       it is not laying out and there was no px height left to declare — and a
+       magic number is worse than no optimisation. There is one honest height
+       available: the FIRST spread is always on screen, so it is exempted, laid
+       out for real, and measured into `--spread-h` for all the others. Every
+       spread is the same height by construction — a page always draws `per`
+       pockets, empty ones included — so one measurement answers for the lot, and
+       it is re-taken on every render and every resize rather than remembered.
+
+       Worth the wiring: measured on the worst case the CARD_LIMIT allows, a
+       240-page binder at 1x1, layout is **267ms** and with this **17.9ms**.
+       Building the HTML is 21ms and parsing it 30ms, so layout was not merely
+       the largest cost, it was the whole cost — and every click re-renders. */
     return `<div class="w-full">
-      <div class="grid items-start gap-8" style="grid-template-columns:repeat(${P.across / 2},minmax(0,1fr))">
-      ${spreads.map(pair => `<div class="grid items-start gap-3"
-        style="grid-template-columns:repeat(2,minmax(0,1fr))">
+      <div class="grid items-start gap-8" data-spreads
+        style="grid-template-columns:repeat(${P.across / 2},minmax(0,1fr))">
+      ${spreads.map((pair, s) => `<div class="grid items-start gap-3" data-spread
+        style="grid-template-columns:repeat(2,minmax(0,1fr));${s
+          ? 'content-visibility:auto;contain-intrinsic-height:auto var(--spread-h,0px);' : ''}">
         ${pair.map(i => i === cover ? '<div></div>' : Page(i)).join('')}
       </div>`).join('')}
       </div>
@@ -2423,6 +2440,20 @@ let GUTTER = null, PACKS = [];
    of them outside the pane entirely. Every rect below is divided back at the
    point it is read, so the rest of the arithmetic stays in one unit. */
 const uiZoom = () => parseFloat(getComputedStyle?.(document.body)?.zoom) || 1;
+
+/* The one honest number for `contain-intrinsic-height`: the first spread is on
+   screen, so it is never skipped and its height is real. Read after the render
+   that made it and written to the container as a variable, so the spreads that
+   ARE skipped stand in at the size of the one that is not. Nothing is
+   remembered between renders — a resize re-takes it, which is the whole reason
+   it is a measurement and not a constant. */
+function measureSpread() {
+  const first = document.querySelector?.('[data-spread]');
+  if (!first) return;
+  const h = Math.round(first.getBoundingClientRect().height / uiZoom());
+  // 0 is "not laid out yet", not a height — writing it would collapse the rest
+  if (h > 0) first.parentElement.style.setProperty('--spread-h', h + 'px');
+}
 
 function measureGutter() {
   const pane = document.querySelector?.('#pane');
@@ -5345,6 +5376,7 @@ function render() {
   }
   document.title = 'Draft — ' + route;
   measureGutter();
+  measureSpread();
   /* Saved here rather than in each of the five mutators: one call site cannot
      miss one. render() runs when you click, not per frame — the deal and the
      reveal sweep write to the DOM directly and were made not to re-render — so
@@ -5355,7 +5387,7 @@ addEventListener('hashchange', render);
 // capture, because scroll doesn't bubble — the pane is a different element on
 // every page, and this way nothing has to be re-bound after a render
 addEventListener('scroll', placeGutter, true);
-addEventListener('resize', measureGutter);
+addEventListener('resize', () => { measureGutter(); measureSpread(); });
 setInterval(cyclePacks, 1000);   // ticks; each pack has its own turn inside it
 // before the first paint: what was chosen last time IS the starting state, and
 // painting the defaults first would flash them

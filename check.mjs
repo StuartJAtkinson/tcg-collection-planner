@@ -867,18 +867,29 @@ for (const [name, , dims] of t.LISTS.binders) {
      pages is what made the binder wider than the window. */
   assert.ok(!/repeat\(\d+,\d+px\)/.test(painted),
     `${name}: the binder is still laying out in fixed pixels, so it can outgrow the pane`);
-  const outer = /gap-8" style="grid-template-columns:repeat\((\d+),minmax\(0,1fr\)\)/.exec(painted);
+  const outer = /gap-8" data-spreads\s*style="grid-template-columns:repeat\((\d+),minmax\(0,1fr\)\)/.exec(painted);
   assert.ok(outer, `${name}: there is no grid of spreads`);
   assert.strictEqual(+outer[1], t.P.across / 2,
     `${name}: ${outer[1]} spreads across for ${t.P.across} pages`);
-  const inner = [...painted.matchAll(/gap-3"\s*style="grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/g)];
+  const inner = [...painted.matchAll(/gap-3" data-spread\s*style="grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/g)];
   assert.strictEqual(inner.length, Math.ceil(((painted.match(/>Page \d+</g) || []).length + 1) / 2),
     `${name}: the spread count does not follow from the pages plus the cover`);
+  /* OFFSCREEN SPREADS SKIP LAYOUT, and the first one does not — it is the only
+     spread guaranteed to be on screen, so it is the only one whose height can be
+     measured, and `--spread-h` is what the rest stand in at. Exempting it is
+     load-bearing in both directions: skip it too and there is nothing to
+     measure; skip none and a 240-page binder costs 267ms of layout per render
+     against 17.9ms with this. */
+  const cv = [...painted.matchAll(/content-visibility:auto;contain-intrinsic-height:auto var\(--spread-h,0px\);/g)];
+  assert.strictEqual(cv.length, inner.length - 1,
+    `${name}: ${cv.length} of ${inner.length} spreads skip layout — the first must not, the rest must`);
+  assert.ok(inner.length < 2 || painted.indexOf('content-visibility') > inner[1].index - 200,
+    `${name}: the first spread skips layout, so there is no real height to measure`);
   // the pockets share the page the same way
   assert.ok(painted.includes(`repeat(${cols},minmax(0,1fr))`),
     `${name}: the pockets are not ${cols} equal shares of the page`);
   // the first spread is the inside front cover and page 1, so page 1 reads right-hand
-  assert.ok(/repeat\(2,minmax\(0,1fr\)\)">\s*<div><\/div>/.test(painted),
+  assert.ok(/repeat\(2,minmax\(0,1fr\)\);">\s*<div><\/div>/.test(painted),
     `${name}: the first spread has no cover, so page 1 is a left-hand page`);
   // exactly one blank, and it is the cover: a short final spread just draws its
   // one page on the left, which is where the last page of a binder actually is
