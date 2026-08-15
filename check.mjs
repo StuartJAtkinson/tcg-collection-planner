@@ -13,7 +13,7 @@ const page = readFileSync('index.html', 'utf8');   // the markup too: <body> car
 const src = `${['sets.js', 'trim.js', 'anatomy.js'].map(f => readFileSync(f, 'utf8')).join('\n')}
 ${page.match(/<script>([\s\S]*)<\/script>/)[1]}`;
 const js = src
-  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, CAN_BE_LOCAL, MISSING_LOCAL, srcBytes, onDisk, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setZoom, binderDims, zoomPx, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, BINDER_SORT, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
+  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, CAN_BE_LOCAL, MISSING_LOCAL, srcBytes, onDisk, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, BINDER_SORT, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
   + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen,'
   + ' setDebug: v => { DEBUG = v; } };';
 
@@ -341,21 +341,21 @@ assert.ok(rows.includes('Noble Hierarch') && rows.includes('class="ms"'),
 assert.ok(rows.includes('×2'), 'compact drops the count on a scope that holds copies');
 for (const part of ['nonfoil', '>CON<', '£'])
   assert.ok(!rows.includes(part), `compact still carries "${part}" from the identity key`);
-// the column count is the pane divided by the widest row the data can make —
-// auto-fill does the dividing, so resizing the window changes it, not a constant
-assert.ok(/repeat\(auto-fill,minmax\(\d+px,1fr\)\)/.test(rows),
+/* One compact row is short, so a full-width list of them is mostly empty: it
+   lays out in however many columns the layout row is set to. That number used to
+   be arrived at by nudging a percentage until auto-fill happened to divide the
+   pane the way you wanted, which is why it is a count now. */
+assert.ok(/repeat\(\d+,minmax\(0,1fr\)\)/.test(rows),
   'compact is a single column list rather than filling the pane');
 assert.ok(/grid-column:1\/-1/.test(rows), 'a compact group header does not span the columns');
-const compactMin = +rows.match(/minmax\((\d+)px/)[1];
-const longest = Math.max(...t.GAMES.mtg && [23]);   // "Knight of the Reliquary"
-assert.ok(compactMin > longest * 7 && compactMin < longest * 7 + 200,
-  `the compact track (${compactMin}px) is not derived from the widest row`);
-// a game with shorter names and no mana marks gets narrower columns, with no
-// number edited anywhere
-t.pickGame('pokemon'); go('#/decks'); t.setView('compact'); t.render();
-const pkm = +painted.slice(painted.indexOf('>view<')).match(/minmax\((\d+)px/)[1];
-assert.ok(pkm < compactMin, 'the compact track does not follow the data');
-t.pickGame('mtg'); go('#/decks'); t.setView('compact'); t.render();
+/* The track used to be measured off the widest row the data could produce, so a
+   game with shorter names got narrower columns on its own. That went with
+   auto-fill: a column is now 1fr of the pane and a long name truncates, which is
+   what `truncate` on the row was always there for. The count is the setting;
+   nothing about it is per-game any more. */
+assert.ok(!/minmax\(\d+px/.test(rows), 'a px track is back, so the count is not the setting');
+assert.ok(t.TitleRow({ n: 'Knight of the Reliquary', cost: ['3', 'G', 'W'] }).includes('truncate'),
+  'a name too long for its column has nothing to truncate it');
 
 // on a set or a search there are no copies to count, so the column is not drawn
 go('#/printings'); t.setView('compact'); t.render();
@@ -792,11 +792,11 @@ go('#/printings'); t.clearItem(); t.render();
 assert.ok(/<body[^>]*\[zoom:0\.8\]/.test(page), 'the UI is no longer scaled to 0.8');
 assert.ok(/<body[^>]*h-\[125vh\]/.test(page), 'zoom without the height compensation leaves the viewport short');
 go('#/search'); t.setView('grid'); t.render();
-// a stepper, not a slider: you cannot ask a slider for exactly 3 across, and a
-// card size worth returning to is worth typing
-assert.ok(painted.includes('onchange="setZoom(this.value)"'), 'the Zoom stepper is missing');
-assert.ok(/type="number"[^>]*onchange="setZoom/.test(painted.replace(/\s+/g, ' ')),
-  'Zoom is not a number input, so it has no arrows and no manual entry');
+// a stepper, not a slider: "exactly 3 across" is the whole point, and a slider
+// cannot be asked for it
+assert.ok(painted.includes('onchange="setCols(this.value)"'), 'the Columns stepper is missing');
+assert.ok(/type="number"[^>]*onchange="setCols/.test(painted.replace(/\s+/g, ' ')),
+  'Columns is not a number input, so it has no arrows and no manual entry');
 assert.ok(!painted.includes('type="range"'), 'a range slider is still being drawn');
 /* Two rows: what you CHOOSE on the first — Display, Order, Apply/Clear — and
    the numbers that size the layout underneath. The numbers change width as you
@@ -810,7 +810,7 @@ assert.ok(!painted.includes('type="range"'), 'a range slider is still being draw
   assert.ok(at('>Display<') >= 0 && at('>Order<') > at('>Display<'),
     'Order does not follow the display choice');
   assert.ok(at('>Order<') < at('>Apply<'), 'Apply is not at the end of the first row');
-  assert.ok(at('>Apply<') < at('>Zoom<'), 'the sizing numbers are not on the row beneath');
+  assert.ok(at('>Apply<') < at('>Columns<'), 'the sizing numbers are not on the row beneath');
   assert.ok(/flex flex-col gap-2[\s\S]{0,400}>Display</.test(band),
     'the sort band is not two stacked rows');
   assert.ok(/min-w-0 flex-1 flex-wrap[\s\S]{0,300}>Order</.test(band),
@@ -820,7 +820,8 @@ assert.ok(!painted.includes('type="range"'), 'a range slider is still being draw
    too, and a card-size percentage is no more use there than it is on Binders —
    the binder sizes itself from Pages/Columns/Rows either way. */
 go('#/printings'); t.setView('binder'); t.render();
-assert.ok(!painted.includes('>Zoom</span>'), 'the binder on printings still offers Zoom');
+assert.ok(!painted.includes('onchange="setCols(this.value)"'),
+  'the binder on printings offers a card-column count as well as its page shape');
 for (const label of ['Pages', 'Columns', 'Rows'])
   assert.ok(painted.includes(`>${label}</span>`), `the binder on printings does not offer ${label}`);
 // with no binder picked to own the shape, the tab default takes the edit
@@ -828,19 +829,35 @@ t.setBinderDim(0, 5); t.render();
 assert.strictEqual(t.P.dims[0], 5, 'editing the page shape off a binder did not reach the default');
 assert.ok(painted.includes('repeat(5,minmax(0,1fr))'), 'printings did not relay the binder out');
 t.P.dims = [3, 3];
-// switch the layout back and the percentage returns
+// switch the layout back and the count returns
 t.setView('grid'); t.render();
-assert.ok(painted.includes('>Zoom</span>') && !painted.includes('>Pages</span>'),
-  'leaving the binder layout did not give Zoom back');
+assert.ok(painted.includes('onchange="setCols(this.value)"') && !painted.includes('>Pages</span>'),
+  'leaving the binder layout did not give the column count back');
 go('#/search'); t.setView('grid'); t.render();
 
-const trackAt = (z) => { t.setZoom(z); t.render(); return +painted.match(/minmax\((\d+)px/)[1]; };
-const at100 = trackAt(100), at50 = trackAt(50), at200 = trackAt(200);
-assert.ok(at50 < at100 && at100 < at200, `zoom does not resize the cards (${at50}/${at100}/${at200})`);
-assert.strictEqual(at100, 224, 'the designed size is no longer what 100% draws');
-t.setZoom(500); assert.strictEqual(t.P.zoom, 2, 'zoom is not clamped at the top');
-t.setZoom(1);   assert.strictEqual(t.P.zoom, 0.5, 'zoom is not clamped at the bottom');
-t.setZoom(100);
+/* THE NUMBER YOU TYPE IS THE NUMBER OF COLUMNS. Zoom set a minimum track width
+   and let auto-fill decide the count, so this asserted a px track and "bigger
+   than the last one" — which is as close to "how many across" as a percentage
+   can get. Now it is the count itself, and auto-fill is gone. */
+const colsAt = (n) => { t.setCols(n); t.render(); return painted.match(/repeat\((\d+),minmax\(0,1fr\)\)/)[1]; };
+assert.strictEqual(colsAt(3), '3', 'the grid does not lay out the number of columns asked for');
+assert.strictEqual(colsAt(11), '11', 'a wider count did not reach the layout');
+assert.ok(!painted.includes('auto-fill'), 'the layout still lets auto-fill decide the count');
+t.setCols(99); assert.strictEqual(t.P.cols.grid, 12, 'the grid column count is not clamped at the top');
+t.setCols(0);  assert.strictEqual(t.P.cols.grid, 1, 'the grid column count is not clamped at the bottom');
+/* Per layout, and the bounds differ: 12 columns of cards is a contact sheet, 12
+   columns of compact rows is unreadable. Setting one must not move the other. */
+t.setCols(8);
+t.setView('compact'); t.render();
+assert.strictEqual(t.P.cols.compact, 3, 'the two layouts share one column count');
+t.setCols(99); assert.strictEqual(t.P.cols.compact, 6, 'compact takes the grid bounds instead of its own');
+assert.strictEqual(t.P.cols.grid, 8, 'setting compact moved the grid as well');
+assert.ok(painted.includes('repeat(6,minmax(0,1fr))'), 'compact did not lay out its own count');
+t.P.cols = { compact: 3, grid: 8 };
+// a layout with no count to set offers no stepper rather than an inert one
+t.setView('details'); t.render();
+assert.ok(!painted.includes('onchange="setCols(this.value)"'),
+  'Details is a table and still offers a column count');
 // the binder's page shape is data, editable, and the layout lays out exactly that many
 go('#/binders'); t.setView('binder'); t.render();
 /* The binder has no Zoom: a percentage is the wrong question for it. Pages,
