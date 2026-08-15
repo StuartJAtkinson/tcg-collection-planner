@@ -479,7 +479,16 @@ const scopeLabel = () => picked() || (tab().all ?? `All cards in ${game().label}
    seeing that is the whole point of choosing one. The sort doesn't — it's an
    ordering over the whole result set, so it stages on the bar and lands on
    Apply, the same contract as the filter. */
-function addSort(f) { P.sortDraft = [...P.sortDraft, { f, d: 'a' }]; render(); }
+/* A field lands on the side it can work on: one you can group by joins the
+   grouping, one with too many values to group joins the ordering after the
+   break. Clicking a field is saying "and by this too", and which of the two
+   things that means is not a decision worth making twice. */
+function addSort(f) {
+  const b = breakAt(P.sortDraft);
+  const at = groupable(f) && b >= 0 ? b : P.sortDraft.length;
+  P.sortDraft = [...P.sortDraft.slice(0, at), { f, d: 'a' }, ...P.sortDraft.slice(at)];
+  render();
+}
 /* One control, three states, same as a filter chip: click to put a field in the
    order ascending, again to reverse it, again to take it out. Colour carries
    the direction — emerald up, rose down — so the row reads without squinting at
@@ -497,11 +506,18 @@ function moveSort(to) {
   if (dragFrom === null || dragFrom === to) return;
   const l = [...P.sortDraft];
   l.splice(to, 0, ...l.splice(dragFrom, 1));
-  dragFrom = null; P.sortDraft = l; render();
+  dragFrom = null;
+  // refused rather than corrected: a drop that would put a 400-group field left
+  // of the break is a drop that meant something else, and silently putting it
+  // somewhere near where you aimed is worse than leaving it where it was
+  if (legalSort(l)) P.sortDraft = l;
+  render();
 }
-function addBreak() { if (breakAt(P.sortDraft) < 0) P.sortDraft = [...P.sortDraft, { f: 'BREAK' }]; render(); }
 function applySort() { P.sort = P.sortDraft.map(t => ({ ...t })); render(); }
-function clearSort() { P.sortDraft = []; P.sort = []; render(); }
+/* Clear leaves the break, because there is exactly one and it is always in the
+   list — the layout has a grouping side and an ordering side whether or not
+   anything is on either. With it at the front, nothing groups. */
+function clearSort() { P.sortDraft = [{ f: 'BREAK' }]; P.sort = [{ f: 'BREAK' }]; render(); }
 const sortTerms = l => l.map(t => t.f + (t.d || '')).join(',');
 const sortDirty = () => sortTerms(P.sortDraft) !== sortTerms(P.sort);
 
@@ -2387,13 +2403,24 @@ const fieldLabel = f => FIELD_LABEL[f] || f;
    the rest of the row sideways. Solid borders throughout — a dashed chip read
    as disabled next to the display buttons. */
 const SORT_SLOT = 'w-3 shrink-0 text-center';
+/* What a field IS, where the name is not the whole story. Main type earns one
+   because "type" already means the type line: this is the deck-building kinds,
+   and everything that is not one of them in a single group at the end. */
+const FIELD_HINT = {
+  kind: 'Creature, planeswalker, instant, sorcery, enchantment, artifact — tokens, lands, battles and every other misc type file together under Other',
+};
+const fieldTitle = (f, staged) => [
+  FIELD_HINT[f],
+  groupable(f) ? '' : 'More than 20 values, so it orders inside a group rather than making one — it cannot go left of the break',
+  staged ? 'drag to reorder &middot; click to reverse, again to remove' : 'Add to the order',
+].filter(Boolean).join(' &middot; ');
 const orderChip = (label, i, dir) => `
   <button class="${i === null ? CHIP_NEUTRAL : `${dir === 'a' ? CHIP_PLUS : CHIP_MINUS} cursor-grab`}"
     ${i === null
-      ? `onclick="addSort('${label}')" title="Add to the order"`
+      ? `onclick="addSort('${label}')" title="${fieldTitle(label, false)}"`
       : `draggable="true" ondragstart="dragSort(${i})" ondragover="event.preventDefault()" ondrop="moveSort(${i})"
          onclick="cycleSort(${i})" oncontextmenu="event.preventDefault();removeSort(${i})"
-         title="drag to reorder &middot; click to reverse, again to remove"`}>
+         title="${fieldTitle(label, true)}"`}>
     <span class="${SORT_SLOT} tabular-nums opacity-60">${i === null ? '' : i + 1}</span>
     <span class="capitalize">${fieldLabel(label)}</span>
     <span class="${SORT_SLOT}">${i === null ? '' : dir === 'a' ? '&uarr;' : '&darr;'}</span>
@@ -2431,13 +2458,11 @@ const SortRow = () => {
         <span class="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-neutral-600">Order</span>
         ${P.sortDraft.map((t, i) => t.f === 'BREAK'
           ? `<button draggable="true" ondragstart="dragSort(${i})" ondragover="event.preventDefault()" ondrop="moveSort(${i})"
-               onclick="removeSort(${i})" title="drag to reorder, click to remove — everything left of this is the grouping"
+               title="Drag me — everything left of this groups, everything right of it orders inside a group. There is only one."
                class="inline-flex cursor-grab items-center gap-1 whitespace-nowrap rounded-full border border-amber-500/70 bg-amber-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-300">&#8801; Break</button>`
           : orderChip(t.f, i, t.d)).join('')}
-        ${P.sortDraft.length ? '<span class="mx-0.5 h-4 w-px bg-neutral-700"></span>' : ''}
+        <span class="mx-0.5 h-4 w-px bg-neutral-700"></span>
         ${FIELDS.filter(f => !used.has(f)).map(f => orderChip(f, null)).join('')}
-        <button onclick="addBreak()" title="Split the layout — everything left of the break becomes the grouping"
-          class="inline-flex cursor-pointer items-center gap-1 whitespace-nowrap rounded-full border border-amber-600/60 px-3 py-1 text-xs uppercase tracking-wide text-amber-400/80 hover:border-amber-500">+ Break</button>
       </div>
       <div class="flex shrink-0 items-center gap-1.5">
         <button onclick="applySort()" class="${BTN_PRIMARY_LG} ${sortDirty() ? '' : 'opacity-40'}">Apply</button>
@@ -2564,6 +2589,42 @@ const GROUP_LABEL = {
   hp: c => (c.hp ? `${c.hp} HP` : 'no HP'),
   type: c => typeHead(c).trim() || 'no type',
   kind: c => mainType(c),
+};
+
+/* A CONTINUOUS FIELD CANNOT GROUP. A page header is only a header if there are
+   few enough of them to be worth reading: collector number makes 400+ groups of
+   one card each, which is not a grouping, it is the list with a caption on every
+   row. Twenty is the line, and measured over the catalogue it lands cleanly —
+   main type 7, rarity 5, price band 6, colour 10, mana value 18, language 19,
+   against name initial 34, type line 94, and set / release / number 400+.
+
+   Measured rather than declared because the same field is a different question
+   per game: `type` is 94 type lines in Magic and ten energy types in Pokémon.
+   ponytail: counted over the first 2,000 of the scope with an early exit at 21,
+   not the whole of it — a field with 400 values shows more than 20 inside a
+   handful of rows, and the answer is memoised per scope anyway. */
+const GROUP_CAP = 20, GROUP_SAMPLE = 2000;
+let GROUPABLE = null, GROUPABLE_OF = null;
+const groupable = (f) => {
+  const cards = scopedCards();
+  if (GROUPABLE_OF !== cards) { GROUPABLE_OF = cards; GROUPABLE = new Map(); }
+  if (GROUPABLE.has(f)) return GROUPABLE.get(f);
+  const label = GROUP_LABEL[f];
+  let ok = true;
+  if (label) {
+    const seen = new Set();
+    for (let i = 0; i < cards.length && i < GROUP_SAMPLE; i++) {
+      seen.add(label(cards[i]));
+      if (seen.size > GROUP_CAP) { ok = false; break; }
+    }
+  }
+  GROUPABLE.set(f, ok);
+  return ok;
+};
+// the one rule the bar enforces: nothing continuous may sit left of the break
+const legalSort = (l) => {
+  const b = l.findIndex(t => t.f === 'BREAK');
+  return b < 0 || l.slice(0, b).every(t => groupable(t.f));
 };
 
 const sortCards = (cs) => {

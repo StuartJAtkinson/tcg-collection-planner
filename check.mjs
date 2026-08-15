@@ -13,7 +13,7 @@ const page = readFileSync('index.html', 'utf8');   // the markup too: <body> car
 const src = `${['sets.js', 'trim.js', 'anatomy.js'].map(f => readFileSync(f, 'utf8')).join('\n')}
 ${page.match(/<script>([\s\S]*)<\/script>/)[1]}`;
 const js = src
-  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, CAN_BE_LOCAL, MISSING_LOCAL, srcBytes, onDisk, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
+  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, CAN_BE_LOCAL, MISSING_LOCAL, srcBytes, onDisk, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
   + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen,'
   + ' setDebug: v => { DEBUG = v; } };';
 
@@ -3030,4 +3030,61 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
   t.pickGame('pokemon'); go('#/search');
   assert.ok(!/onclick="toggleChip\('Legality'/.test(painted), 'the other game filters by Magic vocabulary');
   t.pickGame('mtg'); t.clearFilter();
+}
+
+/* --- the break is one element, and continuous fields cannot group -----
+   Needs a scope with more than twenty of something: over the 18 mock rows every
+   field has under twenty values, so every field is groupable and the rule this
+   asserts is invisible. That is the rule working — twenty sets is a grouping,
+   four hundred is a caption on every row — but it is not a test. */
+{
+  const many = { o: [], p: [] };
+  for (let i = 0; i < 25; i++) {
+    many.o.push([`Card ${i}`, '{G}', 'Creature — Elf', 'Text.', '1/1', 'G', 1, 'normal', '', 0, 0]);
+    many.p.push([i, `S${String(i).padStart(2, '0')}`, String(i + 1), 1,
+      `00000000-0000-4000-8000-0000000000${String(i).padStart(2, '0')}`, 0, 0, 1]);
+  }
+  t.loadCards(many);
+  t.pickGame('mtg'); go('#/search');
+  assert.strictEqual(t.scopedCards().length, 25, 'the wide fixture did not load');
+
+  // 25 sets and 25 numbers against one main type and one rarity
+  assert.strictEqual(t.groupable('set'), false, '25 sets is being offered as a grouping');
+  assert.strictEqual(t.groupable('number'), false, '25 collector numbers is being offered as a grouping');
+  assert.strictEqual(t.groupable('kind'), true, 'main type is not groupable');
+  assert.strictEqual(t.groupable('rarity'), true, 'rarity is not groupable');
+
+  /* THE BREAK IS ALWAYS THERE. One is all the layout can use — `grouping()` is
+     everything left of the FIRST one — so it is a permanent element you drag
+     rather than something to add and remove. Clear leaves it. */
+  t.clearSort();
+  assert.strictEqual(t.P.sortDraft.map(x => x.f).join(), 'BREAK', 'Clear did not leave the break behind');
+  go('#/search');
+  assert.ok(!painted.includes('+ Break'), 'the Add Break button is still there');
+  assert.ok(!/&#8801; Break<\/button>[\s\S]{0,10}/.test(painted.replace(/onclick="removeSort\(\d+\)"/, 'REMOVABLE'))
+    || !painted.includes('REMOVABLE'), 'the break can still be clicked away');
+  assert.strictEqual((painted.match(/&#8801; Break/g) || []).length, 1, 'there is not exactly one break');
+
+  // a field lands on the side it can work on
+  t.addSort('kind');
+  assert.strictEqual(t.P.sortDraft.map(x => x.f).join(), 'kind,BREAK', 'a groupable field did not join the grouping');
+  t.addSort('set');
+  assert.strictEqual(t.P.sortDraft.map(x => x.f).join(), 'kind,BREAK,set',
+    'a field with too many values to group landed on the grouping side');
+
+  // and it cannot be dragged across — refused, not corrected
+  t.dragSort(2); t.moveSort(0);
+  assert.strictEqual(t.P.sortDraft.map(x => x.f).join(), 'kind,BREAK,set',
+    'a continuous field was dragged into the grouping');
+  // nor can the break be dragged over it, which is the same illegal state
+  t.dragSort(1); t.moveSort(2);
+  assert.strictEqual(t.P.sortDraft.map(x => x.f).join(), 'kind,BREAK,set',
+    'the break was dragged past a field that cannot group');
+  // a legal drag still works: the break to the front, so nothing groups
+  t.dragSort(1); t.moveSort(0);
+  assert.strictEqual(t.P.sortDraft.map(x => x.f).join(), 'BREAK,kind,set',
+    'the break cannot be dragged to the front');
+  t.applySort();
+  assert.strictEqual(t.grouping().length, 0, 'the break at the front still groups');
+  t.clearSort();
 }
