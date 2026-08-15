@@ -73,7 +73,7 @@ const GAMES = {
   mtg: {
     label: 'Magic', total: num(MTG_CARDS),
     sets: `${num(SETS.length)} sets &middot; ${num(MTG_CARDS)} cards`,
-    sort: ['name','set','release','number','rarity','mana','colour','price','language'],
+    sort: ['kind','name','set','release','number','rarity','mana','colour','price','language'],
     anatomy: [
       ['chips', 'Legality', [['Standard',41],['Pioneer',68],['Modern',92],['Legacy',131],['Vintage',134],['Commander',129],['Pauper',54],['Brawl',44]], { cols: 2, note: 'legal in' }],
       ['combos'],
@@ -179,6 +179,23 @@ const LISTS = {
   ],
 };
 
+/* HOW A COLLECTION IS FILED, and now the default everywhere rather than the
+   binder's private arrangement: main type, colour, rarity high to low, then the
+   break — so a group is one kind of card, in one colour, at one rarity — and
+   inside it, release order, set, collector number. Release before set because a
+   release is the block, so a set and its sub-sets stay together instead of being
+   split by their codes.
+
+   This is a DEPARTURE from "a fresh page applies nothing on your behalf", taken
+   deliberately and on request. The argument for that rule was that an order you
+   did not choose is misleading on a QUERY, where it decides what you see first —
+   and it still is, which is why Clear still clears to nothing rather than back
+   to this. What changed is the judgement that an unordered catalogue is worse:
+   107,347 printings in payload order is not a neutral starting point either, it
+   is just an arbitrary one that reads as random. */
+const DEFAULT_SORT = () => [{ f: 'kind', d: 'a' }, { f: 'colour', d: 'a' }, { f: 'rarity', d: 'd' },
+  { f: 'BREAK' }, { f: 'release', d: 'a' }, { f: 'set', d: 'a' }, { f: 'number', d: 'a' }];
+
 /* A page of results, not a limit. The list used to be sliced here and say
    so in the count; this is how many are on screen right now, and reaching the
    end of them fetches the next page until there are none left. */
@@ -197,11 +214,12 @@ const P = {
   compare: false,  // #/anatomy only: draw each sample beside its printed scan
   // how many across, per layout — the thing Zoom was a percentage of. Defaults
   // are what auto-fill drew at a 1920 window, so the page opens as it always did
-  cols: { compact: 3, grid: 8 },
+  cols: { compact: 6, grid: 6 },
   dims: [3, 3],    // page shape for binders when none is picked to own it
   across: 4,       // binder pages shown side by side; even, because a page faces one
-  sort: [],              // applied — what the results are actually ordered by
-  sortDraft: [],         // staged — what you're building on the bar
+  // filed on arrival — see DEFAULT_SORT for why this is not "applies nothing"
+  sort: DEFAULT_SORT(),        // applied — what the results are actually ordered by
+  sortDraft: DEFAULT_SORT(),   // staged — what you're building on the bar
   view: null,
   ask: null,             // the one question the hovering button asks
   draw: null,            // a drawn pool, or null — set pages only
@@ -487,12 +505,6 @@ function clearSort() { P.sortDraft = []; P.sort = []; render(); }
 const sortTerms = l => l.map(t => t.f + (t.d || '')).join(',');
 const sortDirty = () => sortTerms(P.sortDraft) !== sortTerms(P.sort);
 
-/* How a binder is filed: colour, then rarity high to low, then a page break —
-   so a page is one colour at one rarity — and inside the page, release order,
-   set, collector number. Release before set because a release is the block, so
-   a set and its sub-sets stay together instead of being split by their codes. */
-const BINDER_SORT = [{ f: 'colour', d: 'a' }, { f: 'rarity', d: 'd' }, { f: 'BREAK' },
-  { f: 'release', d: 'a' }, { f: 'set', d: 'a' }, { f: 'number', d: 'a' }];
 const breakAt = (l = P.sort) => l.findIndex(t => t.f === 'BREAK');
 const grouping = () => (breakAt() < 0 ? [] : P.sort.slice(0, breakAt()));
 const setView = v => { P.view = v; render(); };
@@ -2121,7 +2133,34 @@ const CARD_TYPES = ['Creature', 'Instant', 'Sorcery', 'Artifact', 'Enchantment',
 const RARITIES = [['Common', 1], ['Uncommon', 2], ['Rare', 3], ['Mythic', 4], ['Special', 5]];
 const FINISHES = ['Nonfoil', 'Foil', 'Etched'];
 // the head of a type line is everything before the em-dash, the tail everything after
-const typeHead = c => (c.type || '').split('—')[0];
+// catalogue cards carry a real em dash, the mocks carry the entity — matching
+// only one left every mock card's full type line standing in for its head
+const typeHead = c => (c.type || '').split(/&mdash;|—/)[0];
+/* MAIN TYPE — the kinds you build a deck out of, and one bucket for everything
+   else. Not the same question as Type: the type line says a Token Creature is a
+   creature and a Snow Artifact Land is an artifact, and neither is a card you
+   would file with the creatures or the artifacts. So the misc types VETO first
+   and the main types are read after, which is also the order a player reads them
+   in — an Artifact Land is a land, an Artifact Creature is a creature.
+
+   Ordered by how a deck is laid out rather than alphabetically, so the sort key
+   is the position in this list and Other always lands last. */
+const MAIN_TYPES = ['Creature', 'Planeswalker', 'Instant', 'Sorcery', 'Enchantment', 'Artifact'];
+const MAIN_ORDER = [...MAIN_TYPES, 'Other'];
+/* Plane is \b-bounded so it cannot eat Planeswalker, which is the one collision
+   in this list. Card is the art-series type line, which is literally "Card". */
+const NOT_MAIN = /\b(token|land|battle|emblem|scheme|plane|phenomenon|vanguard|conspiracy|dungeon|sticker|attraction|contraption|hero|card)\b/;
+/* Case-folded, and one alias — both found by running this over the catalogue
+   rather than by thinking about it. Portal printed its creatures as "Summon
+   Wolf" and the source keeps that wording on 12 printings; one joke card
+   lowercases its own type line ("instant"), and a second capitalises a plane as
+   "pLAnE", which folding files correctly as misc. */
+const mainType = (c) => {
+  const head = typeHead(c).toLowerCase();
+  if (NOT_MAIN.test(head)) return 'Other';
+  if (/\bsummon\b/.test(head)) return 'Creature';
+  return MAIN_TYPES.find(t => head.includes(t.toLowerCase())) || 'Other';
+};
 const typeTail = c => (c.type || '').split('—')[1] || '';
 const topN = (cards, of, n) => {
   const seen = new Map();
@@ -2340,7 +2379,7 @@ const defaultView = () => (views().length === 1 ? views()[0][0] : null);
 /* SORT — click to add and cycle asc/desc/off, drag to reorder, and BREAK is
    an element in the same list. Everything left of it is the grouping. */
 // `capitalize` turns "hp" into "Hp"; acronyms need an explicit label
-const FIELD_LABEL = { hp: 'HP', cmc: 'CMC' };
+const FIELD_LABEL = { hp: 'HP', cmc: 'CMC', kind: 'Main type' };
 const fieldLabel = f => FIELD_LABEL[f] || f;
 
 /* Every order chip is the same shape whether or not it's in the sort: the rank
@@ -2509,7 +2548,8 @@ const SORT_KEY = {
   price: c => c.usd || 0,
   language: c => c.lang || '',
   hp: c => +c.hp || 0,
-  type: c => (c.type || '').split('—')[0].trim().toLowerCase(),
+  type: c => typeHead(c).trim().toLowerCase(),
+  kind: c => MAIN_ORDER.indexOf(mainType(c)),
 };
 const GROUP_LABEL = {
   name: c => (c.n || '?')[0].toUpperCase(),
@@ -2522,9 +2562,8 @@ const GROUP_LABEL = {
   price: c => priceBand(c.usd),
   language: c => c.lang || 'no language',
   hp: c => (c.hp ? `${c.hp} HP` : 'no HP'),
-  // catalogue cards carry a real em dash, the mocks carry the entity: matching
-  // only one put every full type line in its own group
-  type: c => (c.type || '').split(/&mdash;|—/)[0].trim() || 'no type',
+  type: c => typeHead(c).trim() || 'no type',
+  kind: c => mainType(c),
 };
 
 const sortCards = (cs) => {
@@ -5234,8 +5273,10 @@ const GameBanner = (k, g) => `
 function pickGame(k) {
   P.game = k;
   clearPicks();
-  P.sort = [];
-  P.sortDraft = [];
+  // back to the default filing, not to nothing: picking a game is arriving, and
+  // arriving is the moment the default is for
+  P.sort = DEFAULT_SORT();
+  P.sortDraft = DEFAULT_SORT();
   P.view = null;
   // enter at whatever tab is furthest left, so reordering NAV moves the
   // landing page with it rather than needing a second edit here
@@ -5678,26 +5719,12 @@ function render() {
      the move by exempting the two crossings instead. */
   if (route !== lastRoute && route !== 'draw' && lastRoute !== 'draw') {
     clearPicks();
-    /* A binder is ARRANGED — filing it is what putting it in order means — so
-       the Binders tab lands on an arrangement instead of an empty bar. The one
-       departure from "a fresh page applies nothing on your behalf", and
-       deliberate: an order you did not ask for is misleading on a QUERY, where
-       it decides what you see first, and is just the shelf on a binder, where
-       the cards are the same cards either way.
-
-       Seeded on arrival and taken back on the way out — but only if it was
-       never touched. Setting it once and leaving it set carried a six-term
-       order onto Search as something the user had never asked for. */
-    if (route === 'binders') {
-      if (!P.sort.length && !P.sortDraft.length) {
-        P.sort = BINDER_SORT.map(t => ({ ...t }));
-        P.sortDraft = BINDER_SORT.map(t => ({ ...t }));
-      }
-    } else if (lastRoute === 'binders' && sortTerms(P.sort) === sortTerms(BINDER_SORT)
-               && !sortDirty()) {
-      P.sort = [];
-      P.sortDraft = [];
-    }
+    /* The binder used to be seeded with this arrangement on arrival and have it
+       taken back on the way out, because it was the one tab that filed itself
+       and everywhere else started empty. Now every tab starts filed, so there is
+       nothing left for that special case to do and it is gone — along with the
+       "did they touch it" bookkeeping it needed to avoid carrying a six-term
+       order onto Search as something nobody had asked for. */
   }
   const sameRoute = route === lastRoute;
   lastRoute = route;

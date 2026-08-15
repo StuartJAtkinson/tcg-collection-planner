@@ -13,7 +13,7 @@ const page = readFileSync('index.html', 'utf8');   // the markup too: <body> car
 const src = `${['sets.js', 'trim.js', 'anatomy.js'].map(f => readFileSync(f, 'utf8')).join('\n')}
 ${page.match(/<script>([\s\S]*)<\/script>/)[1]}`;
 const js = src
-  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, CAN_BE_LOCAL, MISSING_LOCAL, srcBytes, onDisk, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, BINDER_SORT, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
+  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, CAN_BE_LOCAL, MISSING_LOCAL, srcBytes, onDisk, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
   + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen,'
   + ' setDebug: v => { DEBUG = v; } };';
 
@@ -96,9 +96,12 @@ for (const r of ['search', 'decks', 'binders', 'printings', 'io', 'config']) {
   assert.ok(!header(painted).includes('ms-watermark-planeswalker'),
     'the header shows a game mark before one is picked');
 }
-// a fresh session applies nothing on your behalf
-assert.strictEqual(t.P.sort.length, 0, 'sort has a default');
-assert.strictEqual(t.P.sortDraft.length, 0, 'the sort bar starts with terms staged');
+/* A fresh session applies nothing on your behalf — EXCEPT the filing, which is
+   now deliberate and everywhere rather than the binder's alone. The rest of the
+   rule is unchanged and still asserted below: no display, no filter, no pick. */
+const filed = 'kinda,coloura,rarityd,BREAK,releasea,seta,numbera';
+assert.strictEqual(t.P.sort.map(x => x.f + (x.d || '')).join(), filed, 'the catalogue does not open filed');
+assert.strictEqual(t.sortDirty(), false, 'the default order lands staged but unapplied');
 assert.strictEqual(t.P.view, null, 'display has a default');
 assert.strictEqual(t.P.filterDraft.cost.length, 0, 'a mana-cost symbol is preselected');
 assert.deepStrictEqual(Object.values(t.P.pick).join(','), ',,', 'something is preselected');
@@ -106,7 +109,7 @@ assert.deepStrictEqual(Object.values(t.P.pick).join(','), ',,', 'something is pr
 setSort([{ f: 'name', d: 'a' }]); t.P.view = 'grid';
 t.pickGame('pokemon');
 assert.strictEqual(t.P.game, 'pokemon', 'picking a game did not set it');
-assert.strictEqual(t.P.sort.length, 0, 'a new game inherited the old sort');
+assert.strictEqual(t.P.sort.map(x => x.f + (x.d || '')).join(), filed, 'a new game inherited the old sort');
 assert.strictEqual(t.P.view, null, 'a new game inherited the old display');
 // the app enters at whatever tab is furthest left — reorder NAV and the
 // landing page follows, rather than a second hardcoded route drifting out of sync
@@ -275,6 +278,7 @@ for (const v of ['compact', 'details']) {
 t.setView(null); t.render();
 assert.ok(painted.includes('onclick="setView('), 'the display is not a live switch');
 assert.ok(painted.includes('onclick="applySort()"'), 'the sort bar has no Apply');
+setSort([]);
 t.addSort('name');
 assert.strictEqual(t.sortDirty(), true, 'a staged term did not mark the bar dirty');
 assert.strictEqual(t.P.sort.length, 0, 'a staged term applied itself without Apply');
@@ -849,11 +853,11 @@ t.setCols(0);  assert.strictEqual(t.P.cols.grid, 1, 'the grid column count is no
    columns of compact rows is unreadable. Setting one must not move the other. */
 t.setCols(8);
 t.setView('compact'); t.render();
-assert.strictEqual(t.P.cols.compact, 3, 'the two layouts share one column count');
+assert.strictEqual(t.P.cols.compact, 6, 'the two layouts share one column count');
 t.setCols(99); assert.strictEqual(t.P.cols.compact, 6, 'compact takes the grid bounds instead of its own');
 assert.strictEqual(t.P.cols.grid, 8, 'setting compact moved the grid as well');
 assert.ok(painted.includes('repeat(6,minmax(0,1fr))'), 'compact did not lay out its own count');
-t.P.cols = { compact: 3, grid: 8 };
+t.P.cols = { compact: 6, grid: 6 };
 // a layout with no count to set offers no stepper rather than an inert one
 t.setView('details'); t.render();
 assert.ok(!painted.includes('onchange="setCols(this.value)"'),
@@ -948,24 +952,58 @@ assert.strictEqual(t.P.dims[1], 5, 'with no binder picked the edit went nowhere'
 assert.strictEqual(alara[2][1], 3, 'an unpicked edit leaked into a binder');
 t.P.dims = [3, 3];
 
-/* A binder is ARRANGED, so the Binders tab lands on an arrangement: colour,
-   rarity high to low, a page break, then release / set / number inside a page.
-   The one departure from "a fresh page applies nothing" — and it must not leak,
-   because a six-term order following you to Search is an order you never asked
-   for. */
-t.P.sort = []; t.P.sortDraft = [];
-ctx.location.hash = '#/search'; t.render();
-assert.strictEqual(t.P.sort.length, 0, 'search arrived with an order applied');
-ctx.location.hash = '#/binders'; t.render();
-assert.strictEqual(t.P.sort.map(x => x.f + (x.d || '')).join(),
-  'coloura,rarityd,BREAK,releasea,seta,numbera', 'the binder did not arrive filed');
+/* THE FILING IS EVERY TAB'S NOW, not the binder's private arrangement seeded on
+   arrival and taken back on the way out. That special case existed only because
+   everywhere else started empty; with one default there is nothing for it to do,
+   and the bookkeeping it needed — "did they touch it" — is gone with it. A sort
+   you set yourself still travels, which is what that bookkeeping was protecting. */
+setSort(t.DEFAULT_SORT());
+for (const tab of ['#/search', '#/binders', '#/printings']) {
+  ctx.location.hash = tab; t.render();
+  assert.strictEqual(t.P.sort.map(x => x.f + (x.d || '')).join(), filed, `${tab} did not arrive filed`);
+}
 assert.strictEqual(t.sortDirty(), false, 'the arrangement lands staged but unapplied');
-// everything left of the break is the grouping: colour, then rarity
-assert.strictEqual(t.grouping().map(x => x.f).join(), 'colour,rarity',
+// everything left of the break is the grouping: main type, then colour, then rarity
+assert.strictEqual(t.grouping().map(x => x.f).join(), 'kind,colour,rarity',
   'the page break is not after rarity');
-ctx.location.hash = '#/printings'; t.render();
-assert.strictEqual(t.P.sort.length, 0, 'the binder arrangement followed you out of the tab');
-// but a sort you actually chose there is yours, and survives
+/* MAIN TYPE IS NOT THE TYPE LINE, and the difference is the whole point of the
+   term: the type line says a Token Creature is a creature and a Snow Artifact
+   Land is an artifact, and neither is a card you would file with them. The misc
+   types veto first, so an Artifact Land is a land and an Artifact Creature is a
+   creature — which is the order a player reads them in too. */
+{
+  const kind = type => t.mainType({ type });
+  assert.strictEqual(kind('Creature — Elf Druid'), 'Creature', 'a creature is not a creature');
+  assert.strictEqual(kind('Legendary Creature — Human'), 'Creature', 'a supertype hid the main type');
+  assert.strictEqual(kind('Artifact Creature — Golem'), 'Creature', 'an artifact creature filed as an artifact');
+  assert.strictEqual(kind('Enchantment Creature — Nymph'), 'Creature', 'an enchantment creature filed as an enchantment');
+  assert.strictEqual(kind('Legendary Planeswalker — Jace'), 'Planeswalker', 'Plane ate Planeswalker');
+  for (const [type, want] of [['Instant', 'Instant'], ['Sorcery', 'Sorcery'],
+    ['Enchantment — Aura', 'Enchantment'], ['Artifact — Equipment', 'Artifact']])
+    assert.strictEqual(kind(type), want, `${type} did not file as ${want}`);
+  // ...and everything Stuart named as not-main, however it is dressed
+  for (const type of ['Basic Land — Forest', 'Artifact Land', 'Snow Land — Mountain',
+    'Token Creature — Spirit', 'Battle — Siege', 'Emblem', 'Scheme', 'Plane — Dominaria',
+    'Phenomenon', 'Vanguard', 'Conspiracy', 'Dungeon', 'Card', 'Hero'])
+    assert.strictEqual(kind(type), 'Other', `"${type}" is being filed as a main type`);
+  // the sort key is the position in that order, so Other lands last whatever it is
+  assert.strictEqual(t.SORT_KEY.kind({ type: 'Creature' }), 0, 'creatures do not sort first');
+  assert.strictEqual(t.SORT_KEY.kind({ type: 'Basic Land — Forest' }), t.MAIN_ORDER.length - 1,
+    'Other does not sort last');
+  assert.strictEqual(t.GROUP_LABEL.kind({ type: 'Instant' }), 'Instant', 'the group header lost its name');
+  // and the mocks carry &mdash; rather than a real dash, which used to leave the
+  // whole type line standing in for its head
+  assert.strictEqual(kind('Creature &mdash; Sliver'), 'Creature', 'an entity dash broke the type head');
+  /* Both of these came out of running the classifier over the catalogue rather
+     than out of reasoning about it: Portal printed creatures as "Summon Wolf"
+     and 12 printings keep that wording, and the type line is not reliably
+     capitalised — one card says "instant" and one says "pLAnE". */
+  assert.strictEqual(kind('Summon Wolf'), 'Creature', 'a Portal creature is filed as misc');
+  assert.strictEqual(kind('instant'), 'Instant', 'a lowercase type line is filed as misc');
+  assert.strictEqual(kind('pLAnE'), 'Other', 'case folding let a plane through as a main type');
+}
+
+// a sort you actually chose is yours, and survives the tab you set it in
 ctx.location.hash = '#/binders'; t.render();
 setSort([{ f: 'name', d: 'a' }]);
 ctx.location.hash = '#/decks'; t.render();
@@ -1413,7 +1451,8 @@ for (const [k, g] of Object.entries(t.GAMES)) {
   for (const [, label] of rare)
     assert.ok(painted.indexOf(`>${label}<`) > otherAt, `${k}: "${label}" should be under Other`);
   for (const f of g.sort) {
-    const lbl = { hp: 'HP', cmc: 'CMC' }[f] || f;
+    // the labels the chips actually carry, where `capitalize` is not enough
+    const lbl = { hp: 'HP', cmc: 'CMC', kind: 'Main type' }[f] || f;
     assert.ok(painted.includes(`>${lbl}</button>`) || painted.includes(`>${lbl}</span>`),
       `${k}: sort field "${f}" is not offered`);
   }
