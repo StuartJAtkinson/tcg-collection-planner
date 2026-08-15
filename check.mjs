@@ -13,7 +13,7 @@ const page = readFileSync('index.html', 'utf8');   // the markup too: <body> car
 const src = `${['sets.js', 'trim.js', 'anatomy.js'].map(f => readFileSync(f, 'utf8')).join('\n')}
 ${page.match(/<script>([\s\S]*)<\/script>/)[1]}`;
 const js = src
-  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, CAN_BE_LOCAL, MISSING_LOCAL, srcBytes, onDisk, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, frameOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, costTokens, CARD_LIMIT, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setZoom, binderDims, zoomPx, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, BINDER_SORT, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
+  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, CAN_BE_LOCAL, MISSING_LOCAL, srcBytes, onDisk, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, frameOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setZoom, binderDims, zoomPx, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, BINDER_SORT, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
   + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen,'
   + ' setDebug: v => { DEBUG = v; } };';
 
@@ -100,7 +100,7 @@ for (const r of ['search', 'decks', 'binders', 'printings', 'io', 'config']) {
 assert.strictEqual(t.P.sort.length, 0, 'sort has a default');
 assert.strictEqual(t.P.sortDraft.length, 0, 'the sort bar starts with terms staged');
 assert.strictEqual(t.P.view, null, 'display has a default');
-assert.strictEqual(t.P.cost.length, 0, 'a mana-cost symbol is preselected');
+assert.strictEqual(t.P.filterDraft.cost.length, 0, 'a mana-cost symbol is preselected');
 assert.deepStrictEqual(Object.values(t.P.pick).join(','), ',,', 'something is preselected');
 // picking a game locks it in, and resets rather than inheriting
 setSort([{ f: 'name', d: 'a' }]); t.P.view = 'grid';
@@ -1208,12 +1208,12 @@ for (const k of ['X', 'Snow', 'Phyrexian'])
 assert.ok(mv().indexOf('toggleCost') > mv().indexOf('to</span>'), 'the toggles are not under the range');
 // independent, and all three can be on at once
 t.toggleCost('Snow');
-assert.strictEqual(t.P.cost.join(','), 'Snow', 'toggling one symbol did not select just it');
+assert.strictEqual(t.P.filterDraft.cost.join(','), 'Snow', 'toggling one symbol did not select just it');
 t.toggleCost('X'); t.toggleCost('Phyrexian');
-assert.strictEqual(t.P.cost.length, 3, 'the three symbols are not independently selectable');
+assert.strictEqual(t.P.filterDraft.cost.length, 3, 'the three symbols are not independently selectable');
 assert.strictEqual((mv().match(/border-emerald-500/g) || []).length, 3, 'a selected symbol is not marked');
 t.toggleCost('X'); t.toggleCost('Snow'); t.toggleCost('Phyrexian');
-assert.strictEqual(t.P.cost.length, 0, 'a symbol would not toggle back off');
+assert.strictEqual(t.P.filterDraft.cost.length, 0, 'a symbol would not toggle back off');
 
 // --- numeric anatomy is a range, categorical anatomy is chips ----------
 // mana value / power / toughness / hp / retreat cost are magnitudes, so they
@@ -1229,8 +1229,8 @@ for (const [k, g] of Object.entries(t.GAMES)) {
 t.pickGame('mtg'); go('#/printings');
 const combo = () => painted.slice(painted.indexOf('>Colour<'), painted.indexOf('>Mana value<'));
 assert.ok(!/border border-neutral-800|divide-y/.test(combo()), 'the colour slicer is encapsulated in a box');
-assert.strictEqual(t.P.colours.length, 0, 'the colour slicer starts with a selection');
-assert.strictEqual(t.P.comboMode, 'contained', 'the default mode is not contained');
+assert.strictEqual(t.P.filterDraft.colours.length, 0, 'the colour slicer starts with a selection');
+assert.strictEqual(t.P.filterDraft.comboMode, 'contained', 'the default mode is not contained');
 const comboButtons = () => [...combo().matchAll(/title="([^"]+) &mdash; (\d+) cards"/g)];
 // the six pickers plus all 32 combinations, every one of them naming itself
 assert.strictEqual(comboButtons().length, 6 + 32, `${comboButtons().length} colour buttons, expected 38`);
@@ -1937,7 +1937,7 @@ if (undraftable) assert.deepStrictEqual(t.packsFor(undraftable[0]).length, 0,
 /* The catalogue. check.mjs renders with no network, so what runs here is the
    fallback path — which is exactly the property worth pinning: the page has to
    work before 5 MB arrives, and gets no fetch at all in the harness. */
-assert.ok(t.CARDS().length && t.CARDS().length <= t.CARD_LIMIT,
+assert.ok(t.CARDS().length && t.CARDS().length <= t.P.page,
   'the render slice is empty or ignores its own cap');
 assert.strictEqual(t.ALL().length, t.CARDS().length,
   'the mock fallback is being capped, so the harness is not seeing every mock');
@@ -2783,3 +2783,114 @@ assert.ok(t.artUrl(byName['Turner // Turned|framed'], 1).startsWith('https://car
 
 console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-sided layouts, ${
   t.PAIRED.size} paired, ${t.LANDSCAPE.size} sideways, ${t.OVERLAID.size} with the art under the text.`);
+
+/* THE FILTER FILTERS. Every chip drew a real count and narrowed nothing: CARDS()
+   sorted the scope and sliced it, chip() rendered a span with no handler, and
+   Apply had no onclick at all. The counts became real before the click did,
+   which made it worse rather than better — a number you can trust on a control
+   that does nothing.
+
+   Asserted against answers written out here rather than asked of the app: the
+   app agreeing with itself is what a shared bug looks like. */
+{
+  const FIX = { o: [
+      ['Bear',   '{1}{G}', 'Creature — Bear',  'Text.', '2/2', 'G', 2, 'normal', '', 0, 0b000000100],
+      ['Bolt',   '{R}',    'Instant',          'Text.', '',    'R', 1, 'normal', '', 0, 0b000000100],
+      ['Wrath',  '{2}{W}{W}', 'Sorcery',       'Text.', '',    'W', 4, 'normal', '', 0, 0],
+      ['Sliver', '{U}',    'Creature — Sliver', 'Flying', '1/1', 'U', 1, 'normal', '', 0, 0b000000100],
+  ], p: [
+      [0, 'AAA', '1', 1, '00000000-0000-4000-8000-000000000041', 0, 0, 1],
+      [1, 'AAA', '2', 3, '00000000-0000-4000-8000-000000000042', 0, 0, 1],
+      [2, 'AAA', '3', 4, '00000000-0000-4000-8000-000000000043', 0, 0, 1],
+      [3, 'AAA', '4', 1, '00000000-0000-4000-8000-000000000044', 0, 0, 1],
+  ] };
+  const only = () => t.filtered().map(c => c.n).sort().join(',');
+  t.loadCards(FIX);
+  t.pickGame('mtg'); go('#/search'); t.clearFilter();
+  assert.strictEqual(only(), 'Bear,Bolt,Sliver,Wrath', 'a cleared filter is not the whole scope');
+
+  /* NOTHING NARROWS UNTIL APPLY, the convention the sort bar sets. A chip that
+     filtered on click would make this a different app from the one the sort
+     lives in. */
+  t.toggleChip('Type', 'Creature');
+  assert.strictEqual(only(), 'Bear,Bolt,Sliver,Wrath', 'a staged chip narrowed the list before Apply');
+  assert.ok(t.filterDirty(), 'a staged chip leaves the filter clean, so Apply stays dimmed');
+  t.applyFilter();
+  assert.strictEqual(only(), 'Bear,Sliver', 'Apply did not apply');
+  assert.ok(!t.filterDirty(), 'the filter is still dirty after Apply');
+
+  // OR inside a group: two types means either, because ANDing them is always empty
+  t.toggleChip('Type', 'Instant'); t.applyFilter();
+  assert.strictEqual(only(), 'Bear,Bolt,Sliver', 'two chips in one group ANDed, which can only be empty');
+  // AND across groups
+  t.toggleChip('Rarity', 'Common'); t.applyFilter();
+  assert.strictEqual(only(), 'Bear,Sliver', 'two groups ORed, so narrowing one widened the list');
+  // TRI-STATE: a second click is a veto, whatever else the card matches
+  t.toggleChip('Type', 'Creature');
+  assert.strictEqual(t.chipState('Type', 'Creature'), '-', 'the second click did not make a chip a veto');
+  t.applyFilter();
+  assert.strictEqual(only(), '', 'an excluded chip still let its cards through');
+  t.toggleChip('Type', 'Creature');
+  assert.strictEqual(t.chipState('Type', 'Creature'), '', 'the third click did not clear the chip');
+  // ...and the three states on ONE chip with nothing else in the way, so the
+  // round trip is the assertion rather than an interaction with two other groups
+  t.clearFilter();
+  t.toggleChip('Type', 'Creature'); t.applyFilter();
+  assert.strictEqual(only(), 'Bear,Sliver', 'include did not shortlist');
+  t.toggleChip('Type', 'Creature'); t.applyFilter();
+  assert.strictEqual(only(), 'Bolt,Wrath', 'exclude did not veto');
+  t.toggleChip('Type', 'Creature'); t.applyFilter();
+  assert.strictEqual(only(), 'Bear,Bolt,Sliver,Wrath', 'off did not put the whole scope back');
+
+  // ranges: both ends optional, and a blank end is not a zero
+  t.clearFilter(); t.setRange('Mana value', 0, 2); t.applyFilter();
+  assert.strictEqual(only(), 'Bear,Wrath', 'a from-only range did not bound one end');
+  t.setRange('Mana value', 1, 2); t.applyFilter();
+  assert.strictEqual(only(), 'Bear', 'a two-ended range did not bound both');
+  t.setRange('Mana value', 0, ''); t.applyFilter();
+  assert.strictEqual(only(), 'Bear,Bolt,Sliver', 'clearing one end of a range did not open it');
+  // ...and a card with no number is OUT of a numeric range rather than a zero
+  t.clearFilter(); t.setRange('Power', 0, 0); t.applyFilter();
+  assert.strictEqual(only(), 'Bear,Sliver', 'a card with no power was filed under power zero');
+
+  // the bitmask groups reach the right bit
+  t.clearFilter(); t.toggleChip('Legality', 'Modern'); t.applyFilter();
+  assert.strictEqual(only(), 'Bear,Bolt,Sliver', 'the legality chip reads the wrong bit');
+
+  /* COUNTS ARE TAKEN WITH THE OTHER GROUPS APPLIED AND THIS ONE'S IGNORED, so a
+     chip reads what you would get by ALSO clicking it. Counted against the whole
+     filter, everything you have not picked reads 0 and the sidebar becomes a
+     wall of zeroes the moment you narrow anything. */
+  t.clearFilter(); t.toggleChip('Type', 'Creature'); t.applyFilter();
+  const byLabel = (g) => Object.fromEntries(t.facetCounts()[g]);
+  assert.strictEqual(byLabel('Type').Instant, 1,
+    'the counted group applies its own terms, so every chip you have not picked reads zero');
+  assert.strictEqual(byLabel('Type').Creature, 2, 'the counted group lost its own chip');
+  assert.strictEqual(byLabel('Rarity').Common, 2,
+    'another group is counted without the filter, so it promises cards the filter will not give');
+  assert.strictEqual(byLabel('Rarity').Mythic, 0, 'a rarity the filter excludes is still counted');
+
+  /* A PAGE, NOT A CEILING. The old ceiling sliced and stopped; this is how many are
+     drawn now, and the sentinel at the end asks for the next page. */
+  t.clearFilter();
+  assert.strictEqual(t.P.page, t.PAGE, 'clearing the filter did not put the paging back to the top');
+  t.P.page = 2; go('#/search');
+  assert.strictEqual(t.CARDS().length, 2, 'the page size is not what gets drawn');
+  assert.ok(painted.includes('data-more'), 'there is no sentinel, so the rest of the list is unreachable');
+  assert.ok(painted.includes('2 more'), 'the sentinel does not say how many are still to come');
+  t.P.page = 99; go('#/search');
+  assert.ok(!painted.includes('data-more'), 'the sentinel survives a fully drawn list');
+  t.P.page = t.PAGE;
+
+  // and the controls are controls now, where there is a rule behind them
+  t.clearFilter(); go('#/search');
+  assert.ok(/onclick="toggleChip\('Type','Creature'\)"/.test(painted), 'a Type chip is not clickable');
+  assert.ok(/onchange="setRange\('Mana value',0,this.value\)"/.test(painted), 'a range end is not wired');
+  assert.ok(painted.includes('onclick="applyFilter()"') && painted.includes('onclick="clearFilter()"'),
+    'Apply and Clear are still decoration');
+  /* The other game keeps the picture: FACET is Magic's vocabulary, and a Pokemon
+     Legality chip says Expanded, which FORMATS knows nothing about. */
+  t.pickGame('pokemon'); go('#/search');
+  assert.ok(!/onclick="toggleChip\('Legality'/.test(painted), 'the other game filters by Magic vocabulary');
+  t.pickGame('mtg'); t.clearFilter();
+}

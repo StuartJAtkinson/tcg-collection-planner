@@ -179,6 +179,12 @@ const LISTS = {
   ],
 };
 
+/* A page of results, not a limit. The list used to be sliced here and say
+   so in the count; this is how many are on screen right now, and reaching the
+   end of them fetches the next page until there are none left. */
+const PAGE = 240;
+const emptyFilter = () => ({ chips: {}, range: {}, colours: [], comboMode: 'contained', cost: [] });
+
 const P = {
   game: null,
   tab: 'search',
@@ -200,9 +206,17 @@ const P = {
   card: null,            // the card you clicked through to, or null
   matched: false,        // has that card been matched to a printing yet?
   face: 'frame',         // card page image slot: our drawn frame, or the printed card
-  colours: [],           // colour slicer selection — empty means every combination
-  cost: [],              // X / Snow / Phyrexian — independent, none applied by default
-  comboMode: 'contained',// 'contained' (made of nothing but these) | 'exact'
+  /* THE FILTER IS TWO OBJECTS, for the reason the sort is: nothing narrows
+     until you say so. `filterDraft` is what the sidebar is composing — the
+     chips you have lit, the colours, the ranges — and `filter` is what the
+     results are actually filtered by. Apply copies one onto the other.
+     `chips` is { group: { value: 1 | -1 } }: 1 includes, -1 excludes, absent
+     is off, which is the tri-state the chip styling was already drawn for. */
+  filter: emptyFilter(),
+  filterDraft: emptyFilter(),
+  // how many of the filtered list are rendered. Not a ceiling: the pane pages
+  // in more as you reach the end until every one is shown.
+  page: PAGE,
 };
 /* A tab is also the way back. Clicking it clears whatever was selected and
    reopens the list — including the two cases an href alone can't reach: you're
@@ -525,9 +539,16 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>'
 // the one placeholder: a field that is genuinely unknown, never a default
 const UNK = '<span class="opacity-40">&mdash;</span>';
 const money = n => n == null ? UNK : '£' + n.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const chip = (label, state, extra = '') =>
-  `<span class="${state === '+' ? CHIP_PLUS : state === '-' ? CHIP_MINUS : CHIP_NEUTRAL}">${
-    state === '+' ? '<b>+</b>' : state === '-' ? '<b>−</b>' : ''}${label}${extra}</span>`;
+/* A chip is a BUTTON when there is a filter behind it and a span when there is
+   not. It drew the + and − styling from the day it was written and nothing ever
+   set them; the counts became real before the click did, which made it worse
+   rather than better — a number you can trust on a control that does nothing. */
+const chip = (label, state, extra = '', on = '') =>
+  on ? `<button onclick="${on}" class="cursor-pointer ${
+      state === '+' ? CHIP_PLUS : state === '-' ? CHIP_MINUS : CHIP_NEUTRAL}">${
+      state === '+' ? '<b>+</b>' : state === '-' ? '<b>−</b>' : ''}${label}${extra}</button>`
+    : `<span class="${state === '+' ? CHIP_PLUS : state === '-' ? CHIP_MINUS : CHIP_NEUTRAL}">${
+      state === '+' ? '<b>+</b>' : state === '-' ? '<b>−</b>' : ''}${label}${extra}</span>`;
 const count = n => `<span class="text-neutral-500"> ${num(n)}</span>`;
 
 /* Magic's five colours: hue is the game's, only lightness/chroma were free.
@@ -570,13 +591,15 @@ const Band = (name, body, { off = false, right = '', note = '', stick = false } 
    down the right. Column counts are literal strings because Tailwind scans
    source text — an interpolated `grid-cols-${n}` would never be generated. */
 const GRID = { 1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-3', 5: 'grid-cols-5', 6: 'grid-cols-6' };
-const ChipGroup = (label, opts, note = '', cols = 2) => `
+const ChipGroup = (label, opts, note = '', cols = 2, live = false) => `
   <div class="mb-3">
     <div class="mb-1 flex items-baseline gap-2">
       <span class="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">${label}</span>
       ${note ? `<span class="text-[10px] text-neutral-600">${note}</span>` : ''}
     </div>
-    <div class="grid gap-1.5 ${GRID[cols] || GRID[2]}">${opts.map(o => chip(o[0], o[1], o[2] ? count(o[2]) : '')).join('')}</div>
+    <div class="grid gap-1.5 ${GRID[cols] || GRID[2]}">${opts.map(o => chip(
+      o[0], live ? chipState(label, o[0]) : o[1], o[2] ? count(o[2]) : '',
+      live ? `toggleChip('${jsArg(label)}','${jsArg(o[0])}')` : '')).join('')}</div>
   </div>`;
 
 /* X, Snow and Phyrexian aren't amounts, so they can't ride the from/to — but
@@ -585,21 +608,28 @@ const ChipGroup = (label, opts, note = '', cols = 2) => `
    sense as the colour slicer: any of them, in any combination, none by default. */
 const COST_SYMBOLS = [['X', 'X in the cost', 12], ['Snow', 'Snow mana', 7], ['Phyrexian', 'Phyrexian mana', 4]];
 function toggleCost(k) {
-  P.cost = P.cost.includes(k) ? P.cost.filter(x => x !== k) : [...P.cost, k];
+  const f = P.filterDraft;
+  f.cost = f.cost.includes(k) ? f.cost.filter(x => x !== k) : [...f.cost, k];
   render();
 }
 
-const RangeField = (label, lo, hi, symbols = false) => `
+/* Both ends independently optional, and a blank end is not a zero: "3 and up"
+   and "up to 3" are both real questions, so an empty box is no bound at all
+   rather than a bound of nothing. `live` is false for the game whose ranges
+   this page has no rule for, the same as the chips. */
+const RangeField = (label, lo, hi, symbols = false, live = false) => `
   <div class="mb-3">
     <div class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">${label}</div>
     <div class="flex items-center gap-1.5 text-xs">
-      <input class="${FIELD} min-w-0 flex-1 tabular-nums" value="${lo}">
+      <input class="${FIELD} min-w-0 flex-1 tabular-nums" value="${lo}"${
+        live ? ` onchange="setRange('${jsArg(label)}',0,this.value)"` : ''}>
       <span class="shrink-0 text-neutral-500">to</span>
-      <input class="${FIELD} min-w-0 flex-1 tabular-nums" value="${hi}"></div>
+      <input class="${FIELD} min-w-0 flex-1 tabular-nums" value="${hi}"${
+        live ? ` onchange="setRange('${jsArg(label)}',1,this.value)"` : ''}></div>
     ${!symbols ? '' : `<div class="mt-1.5 grid grid-cols-3 gap-1.5">
       ${COST_SYMBOLS.map(([k, name, n]) => `
         <button onclick="toggleCost('${k}')" title="${name} &mdash; ${n} cards"
-          class="${P.cost.includes(k) ? CHIP_PLUS : CHIP_NEUTRAL}">${k}${count(n)}</button>`).join('')}
+          class="${P.filterDraft.cost.includes(k) ? CHIP_PLUS : CHIP_NEUTRAL}">${k}${count(n)}</button>`).join('')}
     </div>`}
   </div>`;
 
@@ -824,8 +854,9 @@ async function loadCards(seed) {
 /* Two accessors, because they answer different questions. ALL is the catalogue —
    what a lookup or a count searches. CARDS is what a view may draw: every list
    here renders its whole input, which was free at 18 mocks and is a hung tab at
-   107k printings, so the render path takes a slice and the count says so. */
-const CARD_LIMIT = 240;
+   107k printings, so the render path draws a PAGE of it and the count says so.
+   `CARD_LIMIT` used to live here as a ceiling; it is `PAGE` now, and the
+   difference is that reaching the end of a page asks for the next one. */
 const ALL = () => (CATALOGUE && P.game === 'mtg') ? CATALOGUE : (CARD_ROWS[P.game] || CARD_ROWS.mtg);
 /* What the current scope actually contains. Picking a set and being shown the
    first 240 cards of the catalogue is worse than showing mocks: the cards are
@@ -851,7 +882,54 @@ const scopedCards = () => {
   return r ? all.filter(c => c.set === r[1]) : all;
 };
 // sorted BEFORE the cap, or the order only rearranges the arbitrary first 240
-const CARDS = () => { const s = sortCards(scopedCards()); return s.length > CARD_LIMIT ? s.slice(0, CARD_LIMIT) : s; };
+/* THE FILTER FINALLY FILTERS. Everything above this line — the vocabulary, the
+   counts, the tri-state styling — described a list that nothing ever narrowed:
+   CARDS() sorted the scope and sliced it, and no term from the sidebar reached
+   it. Memoised on the scope and the applied filter together, because a pass
+   over 107k printings on every render is the one thing that would make clicking
+   a chip feel worse than not having one. */
+let FILTERED = null, FILTERED_OF = null, FILTERED_KEY = null;
+const filtered = () => {
+  const cards = scopedCards();
+  const key = filterKey(P.filter);
+  if (FILTERED_OF === cards && FILTERED_KEY === key) return FILTERED;
+  FILTERED_OF = cards; FILTERED_KEY = key;
+  FILTERED = filterOn() ? cards.filter(c => matchesFilter(c, P.filter)) : cards;
+  return FILTERED;
+};
+// A PAGE, NOT A CEILING: what is on screen now, extended as you reach the end
+// of it until the whole filtered list is drawn. P.page is the only bound.
+const CARDS = () => { const s = sortCards(filtered()); return s.length > P.page ? s.slice(0, P.page) : s; };
+
+/* THE END OF THE LIST ASKS FOR MORE OF IT. A page is what is on screen, not a
+   ceiling, so reaching the bottom of it draws the next page and keeps going
+   until the whole filtered list is out. One sentinel and one observer rather
+   than a scroll handler: the browser already knows when an element comes into
+   view, and a scroll listener would run this arithmetic on every frame of every
+   scroll on every page.
+
+   Re-observed after each render because innerHTML replaces the sentinel — the
+   observer would otherwise be watching a node no longer in the document, and
+   the list would simply stop at 240 with no way to say why. */
+let MORE = null;
+const Sentinel = () => (CARDS().length >= filtered().length ? ''
+  : `<div data-more class="py-6 text-center text-[11px] text-neutral-600">${
+      num(filtered().length - CARDS().length)} more &mdash; loading as you reach them</div>`);
+function watchMore() {
+  MORE?.disconnect();
+  const el = document.querySelector?.('[data-more]');
+  if (!el || typeof IntersectionObserver !== 'function') return;
+  MORE = new IntersectionObserver((es) => {
+    // guarded on the count rather than on a flag: a render that draws the same
+    // page again must not step it twice
+    if (!es.some(e => e.isIntersecting) || P.page >= filtered().length) return;
+    P.page += PAGE;
+    render();
+  // a screen of margin, so the next page is drawn before you arrive at the gap
+  }, { root: el.closest('.overflow-y-auto') || null, rootMargin: '600px' });
+  MORE.observe(el);
+}
+
 
 /* The same five plates the deleted MockCard.tsx drew, which is the anatomy of
    a real card: name+cost, art window, type line with the rarity symbol, rules
@@ -1786,9 +1864,15 @@ const Selector = () => {
      the whole catalogue. Silent when everything is on screen, which is every
      view running on the mocks. */
   const CardCount = () => {
-    const all = scopedCards().length, shown = CARDS().length;
+    /* Of the FILTERED list, not the scope. Reporting "240 of 107,347" beside a
+       list narrowed to sixty was the same class of lie as the invented counts:
+       the number you are shown a slice of has to be the number the slice came
+       from. Absent when everything is on screen, because then there is nothing
+       to say. */
+    const all = filtered().length, shown = CARDS().length, scope = scopedCards().length;
     if (shown >= all) return '';
-    return `<span title="Every view here draws its whole input; the list is capped at ${CARD_LIMIT} until there is a query to narrow it"
+    return `<span title="Showing the first ${num(shown)} of ${num(all)}${
+        all < scope ? ` matching (${num(scope)} in scope)` : ''} &mdash; scroll to the end for more"
       class="shrink-0 text-[11px] text-neutral-500">${num(shown)} <span class="text-neutral-600">of ${num(all)}</span></span>`;
   };
   const label = `
@@ -1843,22 +1927,23 @@ const COLOURS = ['C', 'W', 'U', 'B', 'R', 'G'];
    whatever you pick; it only narrows things under exact. The alternate is on
    the button — right-click — rather than in a mode switch you'd have to find
    before the control made sense. */
-const comboMatch = c => !P.colours.length ? true
-  : P.comboMode === 'exact'
-    ? c.length === P.colours.length && [...c].every(x => P.colours.includes(x))
-    : c === 'C' || [...c].every(x => P.colours.includes(x));
+const comboMatch = (c, f = P.filterDraft) => !f.colours.length ? true
+  : f.comboMode === 'exact'
+    ? c.length === f.colours.length && [...c].every(x => f.colours.includes(x))
+    : c === 'C' || [...c].every(x => f.colours.includes(x));
 
 const COMBO_MODES = ['contained', 'exact'];
 // Left-click uses whatever the toggle says; right-click applies the other mode
 // without moving the toggle first, which is the whole point of a shortcut.
-function pickColour(c, mode = P.comboMode) {
-  P.comboMode = mode;
-  P.colours = P.colours.includes(c) ? P.colours.filter(x => x !== c) : [...P.colours, c];
+function pickColour(c, mode = P.filterDraft.comboMode) {
+  const f = P.filterDraft;
+  f.comboMode = mode;
+  f.colours = f.colours.includes(c) ? f.colours.filter(x => x !== c) : [...f.colours, c];
   render();
 }
-function setComboMode(m) { P.comboMode = m; render(); }
-function clearColours() { P.colours = []; render(); }
-const otherMode = () => COMBO_MODES.find(m => m !== P.comboMode);
+function setComboMode(m) { P.filterDraft.comboMode = m; render(); }
+function clearColours() { P.filterDraft.colours = []; render(); }
+const otherMode = () => COMBO_MODES.find(m => m !== P.filterDraft.comboMode);
 
 /* Grouped by how many colours, the way the old app had it — Mono three across,
    Dual and Tri two, the big ones one to a row. Three rows tall and scrolling:
@@ -1892,7 +1977,7 @@ function hintCombo(t) { const el = document.getElementById('combo-hint'); if (el
 const hover = (name, n) => `onmouseenter="hintCombo('${jsArg(`${name} — ${n} cards`)}')" onmouseleave="hintCombo('')"`;
 
 const ComboSlicer = () => {
-  const on = P.colours.length;
+  const on = P.filterDraft.colours.length;
   const shown = COMBOS.filter(([c]) => comboMatch(c));
   return `
   <div class="mb-3">
@@ -1905,7 +1990,7 @@ const ComboSlicer = () => {
       <span class="inline-flex overflow-hidden rounded-full border border-neutral-700 text-[10px]">
         ${COMBO_MODES.map(m => `<button onclick="setComboMode('${m}')"
           title="${m === 'contained' ? 'Made of nothing but the colours picked' : 'That combination and nothing else'}"
-          class="cursor-pointer px-2 py-0.5 capitalize ${m === P.comboMode
+          class="cursor-pointer px-2 py-0.5 capitalize ${m === P.filterDraft.comboMode
             ? 'bg-emerald-500/15 font-semibold text-emerald-300' : 'text-neutral-500 hover:text-neutral-200'}">${m}</button>`).join('')}
       </span>
       <span class="text-[10px] text-neutral-600">${on ? `${shown.length} of ${COMBOS.length}` : 'every combination'} &middot; right-click for the other</span>
@@ -1915,7 +2000,7 @@ const ComboSlicer = () => {
         const [, name, n] = COMBOS.find(x => x[0] === c);
         return `<button onclick="pickColour('${c}')" oncontextmenu="event.preventDefault();pickColour('${c}','${otherMode()}')"
           title="${name} &mdash; ${n} cards" ${hover(name, n)}
-          class="flex h-8 cursor-pointer items-center justify-center rounded border ${P.colours.includes(c)
+          class="flex h-8 cursor-pointer items-center justify-center rounded border ${P.filterDraft.colours.includes(c)
             ? 'border-emerald-500 bg-emerald-500/10' : 'border-neutral-700 hover:border-neutral-500'}">${pips(c)}</button>`;
       }).join('')}
     </div>
@@ -1978,28 +2063,149 @@ const topN = (cards, of, n) => {
   for (const c of cards) for (const v of of(c)) seen.set(v, (seen.get(v) || 0) + 1);
   return [...seen].sort((a, b) => b[1] - a[1]).slice(0, n);
 };
+
+/* ONE DEFINITION OF WHAT A CHIP MEANS, read by the counter and by the filter.
+   They were about to be written twice: the count says how many Modern-legal
+   cards are in scope, the filter says which ones they are, and that is the same
+   sentence asked twice. Two copies is exactly how a chip comes to promise
+   74,428 and hand back a different set. */
+// built once — a keyword test is a regex per card per chip, and there are 107k
+const KW_RE = new Map();
+const kwRe = k => KW_RE.get(k) || (KW_RE.set(k, new RegExp(`\\b${k}\\b`, 'i')), KW_RE.get(k));
+const RAR_OF = new Map(RARITIES);
+const FACET = {
+  Legality: (c, v) => !!(c.legal & (1 << FORMATS.indexOf(v))),
+  Type: (c, v) => typeHead(c).includes(v),
+  // the tail is space-separated on the card and one fact each here, so a chip
+  // matches a whole word rather than a substring — "Elf" is not "Elder"
+  Subtype: (c, v) => typeTail(c).trim().split(/\s+/).includes(v),
+  Keywords: (c, v) => kwRe(v).test(c.text || ''),
+  Rarity: (c, v) => c.rar === RAR_OF.get(v),
+  Language: (c, v) => (c.lang || 'en') === v,
+  Finish: (c, v) => !!(c.fin & (1 << FINISHES.indexOf(v))),
+  Artist: (c, v) => c.art === v,
+};
+/* What a card is measured on for the three ranges. Power and toughness are
+   halves of one string and are not always numbers — `*`, `1+*` and `—` are all
+   real — so a card whose power is not a number is out of every power range
+   rather than counted as zero, which would file every Vanguard under 0. */
+const RANGE_OF = {
+  'Mana value': c => manaValue(c),
+  Power: c => Number.parseFloat((c.pt || '').split('/')[0]),
+  Toughness: c => Number.parseFloat((c.pt || '').split('/')[1]),
+};
+const COST_OF = {
+  X: c => (c.cost || []).includes('X'),
+  Snow: c => (c.cost || []).some(t => t === 'S'),
+  Phyrexian: c => (c.cost || []).some(t => /P/.test(t)),
+};
+
+/* TRI-STATE, AND THE THREE STATES ARE NOT SYMMETRIC. Include is a shortlist:
+   any of the chips you lit is enough, because picking Creature and Instant
+   means you want either and ANDing them gives zero, which reads as broken
+   rather than strict. Exclude is a veto: one match and the card is out,
+   whatever else it is. So a group is (none included OR any included) AND (none
+   excluded), and the groups are ANDed with each other. */
+const chipMatch = (c, group, sel) => {
+  const test = FACET[group];
+  if (!test) return true;                       // a group this game has no rule for
+  let any = false, wanted = false;
+  for (const v in sel) {
+    if (sel[v] === -1) { if (test(c, v)) return false; continue; }
+    wanted = true;
+    if (!any && test(c, v)) any = true;
+  }
+  return !wanted || any;
+};
+const inRange = (c, group, [lo, hi] = []) => {
+  if (lo == null && hi == null) return true;
+  const v = RANGE_OF[group]?.(c);
+  if (!Number.isFinite(v)) return false;        // no number is not "zero"
+  return (lo == null || v >= lo) && (hi == null || v <= hi);
+};
+/* `skip` is what makes the counts usable while a filter is in force: a group is
+   counted with every OTHER group applied but its own terms ignored, so Instant
+   reads how many instants you would get by ALSO clicking it rather than 0
+   because you have already narrowed to creatures. Without it the sidebar tells
+   you that everything you have not picked is empty. */
+/* Staged, not applied — every one of these writes to the DRAFT and the results
+   do not move until Apply, which is the convention the sort bar already sets.
+   render() is still called: the sidebar has to show what you have picked. */
+function toggleChip(group, value) {
+  const sel = P.filterDraft.chips[group] || (P.filterDraft.chips[group] = {});
+  // include -> exclude -> off, and off deletes rather than storing a zero, so
+  // "is anything picked in this group" stays a plain key count
+  sel[value] = sel[value] === 1 ? -1 : sel[value] === -1 ? 0 : 1;
+  if (!sel[value]) delete sel[value];
+  if (!Object.keys(sel).length) delete P.filterDraft.chips[group];
+  render();
+}
+const chipState = (group, value) => {
+  const v = P.filterDraft.chips[group]?.[value];
+  return v === 1 ? '+' : v === -1 ? '-' : '';
+};
+/* An empty box is not a zero. Both ends are independently optional — "3 and up"
+   and "up to 3" are both real questions — so a blank stays null and the range
+   is only a bound at the end you actually typed. */
+function setRange(group, end, raw) {
+  const v = String(raw ?? '').trim();
+  const r = P.filterDraft.range[group] || (P.filterDraft.range[group] = [null, null]);
+  r[end] = v === '' || !Number.isFinite(+v) ? null : +v;
+  if (r[0] == null && r[1] == null) delete P.filterDraft.range[group];
+  render();
+}
+// the whole staged filter as one string, so "has anything changed" is one
+// comparison rather than a walk that has to be kept in step with the shape
+const filterKey = (f) => JSON.stringify([
+  Object.keys(f.chips).sort().map(g => [g, Object.keys(f.chips[g]).sort().map(v => [v, f.chips[g][v]])]),
+  Object.keys(f.range).sort().map(g => [g, f.range[g]]),
+  [...f.colours].sort(), f.comboMode, [...f.cost].sort()]);
+const filterDirty = () => filterKey(P.filterDraft) !== filterKey(P.filter);
+const filterOn = () => filterKey(P.filter) !== filterKey(emptyFilter());
+// a new filter is a new list, so the paging starts again from the top
+function applyFilter() { P.filter = JSON.parse(JSON.stringify(P.filterDraft)); P.page = PAGE; render(); }
+function clearFilter() { P.filter = emptyFilter(); P.filterDraft = emptyFilter(); P.page = PAGE; render(); }
+
+const matchesFilter = (c, f, skip) => {
+  for (const g in f.chips) if (g !== skip && !chipMatch(c, g, f.chips[g])) return false;
+  for (const g in f.range) if (g !== skip && !inRange(c, g, f.range[g])) return false;
+  if (skip !== 'Colour' && !comboMatch(c.col || '', f)) return false;
+  if (skip !== 'Mana value') for (const k of f.cost) if (!COST_OF[k]?.(c)) return false;
+  return true;
+};
 /* One pass per scope, not one per render: the scope is up to 107k cards and the
    sidebar is redrawn on every click. Keyed on the array itself, the same trick
    anatomyClasses() uses — a new scope is a new array. */
-let FACETS = null, FACETS_OF = null;
+/* Keyed on the scope AND the filter, because both change what the answer is.
+   Counting the whole scope while a filter is in force would report 50,672
+   creatures beside a list of forty. */
+let FACETS = null, FACETS_OF = null, FACETS_KEY = null;
 const facetCounts = () => {
   const cards = scopedCards();
-  if (FACETS_OF === cards) return FACETS;
-  const n = (test) => cards.reduce((t, c) => t + (test(c) ? 1 : 0), 0);
+  const key = filterKey(P.filter);
+  if (FACETS_OF === cards && FACETS_KEY === key) return FACETS;
+  /* Counted with every OTHER group applied and this one's own terms ignored, so
+     a chip reads what you would get by ALSO clicking it. Counted against the
+     whole filter instead, every chip you have not picked reads 0 and the
+     sidebar becomes a wall of zeroes the moment you narrow anything. */
+  const pool = new Map();
+  const scoped = (skip) => pool.get(skip)
+    || (pool.set(skip, cards.filter(c => matchesFilter(c, P.filter, skip))), pool.get(skip));
+  const n = (test, skip) => scoped(skip).reduce((t, c) => t + (test(c) ? 1 : 0), 0);
   const kw = (GAMES.mtg.anatomy.find(x => x[1] === 'Keywords') || [])[2] || [];
-  FACETS_OF = cards;
+  FACETS_OF = cards; FACETS_KEY = key;
   FACETS = {
-    Legality: FORMATS.map((f, i) => [f, n(c => c.legal & (1 << i))]),
-    Type: CARD_TYPES.map(t => [t, n(c => typeHead(c).includes(t))]),
-    Subtype: topN(cards, c => typeTail(c).trim().split(/\s+/).filter(Boolean), 12),
-    Keywords: kw.map(([k]) => [k, n(c => new RegExp(`\\b${k}\\b`, 'i').test(c.text || ''))]),
-    Rarity: RARITIES.map(([label, v]) => [label, n(c => c.rar === v)]),
-    Language: topN(cards, c => [c.lang || 'en'], 6),
-    Finish: FINISHES.map((f, i) => [f, n(c => c.fin & (1 << i))]),
+    Legality: FORMATS.map(f => [f, n(c => FACET.Legality(c, f), 'Legality')]),
+    Type: CARD_TYPES.map(t => [t, n(c => FACET.Type(c, t), 'Type')]),
+    Subtype: topN(scoped('Subtype'), c => typeTail(c).trim().split(/\s+/).filter(Boolean), 12),
+    Keywords: kw.map(([k]) => [k, n(c => FACET.Keywords(c, k), 'Keywords')]),
+    Rarity: RARITIES.map(([label]) => [label, n(c => FACET.Rarity(c, label), 'Rarity')]),
+    Language: topN(scoped('Language'), c => [c.lang || 'en'], 6),
+    Finish: FINISHES.map(f => [f, n(c => FACET.Finish(c, f), 'Finish')]),
     /* Most-illustrated first, the same as Subtype and for the same reason:
        2,527 names is not a chip list, and any six picked by hand would be a
        sample presented as a vocabulary. */
-    Artist: topN(cards, c => (c.art ? [c.art] : []), 8),
+    Artist: topN(scoped('Artist'), c => (c.art ? [c.art] : []), 8),
   };
   return FACETS;
 };
@@ -2008,7 +2214,11 @@ const facetCounts = () => {
 const facetsLive = () => CATALOGUE && P.game === 'mtg';
 
 const anatomyGroup = ([kind, label, arg, o = {}]) => {
-  if (kind === 'range') return RangeField(label, '', '', o.symbols);
+  if (kind === 'range') {
+    const [lo, hi] = P.filterDraft.range[label] || [null, null];
+    return RangeField(label, lo ?? '', hi ?? '', o.symbols,
+      facetsLive() && !!RANGE_OF[label]);
+  }
   if (kind === 'combos') return ComboSlicer();
   /* Every chips group is answered by facetCounts now that Artist is in the
      catalogue, so the "not in the catalogue yet" apology that used to stand here
@@ -2017,7 +2227,12 @@ const anatomyGroup = ([kind, label, arg, o = {}]) => {
      groups, which fails on the build that adds a group rather than on the page
      that draws it with three invented numbers. */
   const live = facetsLive() && facetCounts()[label];
-  return ChipGroup(label, (live || arg).map(([nm, c]) => [nm, '', c]), o.note || '', o.cols);
+  /* Clickable only where a rule exists to click. FACET is Magic's — a Pokemon
+     Legality chip says Expanded, which FORMATS knows nothing about — so the
+     other game's chips stay the picture they have always been rather than
+     filtering by the wrong vocabulary. */
+  return ChipGroup(label, (live || arg).map(([nm, c]) => [nm, '', c]), o.note || '', o.cols,
+    !!live && !!FACET[label]);
 };
 
 const AnatomyFilter = () => {
@@ -2343,7 +2558,7 @@ const Results = () => {
        pockets, empty ones included — so one measurement answers for the lot, and
        it is re-taken on every render and every resize rather than remembered.
 
-       Worth the wiring: measured on the worst case the CARD_LIMIT allows, a
+       Worth the wiring: measured on the worst case one page allows, a
        240-page binder at 1x1, layout is **267ms** and with this **17.9ms**.
        Building the HTML is 21ms and parsing it 30ms, so layout was not merely
        the largest cost, it was the whole cost — and every click re-renders. */
@@ -4585,13 +4800,19 @@ const BrowsePage = () => {
     body: `<div class="flex flex-wrap items-start gap-6">
       ${P.tab === 'binders' ? '' : `<div class="${PANEL} w-[21rem] shrink-0 px-3 pt-3 pb-3">
         ${Band('filter', AnatomyFilter(), {
-          right: `<button class="${BTN_PRIMARY_LG}">Apply</button><button class="${BTN_SECONDARY_LG}">Clear</button>`,
+          /* Apply-gated, the same as the sort bar: clicking chips composes a
+             filter and nothing narrows until you say so. Dimmed when the draft
+             and the applied filter already agree, which is the only honest
+             state for a button that would do nothing. */
+          right: `<button onclick="applyFilter()" class="${BTN_PRIMARY_LG} ${
+              filterDirty() ? '' : 'opacity-40'}">Apply</button><button onclick="clearFilter()"
+              class="${BTN_SECONDARY_LG} ${filterDirty() || filterOn() ? '' : 'opacity-40'}">Clear</button>`,
           stick: true,
         })}
       </div>`}
       <div class="min-w-0 flex-1">
         ${Band('sort', SortRow())}
-        ${Band('view', Results(), { note: !P.view ? 'not chosen yet'
+        ${Band('view', Results() + Sentinel(), { note: !P.view ? 'not chosen yet'
           : views().length < 2 ? `${P.view} &mdash; the only layout here`
           : `${P.view} &mdash; picked on the sort bar` })}
       </div>
@@ -5424,6 +5645,7 @@ function render() {
   document.title = 'Draft — ' + route;
   measureGutter();
   measureSpread();
+  watchMore();
   /* Saved here rather than in each of the five mutators: one call site cannot
      miss one. render() runs when you click, not per frame — the deal and the
      reveal sweep write to the DOM directly and were made not to re-render — so
