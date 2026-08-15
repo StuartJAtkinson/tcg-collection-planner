@@ -13,7 +13,7 @@ const page = readFileSync('index.html', 'utf8');   // the markup too: <body> car
 const src = `${['sets.js', 'trim.js', 'anatomy.js'].map(f => readFileSync(f, 'utf8')).join('\n')}
 ${page.match(/<script>([\s\S]*)<\/script>/)[1]}`;
 const js = src
-  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_ROWS, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, CAN_BE_LOCAL, MISSING_LOCAL, srcBytes, onDisk, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, frameOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, costTokens, CARD_LIMIT, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, setZoom, binderDims, zoomPx, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, BINDER_SORT, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
+  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_ROWS, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, CAN_BE_LOCAL, MISSING_LOCAL, srcBytes, onDisk, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, frameOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, costTokens, CARD_LIMIT, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, setZoom, binderDims, zoomPx, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, BINDER_SORT, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
   + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen,'
   + ' setDebug: v => { DEBUG = v; } };';
 
@@ -2304,6 +2304,13 @@ const ANAT = {
     ['A Leveler', '{1}{U}', 'Creature — Merfolk',
       'Level up {2} ({2}: Put a level counter on this.)\nLEVEL 1-4\n0/6\nLEVEL 5+\n6/6\nIslandwalk',
       '0/1', 'U', 2, 'leveler', '', 0],
+    /* An aftermath card is `layout: split` like the one above it, and the only
+       thing that tells them apart is the keyword's reminder text opening the
+       back face — so the fixture writes it exactly as the source does. */
+    ['Now // Later', '{2}{W}', 'Sorcery', 'Do a thing.', '', 'W', 3, 'split', '',
+      [['Now', '{2}{W}', 'Sorcery', 'Do a thing.', '', '', 'W'],
+       ['Later', '{3}{W}', 'Sorcery',
+        'Aftermath (Cast this spell only from your graveyard. Then exile it.)\nDo another.', '', '', 'W']], 0],
   ],
   // one printing per treatment on the plain card, then one per layout
   p: [
@@ -2323,6 +2330,7 @@ const ANAT = {
     [9, 'AAA', '14', 1, '00000000-0000-4000-8000-000000000014', 1, 0],
     [10, 'AAA', '15', 1, '00000000-0000-4000-8000-000000000015', 1, 0],
     [11, 'AAA', '16', 3, '00000000-0000-4000-8000-000000000016', 1, 0],
+    [12, 'AAA', '17', 3, '00000000-0000-4000-8000-000000000017', 1, 0],
   ],
 };
 t.loadCards(ANAT);
@@ -2415,6 +2423,31 @@ assert.ok(t.MockCard(byName['A Class|framed']).includes('</span>:</span>'),
   "a Class's level-up cost vanished from its band");
 // and the base rules line that merely mentions levelling up is not a band
 assert.ok(/<p[^>]*>Level up /.test(lev), '"Level up {2}" was mistaken for a band marker');
+
+/* AN AFTERMATH CARD IS A SPLIT THAT IS NOT TURNED. Amonkhet's are `layout:
+   split` like any other and were drawn landscape as two halves side by side;
+   the printed card is PORTRAIT with the second spell rotated ninety degrees
+   below the first. Scryfall gives them no layout of their own, so the whole
+   thing hangs off the keyword's reminder text opening the back face — assert
+   both directions, or the predicate silently claims every split or none. */
+const aft = t.MockCard(byName['Now // Later|framed']);
+const split = t.MockCard(byName['Left // Right|framed']);
+assert.ok(t.aftermath(byName['Now // Later|framed']), 'an aftermath card is not recognised as one');
+assert.ok(!t.aftermath(byName['Left // Right|framed']), 'an ordinary split is treated as aftermath');
+assert.ok(aft.includes('aspect-[5/7]') && !aft.includes('aspect-[7/5]'),
+  'an aftermath card is drawn landscape — it is read the right way up');
+assert.ok(split.includes('aspect-[7/5]'), 'an ordinary split stopped being landscape');
+// the second spell is turned, and clockwise: the printed card puts its title at
+// the right-hand edge, which is where rotate(90deg) sends the top
+assert.ok(/ rotate-90 /.test(aft), 'the aftermath half is not rotated');
+assert.ok(!/-rotate-90/.test(aft), 'the aftermath half is turned anticlockwise, so its title is on the wrong side');
+assert.ok(!/rotate-90/.test(split), 'an ordinary split grew a rotated half');
+// both halves draw art, from ONE crop anchored to opposite ends: an aftermath
+// art_crop is the two panels side by side in a single image
+assert.ok(aft.includes('object-left') && aft.includes('object-right'),
+  'the two aftermath halves show the same end of the shared art crop');
+assert.ok(aft.indexOf('object-left') < aft.indexOf('object-right'),
+  'the aftermath halves have their illustrations the wrong way round');
 
 /* TWO-COLUMN: a Saga and a Class are not stacked cards. The illustration is a
    tall strip down one side — Scryfall crops them 312x752 rather than the 626x457

@@ -465,6 +465,9 @@
   .table {
     display: table;
   }
+  .aspect-\[5\/2\.3\] {
+    aspect-ratio: 5/2.3;
+  }
   .aspect-\[5\/2\.6\] {
     aspect-ratio: 5/2.6;
   }
@@ -525,11 +528,17 @@
   .h-\[33vh\] {
     height: 33vh;
   }
+  .h-\[50cqw\] {
+    height: 50cqw;
+  }
   .h-\[125vh\] {
     height: 125vh;
   }
   .h-\[186px\] {
     height: 186px;
+  }
+  .h-\[calc\(93cqw-12px\)\] {
+    height: calc(93cqw - 12px);
   }
   .h-full {
     height: 100%;
@@ -626,6 +635,9 @@
   }
   .w-\[42\%\] {
     width: 42%;
+  }
+  .w-\[50cqw\] {
+    width: 50cqw;
   }
   .w-\[71\.8\%\] {
     width: 71.8%;
@@ -1973,6 +1985,16 @@
   .xl\:grid-cols-2 {
     @media (width >= 80rem) {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  .\[\&_img\]\:object-left {
+    & img {
+      object-position: left;
+    }
+  }
+  .\[\&_img\]\:object-right {
+    & img {
+      object-position: right;
     }
   }
   .\[\&\>th\]\:sticky {

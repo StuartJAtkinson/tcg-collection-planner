@@ -913,6 +913,20 @@ const OVERLAID = new Set(['fullart', 'textless']);
 // the face list only matters when there are two of them to draw
 const twoFaced = c => (c.faces?.length > 1 ? c.faces : null);
 const faceAt = (c, i) => c.faces?.[i] || c;
+/* AN AFTERMATH CARD IS A SPLIT THAT IS NOT TURNED. Amonkhet's are `layout:
+   split` like any other, but the printed card is PORTRAIT: the first spell is
+   upright across the top and the second is rotated ninety degrees below it, so
+   you turn the card to read it rather than reading two halves side by side.
+   Drawn as an ordinary split they came out landscape and the wrong shape.
+
+   Scryfall does not give them a layout of their own — the tell is `keywords`
+   containing "Aftermath" — and that field is not in cards.json.gz. It does not
+   need to be: the keyword's own reminder text opens the back face's rules
+   ("Aftermath (Cast this spell only from your graveyard...)"), so the fact is
+   already in the catalogue and this costs nothing to know. Checked against the
+   134 distinct split cards: 27 match, which is every one of them. */
+const AFTERMATH = /^Aftermath \(/;
+const aftermath = c => c.layout === 'split' && AFTERMATH.test(faceAt(c, 1).text || '');
 
 /* NOT EVERY PRINTING IS A CARD A FRAME CAN DESCRIBE, and the rule for that is
    in anatomy.js because gen-art.mjs needs the same answer: a printing drawn as
@@ -1395,6 +1409,46 @@ const CardSide = (c, i, bg, plate, treat, layout) => {
                 printed card does to the reader. */
 const PairedSide = (c, bg, plate, treat, layout) => {
   const [a, b] = c.faces;
+  /* The second spell is turned, and the card is not. Everything above it is an
+     ordinary portrait card; the aftermath half is a block across the bottom
+     with its contents laid out in the TRANSPOSED box and rotated into place —
+     laid out at 46cqw wide by the card's inner width tall, so that rotating it
+     ninety degrees leaves a footprint exactly the size of the block.
+
+     `calc(93cqw - 12px)` is that inner width and it is arithmetic, not a
+     guess: the black edge is `p-[3.5%]` on the wrapper, which is what cqw is
+     measured against, and the frame inside it adds `p-1.5` — 100% - 7% - 12px.
+     Anything short of it insets the half; anything over it clips, because the
+     wrapper hides its overflow.
+
+     CLOCKWISE, read off the scan rather than reasoned about: on the printed
+     card the second spell's TITLE is at the right-hand edge and its rules run
+     down the left, so the half's top edge ends up on the right, which is
+     rotate(90deg). Anti-clockwise puts the title on the wrong side.
+
+     Both halves have their own illustration and the catalogue already has
+     them: an aftermath `art_crop` is the two panels side by side in ONE image
+     (Dusk // Dawn is 1024x231, two 512-wide panels), so the halves ask for the
+     same picture anchored to opposite ends rather than for two files. Each
+     panel's 2.22 is within a few percent of the 5/2.3 box it goes in, so
+     covering costs a sliver either way. */
+  if (aftermath(c)) return `
+    <div class="flex h-full w-full flex-col overflow-hidden rounded p-1.5 text-[4.91cqw] ${c.foil ? 'foil' : ''}"
+      style="background:${bg};color:${ink(lum(bg))}">
+      ${TitlePlate(a, c, plate)}
+      ${ArtWindow(c, 0, 'my-1 w-full shrink-0 aspect-[5/2.3] [&_img]:object-left')}
+      ${TypePlate(a, c, plate, '')}
+      ${RulesPlate(a, c, plate, { cls: 'mt-1 flex-1', room: 0.4 })}
+      <div class="relative mt-1 h-[50cqw] w-full shrink-0">
+        <div class="absolute left-1/2 top-1/2 flex h-[calc(93cqw-12px)] w-[50cqw] -translate-x-1/2 -translate-y-1/2 rotate-90 flex-col">
+          ${TitlePlate(b, c, plate)}
+          ${ArtWindow(c, 0, 'my-1 w-full shrink-0 aspect-[5/2.3] [&_img]:object-right')}
+          ${TypePlate(b, c, plate, '')}
+          ${RulesPlate(b, c, plate, { cls: 'mt-1 flex-1', room: 0.4 })}
+        </div>
+      </div>
+      ${FootPlate(a, c, plate)}
+    </div>`;
   if (layout === 'split') return `
     <div class="flex h-full w-full flex-col overflow-hidden rounded p-1.5 text-[3.4cqw] ${c.foil ? 'foil' : ''}"
       style="background:${bg};color:${ink(lum(bg))}">
@@ -1474,6 +1528,8 @@ const MockCard = (c, fit, side) => {
      the card that has none of it. */
   // a scan already carries its own printed border, so the wrapper adds none
   const edge = treat === 'borderless' || scan ? 'p-0' : 'p-[3.5%]';
+  // ...and an aftermath split is the one `split` that is read the right way up
+  const turned = wide && !aftermath(c);
   const body = paired ? PairedSide(c, bg, plate, treat, layout)
     : sided
       /* Both sides are DRAWN, one is hidden, and the corner button swaps which:
@@ -1498,7 +1554,7 @@ const MockCard = (c, fit, side) => {
       : draw(0, bg, plate);
   return `
   <div title="${jsArg(c.n)}" data-anat="${layout}/${treat}" style="container-type:inline-size"
-    class="relative ${wide ? 'aspect-[7/5]' : 'aspect-[5/7]'} ${fit ? 'h-full w-auto' : 'w-full'} overflow-hidden rounded-lg bg-black/70 ${edge} shadow-lg ${side ? 'flipped' : ''}">
+    class="relative ${turned ? 'aspect-[7/5]' : 'aspect-[5/7]'} ${fit ? 'h-full w-auto' : 'w-full'} overflow-hidden rounded-lg bg-black/70 ${edge} shadow-lg ${side ? 'flipped' : ''}">
     ${body}
   </div>`;
 };
