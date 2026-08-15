@@ -1,8 +1,13 @@
 # Card Collector v2 — App Architecture
 
-*2026-08-06 — the app-layer companion to [REDESIGN.md](REDESIGN.md).*
+*2026-08-06 — the app-layer half of the plan. §0 below is the other half.*
 
-REDESIGN.md settled the **data**: catalogue-first Postgres, facets, containers. It said
+> **REDESIGN.md is gone.** It settled the data decisions and this file was written as its
+> companion; those decisions now live in **§0** here, so the references below are to §0 and
+> the document is self-contained. Nothing was lost — the file was deleted in August 2026
+> after its content was folded in.
+
+§0 settles the **data**: catalogue-first storage, facets, containers. It said
 nothing about the app, and it shows — fifteen pages each invented their own controls. This
 document settles the app: **one cache, binder/deck files, one page, one control kit,
 one game registry.**
@@ -100,7 +105,7 @@ divergent copies, and give the stages pages.**
 
 Don't do this. If Filter and Sort each take a card list and return a card list, filtering
 and sorting happen in JavaScript over materialised rows — which discards every index
-REDESIGN.md's entire premise rests on: `cards(set_id, sort_key)`, `card_facets(facet,
+the data plan's entire premise rests on: `cards(set_id, sort_key)`, `card_facets(facet,
 value)`, the `pg_trgm` GIN index on `cards.name`. That's the difference between the 38ms
 set page you have and one that needs pagination to survive.
 
@@ -443,4 +448,4 @@ of a string and load is a redirect. ~30 lines, and only because phases 1–4 did
   none of the client state synchronisation.
 - **Export formats beyond csv / txt / json / print** — add on demand.
 - **Auth / multi-user** — the Identity band in `/config` exists to delete 14 hardcoded
-  `'stuart'` literals, not to introduce accounts. REDESIGN.md's "no auth in phase 1" stands.
+  `'stuart'` literals, not to introduce accounts. §0's "no auth in phase 1" stands.

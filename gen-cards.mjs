@@ -61,9 +61,28 @@ const faceOf = (f, c) => [
   (f.colors ?? c.colors ?? []).join(''),
 ];
 
+/* LEGALITY IS A BITMASK, and it is on the ORACLE because that is what it is a
+   property of: a card is Modern-legal, not a printing of it. Nine formats, one
+   integer, 37,555 times — against nine strings per printing 107,347 times, which
+   is the same fact written 26x over. The order is the order the filter draws
+   them in, so the bit index IS the chip index and neither side keeps a map.
+
+   Only `legal` counts. Scryfall also says `restricted` (Vintage's list) and
+   `banned`, and folding those into "legal" would overcount Vintage by its
+   restricted cards; a restricted card is playable, but the chip says legal. */
+const FORMATS = ['standard', 'pioneer', 'modern', 'legacy', 'vintage', 'commander', 'pauper', 'brawl', 'historic'];
+const legalOf = (c) => FORMATS.reduce((m, f, i) =>
+  m | (c.legalities?.[f] === 'legal' ? 1 << i : 0), 0);
+
+/* Finishes are per PRINTING — the same card is sold nonfoil in one set and
+   etched in another — so this one is three bits on the printing row. */
+const FINISHES = ['nonfoil', 'foil', 'etched'];
+const finishOf = (c) => FINISHES.reduce((m, f, i) =>
+  m | (c.finishes?.includes(f) ? 1 << i : 0), 0);
+
 const oracleIdx = new Map();
-const oracles = [];      // [name, cost, type, text, pt, col, cmc, layout, loy, faces]
-const printings = [];    // [oracle, set, number, rarity, artId, usd, treatment]
+const oracles = [];      // [name, cost, type, text, pt, col, cmc, layout, loy, faces, legal]
+const printings = [];    // [oracle, set, number, rarity, artId, usd, treatment, finishes]
 
 const rl = readline.createInterface({
   input: createReadStream('data/scryfall-default-cards.jsonl.gz').pipe(createGunzip()),
@@ -111,6 +130,7 @@ for await (const raw of rl) {
       c.layout || 'normal',
       f.loyalty ?? f.defense ?? c.loyalty ?? '',
       faces,
+      legalOf(c),
     ]);
   }
   printings.push([
@@ -125,6 +145,7 @@ for await (const raw of rl) {
        falsy marker for the default case is the difference between a tail that
        compresses to nothing and one that does not. */
     treatOf(c),
+    finishOf(c),
   ]);
 }
 

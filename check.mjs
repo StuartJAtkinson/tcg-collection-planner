@@ -13,7 +13,7 @@ const page = readFileSync('index.html', 'utf8');   // the markup too: <body> car
 const src = `${['sets.js', 'trim.js', 'anatomy.js'].map(f => readFileSync(f, 'utf8')).join('\n')}
 ${page.match(/<script>([\s\S]*)<\/script>/)[1]}`;
 const js = src
-  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_ROWS, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, CAN_BE_LOCAL, MISSING_LOCAL, srcBytes, onDisk, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, frameOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, costTokens, CARD_LIMIT, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, setZoom, binderDims, zoomPx, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, BINDER_SORT, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
+  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_ROWS, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, CAN_BE_LOCAL, MISSING_LOCAL, srcBytes, onDisk, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, frameOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, costTokens, CARD_LIMIT, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, setZoom, binderDims, zoomPx, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, BINDER_SORT, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
   + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen,'
   + ' setDebug: v => { DEBUG = v; } };';
 
@@ -29,7 +29,15 @@ const ctx = vm.createContext({
   // layout there is no scroll to carry — "no such element" is the truth here.
   document: { getElementById: () => ({ set innerHTML(v) { painted = v; } }),
               querySelector: () => null, set title(v) {} },
-  location: { hash: '' }, addEventListener: () => {}, setInterval: () => {}, console,
+  /* A real Map behind a localStorage shape, because persistence is now a
+     decision worth testing rather than a browser detail: the page saves what you
+     chose and what you made, and "does it come back" is not answerable against a
+     stub that swallows writes. reload is a no-op here — nothing to reload into. */
+  localStorage: (globalThis.__store = (() => { const m = new Map(); return {
+    getItem: k => (m.has(k) ? m.get(k) : null),
+    setItem: (k, v) => m.set(k, String(v)),
+    removeItem: k => m.delete(k) }; })()),
+  location: { hash: '', reload: () => {} }, addEventListener: () => {}, setInterval: () => {}, console,
 });
 vm.runInContext(js, ctx);
 const t = ctx.__t;
@@ -419,7 +427,6 @@ for (const [cell, rows] of packs) {
 // the balance rides on the trim's own reference, so it can't be dialled out to
 // nothing without saying so
 assert.ok(t.PACK_SAT > 1, 'the pack saturation is a no-op — say so or remove it');
-
 /* LOCAL AND ONLINE ARE THE SAME PICTURE BECAUSE THEY ARE THE SAME CODE.
    gen-packs.mjs used to carry a hand-kept copy of the algorithm with three
    assertions here holding the two in step; both now read trim.js, so there is
@@ -1564,6 +1571,63 @@ assert.ok(/15 hours/.test(painted), 'live mode does not state its cost');
 t.setSrc('scryfall', 'local');
 assert.ok(!painted.includes('/cards (live)'), 'live attribution stuck after switching back');
 
+/* PERSISTENCE. What you CHOSE (Config's per-source Local/Online and quality) and
+   what you MADE (the deck list, which is where a kept draft lands) survive a
+   reload; what you had OPEN does not, because the page forgets the tab and the
+   selection on navigation by design and a store that remembered them would be
+   arguing with that rule rather than extending it. */
+{
+  t.setSrc('tcg', 'local'); t.setQuality('sfart', 'large');
+  t.LISTS.decks.unshift(['Persisted draft', 2, '2 distinct', 'test', [{ n: 'A' }, { n: 'B' }]]);
+  t.saveState();
+  const raw = JSON.parse(globalThis.__store.getItem(t.STORE));
+  assert.strictEqual(raw.v, 1, 'the saved payload carries no version, so a later format cannot be told from this one');
+  for (const k of ['tab', 'pick', 'view', 'sort'])
+    assert.ok(!(k in raw), `"${k}" is saved, but the page deliberately forgets it on navigation`);
+
+  // ...and it comes back
+  t.CFG.src.tcg.at = 'online'; t.CFG.src.sfart.q = 'art_crop';
+  const decks = t.LISTS.decks; t.LISTS.decks = [];
+  t.loadState();
+  assert.strictEqual(t.CFG.src.tcg.at, 'local', 'a Local/Online choice does not survive a reload');
+  assert.strictEqual(t.CFG.src.sfart.q, 'large', 'an image-size choice does not survive a reload');
+  assert.strictEqual(t.LISTS.decks.length, decks.length, 'the deck list does not survive a reload');
+  // joined, not deepStrictEqual: an array built inside the vm carries the vm's
+  // Array.prototype, and deepStrictEqual compares prototypes — it fails on two
+  // identical arrays from different realms
+  assert.strictEqual(t.LISTS.decks[0][4].map(c => c.n).join(','), 'A,B',
+    'a kept draft comes back without the cards that were the point of keeping it');
+
+  /* A SOURCE ADDED SINCE A SAVE KEEPS ITS DEFAULT, and one removed does not come
+     back. Assigning the stored object wholesale would get both wrong, and the
+     failure is silent — a new source would arrive already configured to whatever
+     was in an old payload, or absent. */
+  const stored = JSON.parse(globalThis.__store.getItem(t.STORE));
+  delete stored.src.tcg;                      // as if tcg were added after this save
+  stored.src.gone = { at: 'local', q: 'x' };  // as if a source had been removed since
+  globalThis.__store.setItem(t.STORE, JSON.stringify(stored));
+  t.CFG.src.tcg.at = 'online';
+  t.loadState();
+  assert.ok(t.CFG.src.tcg, 'a source absent from the save was dropped from CFG entirely');
+  assert.strictEqual(t.CFG.src.tcg.at, 'online', 'a source absent from the save was overwritten anyway');
+  assert.ok(!('gone' in t.CFG.src), 'a source removed from SOURCES came back out of the store');
+
+  // corrupt or foreign payloads must not stop the page loading at all
+  for (const junk of ['{', 'null', '[]', '{"v":99,"src":{}}']) {
+    globalThis.__store.setItem(t.STORE, junk);
+    assert.doesNotThrow(() => t.loadState(), `a stored payload of ${junk} stops the page loading`);
+  }
+  globalThis.__store.removeItem(t.STORE);
+  t.LISTS.decks = decks.slice(1);             // put the fixture deck back on the shelf
+  t.setSrc('tcg', 'online'); t.setQuality('sfart', 'art_crop');
+
+  // the store has to be visible and removable, or a kept draft you did not want
+  // has no cure short of devtools — nothing else on the page deletes a deck
+  go('#/config');
+  assert.ok(painted.includes('saved on this device'), '#/config does not say what is being remembered');
+  assert.ok(painted.includes('forgetState()'), 'there is no way to clear what was saved');
+}
+
 /* The two image rows are not a mock: the size chip has to reach the URL, or
    Config is describing an app that isn't this one. */
 const card = t.CARDS()[0];
@@ -1612,7 +1676,7 @@ console.log(`  ${String(declared.length).padStart(3)} declarations, all used · 
 console.log('\ngame gated on the main then locked. fresh page applies nothing.');
 console.log('one page shape everywhere: selector -> filter -> sort -> view. break honoured in 5 layouts.');
 console.log('selector collapses on pick, reopens on click, and forgets on navigation.');
-console.log('config: 2 columns, 10 groups in order. 8 sources, each priced local and online,'
+console.log('config: 2 columns, 11 groups in order. 8 sources, each priced local and online,'
   + ' and the art sizes reach the URL.');
 
 // --- drawing boosters ---------------------------------------------------
@@ -2147,6 +2211,26 @@ const ANAT = {
 };
 t.loadCards(ANAT);
 const byName = Object.fromEntries(t.ALL().map(c => [`${c.n}|${c.treat}`, c]));
+
+/* A SAVED DECK IS A SNAPSHOT. A deck kept before a field existed has no such
+   field, and the sidebar duly reported a Hobbit draft as containing nothing
+   Modern-legal — the same plausible-looking lie as the hardcoded counts. The
+   catalogue re-supplies the printing when it lands; the holding stays yours. */
+t.LISTS.decks.unshift(['Stale draft', 1, '1 distinct', 'test',
+  [{ n: 'Old Name', set: 'AAA', num: '1', qty: 3, foil: 1 }]]);
+t.loadCards(ANAT);
+const fresh = t.LISTS.decks[0][4][0];
+assert.notStrictEqual(fresh.n, 'Old Name', 'a stored deck card was not refreshed from the catalogue');
+assert.ok(fresh.legal !== undefined, 'a stored deck card still lacks fields the catalogue now carries');
+assert.strictEqual(fresh.qty, 3, 'rehydrating a deck threw away how many you own');
+assert.strictEqual(fresh.foil, 1, 'rehydrating a deck threw away the finish you own');
+// ...and a printing the catalogue does not have is kept rather than dropped
+t.LISTS.decks[0][4] = [{ n: 'Gone', set: 'ZZZ', num: '999', qty: 1 }];
+t.loadCards(ANAT);
+assert.strictEqual(t.LISTS.decks[0][4][0].n, 'Gone',
+  'a card the catalogue no longer carries was dropped from a saved deck');
+t.LISTS.decks.shift();
+
 
 // the four families are what the geometry branches on, so nothing may be in two
 for (const l of t.LANDSCAPE) assert.ok(!t.SIDED.has(l), `"${l}" is both landscape and two-sided`);

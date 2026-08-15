@@ -310,6 +310,55 @@ const SOURCES = {
     q: [['woff2', 'the only build we ship', 187e3]] },
 };
 const CFG = { src: Object.fromEntries(Object.entries(SOURCES).map(([k, s]) => [k, { at: s.def[0], q: s.def[1] }])) };
+
+/* PERSISTENCE — localStorage, for the two things the page can actually create.
+   It stays read-only on the server side, which matters: serve.py is what exposes
+   this repo over HTTP and it has no business taking writes.
+
+   This was filed as blocked, and correctly: "the page has no action that creates
+   user data" was true, so there was nothing to persist and building the machine
+   first would have been building it for nothing. Keeping a draft as a deck
+   changed that — it makes an 84-card pool out of five minutes of opening packs,
+   and losing it to a reload is the worst moment to discover there is no store.
+
+   WHAT IS SAVED IS WHAT YOU CHOSE OR MADE. Config's per-source Local/Online and
+   quality: you do not download 233 MB of pack art and want to be asked again.
+   And the deck list, because a kept draft is in it. What is deliberately NOT
+   saved is which tab, set, binder or deck you had open — the page forgets those
+   on navigation by design, and a store that remembered them would argue with
+   that rule rather than extend it.
+
+   ponytail: the decks carry their cards as-is, ~20 KB each, rather than storing
+   (set, number) and rehydrating from the catalogue. The ceiling is localStorage's
+   ~5 MB, which is about 250 kept drafts, and the cost is that a saved deck keeps
+   the prices it was drafted at. Upgrade path if either bites: store the identity
+   key and look the printing up in ALL() on load, falling back to the stored copy
+   when the catalogue has not arrived. */
+const STORE = 'card-collection/v1';
+function saveState() {
+  try {
+    localStorage.setItem(STORE, JSON.stringify({
+      v: 1, src: CFG.src, decks: LISTS.decks, binders: LISTS.binders,
+    }));
+  } catch { /* quota, or a browser with storage off: the app runs, it just forgets */ }
+}
+function loadState() {
+  let s;
+  try { s = JSON.parse(localStorage.getItem(STORE) || 'null'); }
+  catch { return; }                       // corrupt: start clean rather than not start
+  if (!s || s.v !== 1) return;            // a future version's payload is not ours to read
+  /* Merged per known key, not assigned wholesale. A source added to SOURCES
+     after something was saved has to keep its new default, and one removed since
+     must not come back as a key nothing reads. */
+  for (const k of Object.keys(CFG.src)) if (s.src?.[k]) Object.assign(CFG.src[k], s.src[k]);
+  if (Array.isArray(s.decks) && s.decks.length) LISTS.decks = s.decks;
+  if (Array.isArray(s.binders) && s.binders.length) LISTS.binders = s.binders;
+}
+const savedBytes = () => { try { return (localStorage.getItem(STORE) || '').length; } catch { return 0; } };
+function forgetState() {
+  try { localStorage.removeItem(STORE); } catch { /* nothing to do about it */ }
+  location.reload();                      // the defaults live in the declarations above
+}
 // a side that doesn't exist can't be selected — the chip says why instead
 const setSrc = (k, at) => { if (SOURCES[k][at]) CFG.src[k].at = at; render(); };
 const setQuality = (k, q) => { CFG.src[k].q = q; render(); };
@@ -686,11 +735,18 @@ const materialiseFace = ([n, cost, type, text, pt, loy, col]) =>
   ({ n, cost: costTokens(cost), type, text, pt, loy, col });
 const materialise = ({ o, p }) => {
   const faceCache = new Map();
-  return p.map(([oi, set, num, rar, art_id, usd, treat]) => {
-    const [n, cost, type, text, pt, col, cmc, layout, loy, faces] = o[oi];
+  return p.map(([oi, set, num, rar, art_id, usd, treat, fin]) => {
+    const [n, cost, type, text, pt, col, cmc, layout, loy, faces, legal] = o[oi];
     if (faces && !faceCache.has(oi)) faceCache.set(oi, faces.map(materialiseFace));
     // qty/foil are holdings, not catalogue: you own nothing until something says so
     return { n, set, num, rar, art_id, usd, col, cmc, type, text, pt, loy,
+             // legal is a bitmask over FORMATS, fin one over FINISHES — both are
+             // what the filter counts, and neither is a string per printing
+             // both default to 0 = NOT RECORDED, never to a plausible value. An
+             // older cards.json.gz without these fields reads as nine zeros and
+             // three zeros, which looks like missing data because it is; `fin ?? 1`
+             // read as "every printing is nonfoil", which looks like an answer
+             legal: legal || 0, fin: fin || 0,
              // the two anatomy facts, defaulted here so nothing downstream has to
              layout: layout || 'normal', treat: treat || 'framed',
              faces: faces ? faceCache.get(oi) : null,
@@ -699,17 +755,41 @@ const materialise = ({ o, p }) => {
 };
 // `seed` skips the fetch and takes the payload as given — how check.mjs, which has
 // no network, exercises the catalogue paths the mocks can't reach
+/* A SAVED DECK IS A SNAPSHOT, AND SNAPSHOTS GO STALE. localStorage keeps the
+   card objects as they were when the draft was kept, so a deck saved before a
+   field existed has no such field — and the sidebar duly reported that a Hobbit
+   draft contained nothing Modern-legal, which is the same plausible-looking lie
+   the hardcoded facet counts were. Prices drift the same way, more quietly.
+
+   So the catalogue re-supplies them the moment it lands: matched on set and
+   collector number, which is what identifies a printing. Anything it cannot
+   match keeps the stored copy — a card from a set the catalogue no longer
+   carries is still a card you drafted, and dropping it would be worse than
+   letting it age. */
+function rehydrateDecks() {
+  if (!CATALOGUE) return;
+  const by = new Map(CATALOGUE.map(c => [`${c.set}/${c.num}`, c]));
+  for (const d of LISTS.decks) {
+    if (!Array.isArray(d[4])) continue;
+    d[4] = d[4].map(c => {
+      const fresh = by.get(`${c.set}/${c.num}`);
+      // the holding is yours, the printing is the catalogue's
+      return fresh ? { ...fresh, qty: c.qty ?? 0, foil: c.foil ?? 0 } : c;
+    });
+  }
+}
 async function loadCards(seed) {
   // a seed always wins, so a second one replaces the first — the guard below is
   // about not re-fetching, and a harness that could only seed once could not
   // test two different catalogues
-  if (seed) { CATALOGUE = materialise(seed); render(); return; }
+  if (seed) { CATALOGUE = materialise(seed); rehydrateDecks(); render(); return; }
   if (CATALOGUE) return;
   if (typeof fetch !== 'function') return;
   try {
     const res = await fetch('cards.json.gz');
     if (!res.ok) return;                       // no catalogue generated yet; mocks stand
     CATALOGUE = materialise(await res.json());
+    rehydrateDecks();
     render();
   } catch { /* offline is a supported state, not an error */ }
 }
@@ -1694,10 +1774,77 @@ const ComboSlicer = () => {
    enumerated value with a count, because a typed string is a guess and a chip
    is a fact. Rarely-browsed groups collapse into "Other", matching
    FilterSidebar's documented order (slicers, then Other). */
-const anatomyGroup = ([kind, label, arg, o = {}]) =>
-  kind === 'range' ? RangeField(label, '', '', o.symbols)
-  : kind === 'combos' ? ComboSlicer()
-  : ChipGroup(label, arg.map(([n, c]) => [n, '', c]), o.note || '', o.cols);
+/* THE FACET COUNTS ARE COUNTED, not typed. They were written for the 18 mock
+   rows and read as plausible for a year — Standard 41, Creature 58, Elf 9 —
+   and against a real catalogue they are simply false: the page holds 107,347
+   printings, 50,601 of them creatures. Worse than a wrong number, they were
+   wrong in a way that looks right, which is the only kind that survives.
+
+   Counted over the CURRENT SCOPE, not the catalogue, because the scope is what
+   the filter filters: open a drafted deck and the sidebar should describe those
+   84 cards. That is also what made the fault obvious — a Hobbit draft insisting
+   it held 92 Modern-legal cards.
+
+   The vocabulary and the count are different questions. A closed set stays
+   written down here (nine formats, eight card types, four rarities) so the chips
+   keep their order and a format with nothing in scope still shows a zero rather
+   than vanishing. An open one — subtypes, of which the catalogue has hundreds —
+   is taken from the data, most common first, because a hand-picked six was only
+   ever a sample of it. */
+const FORMATS = ['Standard', 'Pioneer', 'Modern', 'Legacy', 'Vintage', 'Commander', 'Pauper', 'Brawl', 'Historic'];
+const CARD_TYPES = ['Creature', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Planeswalker', 'Land', 'Battle'];
+const RARITIES = [['Common', 1], ['Uncommon', 2], ['Rare', 3], ['Mythic', 4], ['Special', 5]];
+const FINISHES = ['Nonfoil', 'Foil', 'Etched'];
+// the head of a type line is everything before the em-dash, the tail everything after
+const typeHead = c => (c.type || '').split('—')[0];
+const typeTail = c => (c.type || '').split('—')[1] || '';
+const topN = (cards, of, n) => {
+  const seen = new Map();
+  for (const c of cards) for (const v of of(c)) seen.set(v, (seen.get(v) || 0) + 1);
+  return [...seen].sort((a, b) => b[1] - a[1]).slice(0, n);
+};
+/* One pass per scope, not one per render: the scope is up to 107k cards and the
+   sidebar is redrawn on every click. Keyed on the array itself, the same trick
+   anatomyClasses() uses — a new scope is a new array. */
+let FACETS = null, FACETS_OF = null;
+const facetCounts = () => {
+  const cards = scopedCards();
+  if (FACETS_OF === cards) return FACETS;
+  const n = (test) => cards.reduce((t, c) => t + (test(c) ? 1 : 0), 0);
+  const kw = (GAMES.mtg.anatomy.find(x => x[1] === 'Keywords') || [])[2] || [];
+  FACETS_OF = cards;
+  FACETS = {
+    Legality: FORMATS.map((f, i) => [f, n(c => c.legal & (1 << i))]),
+    Type: CARD_TYPES.map(t => [t, n(c => typeHead(c).includes(t))]),
+    Subtype: topN(cards, c => typeTail(c).trim().split(/\s+/).filter(Boolean), 12),
+    Keywords: kw.map(([k]) => [k, n(c => new RegExp(`\\b${k}\\b`, 'i').test(c.text || ''))]),
+    Rarity: RARITIES.map(([label, v]) => [label, n(c => c.rar === v)]),
+    Language: topN(cards, c => [c.lang || 'en'], 6),
+    Finish: FINISHES.map((f, i) => [f, n(c => c.fin & (1 << i))]),
+  };
+  return FACETS;
+};
+// live only when the catalogue is: the mock rows are 18 cards and counting them
+// would replace a plausible fiction with an accurate irrelevance
+const facetsLive = () => CATALOGUE && P.game === 'mtg';
+
+const anatomyGroup = ([kind, label, arg, o = {}]) => {
+  if (kind === 'range') return RangeField(label, '', '', o.symbols);
+  if (kind === 'combos') return ComboSlicer();
+  /* A group the catalogue cannot answer says so rather than keeping its made-up
+     chips. Artist is the only one: it is a per-printing string, so carrying it
+     means a dictionary in cards.json.gz, and that is the flavour-text-and-artist
+     job rather than this one. Three invented names would otherwise sit here
+     looking exactly as authoritative as the counted groups beside them. */
+  if (facetsLive() && !facetCounts()[label]) return `
+    <div class="mb-3">
+      <p class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-neutral-600">${label}</p>
+      <p class="text-[11px] italic text-neutral-600">not in the catalogue yet &mdash; needs ${
+        label === 'Artist' ? 'artist credits' : 'the field'} in <code>gen-cards.mjs</code></p>
+    </div>`;
+  const live = facetsLive() && facetCounts()[label];
+  return ChipGroup(label, (live || arg).map(([nm, c]) => [nm, '', c]), o.note || '', o.cols);
+};
 
 const AnatomyFilter = () => {
   const spec = game().anatomy;
@@ -4394,6 +4541,28 @@ PAGES.config = () => Frame('config', {
           allLocal() ? 'text-emerald-400' : 'text-sky-400'}">${
           allLocal() ? 'offline ready' : `${onlineNow().length}/8 online`}</span>` })}
 
+      ${(() => {
+        /* WHAT THIS BROWSER IS REMEMBERING, and the way to stop it. A store with
+           no way out is a trap: a kept draft has no delete anywhere else on the
+           page, so without this row the only cure for one you did not want is
+           devtools. Stated in kilobytes against the ~5 MB a browser gives, so
+           "how many drafts can I keep" has a number rather than a shrug. */
+        const kb = savedBytes() / 1024;
+        const kept = LISTS.decks.filter(d => d[4]).length;
+        return Band('saved on this device', `
+        <p class="text-[11px] text-neutral-500">Config&rsquo;s Local/Online choices and your deck list, in this
+          browser&rsquo;s <code>localStorage</code> &mdash; nothing is written to the server, and
+          <code>serve.py</code> stays read-only. What you had <em>open</em> is deliberately not saved: the page
+          forgets the tab, set and selection on navigation by design.</p>
+        <div class="mt-2 flex items-center gap-3">
+          <span class="text-xs tabular-nums text-neutral-300">${kb < 1 ? 'nothing saved yet'
+            : `${kb.toFixed(1)} KB &middot; ${num(LISTS.decks.length)} deck${LISTS.decks.length === 1 ? '' : 's'}${
+              kept ? `, ${num(kept)} kept from a draft` : ''}`}</span>
+          <button onclick="forgetState()" class="${BTN_DANGER} ml-auto"
+            title="Clear everything saved here and reload with the defaults">Forget saved state</button>
+        </div>`, { note: 'kept between reloads', right: `<span class="text-[10px] font-mono ${
+          kb ? 'text-sky-400' : 'text-neutral-600'}">${kb < 1 ? 'empty' : `${kb.toFixed(0)} KB`}</span>` });
+      })()}
       ${Band('schema source map', `
         <div class="mb-1 flex items-center gap-2 px-1 text-[10px] font-semibold uppercase tracking-wide text-neutral-600">
           <span class="flex-1">Table / columns</span><span class="w-24">Scryfall</span><span class="w-24">MTGJSON</span></div>
@@ -4979,6 +5148,11 @@ function render() {
   }
   document.title = 'Draft — ' + route;
   measureGutter();
+  /* Saved here rather than in each of the five mutators: one call site cannot
+     miss one. render() runs when you click, not per frame — the deal and the
+     reveal sweep write to the DOM directly and were made not to re-render — so
+     the stringify is nowhere near a hot path. */
+  saveState();
 }
 addEventListener('hashchange', render);
 // capture, because scroll doesn't bubble — the pane is a different element on
@@ -4986,6 +5160,9 @@ addEventListener('hashchange', render);
 addEventListener('scroll', placeGutter, true);
 addEventListener('resize', measureGutter);
 setInterval(cyclePacks, 1000);   // ticks; each pack has its own turn inside it
+// before the first paint: what was chosen last time IS the starting state, and
+// painting the defaults first would flash them
+loadState();
 render();
 // after the first paint, not before it: the page is useful on the mocks while
 // 5 MB is in flight, and re-renders itself when the real catalogue lands
