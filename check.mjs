@@ -13,7 +13,7 @@ const page = readFileSync('index.html', 'utf8');   // the markup too: <body> car
 const src = `${['sets.js', 'trim.js', 'anatomy.js'].map(f => readFileSync(f, 'utf8')).join('\n')}
 ${page.match(/<script>([\s\S]*)<\/script>/)[1]}`;
 const js = src
-  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_ROWS, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, CAN_BE_LOCAL, MISSING_LOCAL, srcBytes, onDisk, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, frameOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, costTokens, CARD_LIMIT, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, setZoom, binderDims, zoomPx, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, BINDER_SORT, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
+  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_ROWS, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, CAN_BE_LOCAL, MISSING_LOCAL, srcBytes, onDisk, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, frameOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, costTokens, CARD_LIMIT, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, setZoom, binderDims, zoomPx, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, BINDER_SORT, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
   + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen,'
   + ' setDebug: v => { DEBUG = v; } };';
 
@@ -1641,6 +1641,33 @@ assert.ok(t.packUrl(1).endsWith('_200w.jpg'), 'the default pack-art size is not 
 t.setQuality('tcg', 'in_1000x1000');
 assert.ok(t.packUrl(1).endsWith('_in_1000x1000.jpg'), 'changing the pack-art size does not change the request');
 t.setQuality('tcg', '200w');
+
+/* THE ART WINDOW ALWAYS DRAWS THE CROP. The five Scryfall sizes are two
+   different pictures: `art_crop` is the illustration alone, and the other four
+   are the whole printed card. Letting the configured size reach the art window
+   put an entire card — frame, type line, rules text — inside the art window of
+   a drawn one, on every card on the page, at every setting but the default. It
+   looked fine until someone changed the chip, and then it looked fine in the
+   sense that a picture appeared. */
+{
+  const card = t.CARDS()[0];
+  for (const q of ['small', 'normal', 'large', 'png']) {
+    t.setQuality('sfart', q);
+    const drawn = t.MockCard(card);
+    assert.ok(drawn.includes('/art_crop/'),
+      `at size "${q}" the art window stopped asking for the crop`);
+    assert.ok(!drawn.includes(`/${q}/`),
+      `at size "${q}" the art window draws a whole printed card inside itself`);
+  }
+  t.setQuality('sfart', 'art_crop');
+  // ...and the whole-card paths still follow the setting, since that is what it is for
+  t.setQuality('sfart', 'large');
+  assert.ok(t.artUrl(card, 0, t.cardQ(card)).includes('/large/'),
+    'the size chip no longer reaches the places that show a whole card');
+  t.setQuality('sfart', 'art_crop');
+  assert.ok(t.artUrl(card, 0, t.cardQ(card)).includes('/normal/'),
+    'a whole-card render asks for art_crop, which is not a whole card');
+}
 
 // --- every declared name is used; every name a handler calls exists --------
 const declared = [...src.matchAll(/^(?:const|let|function)\s+([A-Za-z_$][\w$]*)/gm)].map(m => m[1]);

@@ -253,9 +253,12 @@ const SOURCES = {
     cmd: q => `node gen-art.mjs ${q} --all      # or --anatomy for the sample page only`,
     local: 'art/sf/ &mdash; one file per printing, fetched once',
     online: 'cards.scryfall.io &middot; unrated-limited, and what Scryfall asks for by default',
-    q: [['art_crop', '626&times;457 &mdash; the only pixels this frame draws', 75e3],
-        ['small', '146&times;204', 14e3], ['normal', '488&times;680', 104e3],
-        ['large', '672&times;936', 169e3], ['png', '745&times;1040', 1231e3]] },
+    /* Two different pictures, not five qualities of one. The frame always draws
+       art_crop and cannot use anything else; the rest are the whole printed
+       card, which is what an unframable printing and the compare column show. */
+    q: [['art_crop', '626&times;457 &mdash; the illustration alone, which is what every frame draws', 75e3],
+        ['small', '146&times;204 &mdash; whole card', 14e3], ['normal', '488&times;680 &mdash; whole card', 104e3],
+        ['large', '672&times;936 &mdash; whole card', 169e3], ['png', '745&times;1040 &mdash; whole card', 1231e3]] },
   mtgjson: { name: 'MTGJSON', gives: 'printings &middot; booster collation &middot; sealed products', kind: 'data',
     def: ['local', 'AllPrintings'], full: 'AllPrintings', units: 1,
     file: q => q === 'psql' ? 'data/AllPrintings.psql.gz' : `data/${q}.json.gz`,
@@ -1169,11 +1172,21 @@ const FootPlate = (f, c, plate) => `
    blurred and scaled out to fill whatever contain leaves. A portrait crop
    covers ~85% of the card and the seam is invisible; a landscape one keeps the
    whole picture instead of half of it. One rule, no branch, nothing to know. */
+/* THE ART WINDOW ALWAYS ASKS FOR THE CROP, whatever the size chip says. Those
+   five sizes are not five qualities of one picture: `art_crop` is the
+   illustration alone, and `small`/`normal`/`large`/`png` are the WHOLE PRINTED
+   CARD, frame and rules text included. Passing the configured size through to
+   here put an entire card inside the art window of a drawn one — every card on
+   the page, at any setting but the default. Config's own row already said
+   art_crop was "the only pixels this frame draws"; it was a label, not a rule,
+   and this makes it the rule. The size chip governs what is fetched for the
+   places that genuinely show a whole card: an unframable printing, and the
+   anatomy page's compare column. */
 const ArtWindow = (c, i, cls, whole) => `
   <div class="${cls} ${whole ? 'relative' : ''} overflow-hidden rounded border border-black/20 bg-black/10">
     ${!c.art_id ? '<div class="flex h-full w-full items-center justify-center text-[0.82em] italic opacity-50">no art loaded</div>'
       : whole
-        ? `<img src="${artUrl(c, i)}" alt="" aria-hidden="true" loading="lazy"${artAttrs(c, i)}
+        ? `<img src="${artUrl(c, i, 'art_crop')}" alt="" aria-hidden="true" loading="lazy"${artAttrs(c, i, 'art_crop')}
              class="absolute inset-0 h-full w-full scale-110 object-cover blur-md">
            <!-- Anchored TOP, not centred. Centring splits the leftover between
                 both ends and puts half the blur across the top of the card,
@@ -1181,9 +1194,9 @@ const ArtWindow = (c, i, cls, whole) => `
                 line and the rules box already. Top-anchored, the sharp art
                 starts at the card's edge and the soft part lands behind the
                 plates. -->
-           <img src="${artUrl(c, i)}" alt="" loading="lazy"${artAttrs(c, i)}
+           <img src="${artUrl(c, i, 'art_crop')}" alt="" loading="lazy"${artAttrs(c, i, 'art_crop')}
              class="relative h-full w-full object-contain object-top">`
-        : `<img src="${artUrl(c, i)}" alt="" loading="lazy"${artAttrs(c, i)} class="h-full w-full ${
+        : `<img src="${artUrl(c, i, 'art_crop')}" alt="" loading="lazy"${artAttrs(c, i, 'art_crop')} class="h-full w-full ${
           c.energy ? 'object-cover object-[50%_22%]' : 'object-cover'}">`}
   </div>`;
 
