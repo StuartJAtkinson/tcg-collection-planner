@@ -13,7 +13,7 @@ const page = readFileSync('index.html', 'utf8');   // the markup too: <body> car
 const src = `${['sets.js', 'trim.js', 'anatomy.js'].map(f => readFileSync(f, 'utf8')).join('\n')}
 ${page.match(/<script>([\s\S]*)<\/script>/)[1]}`;
 const js = src
-  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, CAN_BE_LOCAL, MISSING_LOCAL, srcBytes, onDisk, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, frameOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setZoom, binderDims, zoomPx, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, BINDER_SORT, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
+  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, CAN_BE_LOCAL, MISSING_LOCAL, srcBytes, onDisk, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setZoom, binderDims, zoomPx, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, BINDER_SORT, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
   + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen,'
   + ' setDebug: v => { DEBUG = v; } };';
 
@@ -673,11 +673,16 @@ for (const c of mtgCards) {
   assert.ok(/aspect-\[5\/3\.52\]/.test(one), `${c.n}: no art window`);
   assert.ok(one.includes(`${c.set} ${c.num}`), `${c.n}: no collector line`);
   assert.ok(!one.includes('undefined'), `${c.n}: leaked undefined into the frame`);
-  // every token draws something rather than vanishing — its glyph where the font
-  // has one (colours, digits, tap), otherwise its own text in the fallback disc
+  /* every token draws something rather than vanishing — its glyph where the font
+     has one (colours, digits, tap), the marks of its halves where it is a split
+     symbol, and only otherwise its own text in the fallback disc */
   for (const tok of c.cost || []) {
     const g = t.glyphOf(tok);
-    assert.ok(g ? one.includes(g) : one.includes(`>${tok}<`), `${c.n}: dropped the "${tok}" pip`);
+    const marks = tok.includes('/')
+      ? (tok.endsWith('/P') ? [t.glyphOf('P')] : tok.split('/').map(x => t.glyphOf(x)))
+      : null;
+    assert.ok(marks ? marks.every(m => one.includes(m)) : g ? one.includes(g) : one.includes(`>${tok}<`),
+      `${c.n}: dropped the "${tok}" pip`);
   }
 }
 /* --- the sort actually sorts, and the break actually groups ----------- */
@@ -1043,7 +1048,52 @@ assert.ok(!/\{T\}|\{G\}|\{2\}/.test(tapped), 'rules text is still printing brace
 assert.ok(tapped.includes(t.glyphOf('T')), 'the tap symbol is not rendered');
 assert.ok(tapped.includes(t.glyphOf('G')) && tapped.includes(t.glyphOf('2')),
   'a colour or a number in rules text lost its glyph');
-assert.ok(tapped.includes('>U/P<'), 'a hybrid has no single glyph, so it must fall back to its text');
+/* A SPLIT PIP IS DRAWN, NOT SPELLED. This asserted the opposite until the font
+   was read properly: it has no single codepoint for {U/P}, and it composes one
+   from the glyphs it does have. Phyrexian is the half that needs no split —
+   {U/P} is one Φ on a blue disc — so the test is that the disc is blue, the mark
+   is Φ, and the characters "U/P" appear nowhere. */
+assert.ok(!tapped.includes('>U/P<'), 'a split symbol is still being spelled out instead of drawn');
+assert.ok(tapped.includes(`background:${t.MTG.U};color:${t.INK.U}`), 'Phyrexian blue lost its own disc');
+assert.ok(tapped.includes(t.glyphOf('P')), 'the Phyrexian mark is not rendered');
+/* THE FIVE FAMILIES ARE NOT ONE RULE, and the catalogue has all five: 10 hybrid
+   pairs, 5 twobrid, 6 Phyrexian, 5 colourless hybrids and 4 Phyrexian hybrids
+   over 1,501 printings. Each is asserted for the thing that makes it different
+   from its neighbours, because one recipe that happens to pass for {W/U} can be
+   wrong for {R/W/P} in a way no shared assertion would notice. */
+{
+  const halves = s => [...s.matchAll(/<i class="ms[^>]*>([^<]*)<\/i>/g)].map(m => m[1]);
+  const P = t.glyphOf('P');
+  const pair = t.pipOf('W/U');
+  assert.deepStrictEqual(halves(pair), [t.glyphOf('W'), t.glyphOf('U')], 'a hybrid lost one of its two marks');
+  assert.ok(pair.includes(`linear-gradient(135deg,${t.MTG.W} 0%,${t.MTG.W} 50%,${t.MTG.U} 50%,${t.MTG.U} 100%)`),
+    'the disc is not split down the diagonal into the two colours');
+  // twobrid: the generic half is a number on the neutral disc, not a colour
+  assert.deepStrictEqual(halves(t.pipOf('2/R')), [t.glyphOf('2'), t.glyphOf('R')], 'a twobrid lost its 2');
+  assert.ok(t.pipOf('2/R').includes('#cdc6bf'), 'the generic half of a twobrid took a colour it has not got');
+  // Phyrexian: ONE mark on the colour's own disc, and no gradient at all
+  const phy = t.pipOf('G/P');
+  assert.deepStrictEqual(halves(phy), [P], 'Phyrexian mana is drawn as a split when it is one mark');
+  assert.ok(!phy.includes('gradient') && phy.includes(t.MTG.G), 'Phyrexian lost its colour');
+  /* ...and a Phyrexian hybrid is the odd one out twice over: a split disc like a
+     hybrid, but ONE Φ centred across it rather than a mark per half. Checked
+     against the printed symbol, not inferred from the other two families. */
+  const both = t.pipOf('R/W/P');
+  assert.deepStrictEqual(halves(both), [P], 'a Phyrexian hybrid draws a mark per half instead of one across the split');
+  assert.ok(both.includes(`${t.MTG.R} 50%,${t.MTG.W} 50%`), 'a Phyrexian hybrid lost its two colours');
+  // colourless hybrid, the family that reads as a colour and is not one
+  assert.deepStrictEqual(halves(t.pipOf('C/W')), [t.glyphOf('C'), t.glyphOf('W')], 'a colourless hybrid lost a mark');
+  // the fallback still exists for anything genuinely unknown
+  assert.ok(t.pipOf('QQ').includes('>QQ<'), 'an unknown symbol no longer falls back to its text');
+  /* A TWOBRID PIP IS WORTH TWO. Flame Javelin is {2/R}{2/R}{2/R} — a six-mana
+     card the range filter was placing at three. The other split families are
+     worth one each, and X is worth none. */
+  const mv = cost => t.manaValue({ cost });
+  assert.strictEqual(mv(['2/R', '2/R', '2/R']), 6, 'a twobrid pip counts as one instead of two');
+  assert.strictEqual(mv(['1', 'G/W', 'G/W']), 3, 'a hybrid pip stopped counting as one');
+  assert.strictEqual(mv(['U/P']), 1, 'a Phyrexian pip stopped counting as one');
+  assert.strictEqual(mv(['X', 'R']), 1, 'X is being counted as mana');
+}
 assert.strictEqual(t.glyphOf('15'), String.fromCodePoint(0xe614), 'the digit run does not reach {15}');
 assert.strictEqual(t.glyphOf('16'), '', 'a number past the font pretends to have a glyph');
 // symbols must not become an injection point now that text is parsed

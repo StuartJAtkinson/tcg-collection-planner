@@ -291,6 +291,9 @@
   .top-1\/2 {
     top: calc(1 / 2 * 100%);
   }
+  .top-\[6\%\] {
+    top: 6%;
+  }
   .top-\[15\%\] {
     top: 15%;
   }
@@ -300,17 +303,26 @@
   .right-\[7\%\] {
     right: 7%;
   }
+  .right-\[10\%\] {
+    right: 10%;
+  }
   .bottom-0 {
     bottom: 0;
   }
   .bottom-6 {
     bottom: calc(var(--spacing) * 6);
   }
+  .bottom-\[6\%\] {
+    bottom: 6%;
+  }
   .left-0 {
     left: 0;
   }
   .left-1\/2 {
     left: calc(1 / 2 * 100%);
+  }
+  .left-\[10\%\] {
+    left: 10%;
   }
   .z-10 {
     z-index: 10;
@@ -1420,6 +1432,9 @@
   }
   .text-\[0\.59em\] {
     font-size: 0.59em;
+  }
+  .text-\[0\.62em\] {
+    font-size: 0.62em;
   }
   .text-\[0\.64em\] {
     font-size: 0.64em;

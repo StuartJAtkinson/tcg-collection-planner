@@ -1092,15 +1092,50 @@ const SYMBOL = { X: '', Y: '', Z: '', P: '', S: '',
                  T: '', Q: '', E: '' };
 const glyphOf = t => MANA[t] || SYMBOL[t]
   || (/^\d+$/.test(t) && +t <= 15 ? String.fromCodePoint(0xe605 + +t) : '');
+const PIP_DISC = 'inline-flex shrink-0 items-center justify-center rounded-full border border-black/40 leading-none';
+/* {W/U}, {2/R}, {G/P} — A SPLIT PIP IS TWO GLYPHS, NOT A MISSING ONE. The font
+   has no single codepoint for these, which is why they fell through to the grey
+   disc and printed the characters "W/U" on 1,501 printings and in the rules text
+   of 287 more. That is not a gap in the font: it composes them from the two
+   glyphs it does have, at opposite corners of a disc split down the diagonal —
+   exactly what the Mana font's own CSS does with `::before`, `::after` and
+   `.ms-split`. Offsets are percentages of the disc rather than em, so one recipe
+   serves every size the page asks for, from the 16px list pip to a card face.
+
+   Phyrexian is the case that needs no split: {G/P} is one Φ on a green disc, and
+   only the four Phyrexian hybrids ({R/W/P} and friends) put Φ in both halves. */
+const pipBg = c => MTG[c] || '#cdc6bf';   // generic for the 2 of a twobrid
+const pipInk = c => INK[c] || '#1c1917';
+const splitPip = (t, box) => {
+  const parts = t.split('/');
+  const phy = parts[parts.length - 1] === 'P';
+  const cols = phy ? parts.slice(0, -1) : parts;
+  const [a, b] = cols;
+  const split = `linear-gradient(135deg,${pipBg(a)} 0%,${pipBg(a)} 50%,${pipBg(b)} 50%,${pipBg(b)} 100%)`;
+  // {G/P} — one Φ on the colour's own disc, and nothing to split
+  if (!b) return `<span class="${PIP_DISC} ${box}"
+      style="background:${pipBg(a)};color:${pipInk(a)}"><i class="ms">${SYMBOL.P}</i></span>`;
+  /* {R/W/P} — checked against the printed symbol rather than assumed from the
+     other two families: it is ONE Φ centred across the split, not a Φ in each
+     half. Four cards in the catalogue have one and all four would have been
+     wrong. */
+  if (phy) return `<span class="${PIP_DISC} ${box}"
+      style="background:${split};color:#1c1917"><i class="ms">${SYMBOL.P}</i></span>`;
+  return `<span class="${PIP_DISC} ${box} relative" style="background:${split}">
+    <i class="ms absolute left-[10%] top-[6%] text-[0.62em]" style="color:${pipInk(a)}">${glyphOf(a)}</i>
+    <i class="ms absolute bottom-[6%] right-[10%] text-[0.62em]" style="color:${pipInk(b)}">${glyphOf(b)}</i>
+  </span>`;
+};
 /* One pip renderer for every size. `box` carries the dimensions and the glyph's
    size; `small` is the text size for the fallback, which has up to three
    characters to fit where a glyph would have been. */
 const pipOf = (t, box = 'h-4 w-4 text-[8.5px]', small = 'text-[8px]') => {
+  if (t.includes('/')) return splitPip(t, box);
   const g = glyphOf(t);
   return g
-    ? `<span class="inline-flex ${box} shrink-0 items-center justify-center rounded-full border border-black/40 leading-none"
+    ? `<span class="${PIP_DISC} ${box}"
          style="background:${MTG[t] || '#cdc6bf'};color:${INK[t] || '#1c1917'}"><i class="ms">${g}</i></span>`
-    : `<span class="inline-flex ${box} ${small} shrink-0 items-center justify-center rounded-full border border-black/40 bg-neutral-300 px-0.5 font-bold leading-none text-neutral-900">${t}</span>`;
+    : `<span class="${PIP_DISC} ${box} ${small} bg-neutral-300 px-0.5 font-bold text-neutral-900">${t}</span>`;
 };
 const costPip = t => pipOf(t);
 /* The same pip on the card face, sized off the face rather than off nothing:
@@ -1116,8 +1151,20 @@ const symbolise = s => String(s ?? '')
   .replace(/\{([^{}]{1,6})\}/g, (_, t) => pipOf(t.toUpperCase(), 'h-[1.2em] w-[1.2em] text-[0.68em] align-[-0.15em]', 'text-[0.55em]'));
 const energyPip = t => `<span class="inline-flex h-[1.45em] w-[1.45em] shrink-0 items-center justify-center rounded-full border border-black/40 text-[0.82em] font-bold text-black/80"
   style="background:${PKM_FRAME[t] || '#8c8c8c'}">${t[0]}</span>`;
-// mana value: generic pips count as their number, everything else as one
-const manaValue = c => (c.cost || []).reduce((t, x) => t + (/^\d+$/.test(x) ? +x : x === 'X' ? 0 : 1), 0);
+/* Mana value: generic pips count as their number, everything else as one — with
+   the twobrid exception this missed. {2/R} is worth TWO, so Flame Javelin
+   ({2/R}{2/R}{2/R}) is a six-mana card the filter was ranging at three, along
+   with the other 61 cards that carry one.
+
+   NOT switched to the catalogue's own `cmc`, which was the obvious move and is
+   wrong twice: it is the COMBINED value of both halves of a split card (Dusk //
+   Dawn reads 9, not the 4 you cast), and it is 0 on every reversible card. The
+   arithmetic here answers "what does this face cost", which is the question the
+   filter and the card page are both asking. */
+const manaValue = c => (c.cost || []).reduce((t, x) => {
+  const two = /^(\d+)\//.exec(x);
+  return t + (two ? +two[1] : /^\d+$/.test(x) ? +x : x === 'X' ? 0 : 1);
+}, 0);
 /* Shrink to fit without measuring, the way a paper card does — but the steps are
    MEASURED, not guessed. Each threshold is the length at which that size starts
    to overflow the rules box in the grid, read off the rendered page: 12px goes
