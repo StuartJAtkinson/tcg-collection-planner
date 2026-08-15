@@ -2298,6 +2298,12 @@ const ANAT = {
     // ...and the near miss that must still get a frame: no cost either, but a
     // real type line, which is every token, land, emblem, plane and scheme
     ['A Token', '', 'Token Creature — Bear', '', '2/2', 'G', 0, 'token', '', 0],
+    /* Written the way the source writes one, capitals and all, because that is
+       the whole fault: `LEVEL 1-4` is not `Level 1`, and the `0/6` under it is
+       this band's power and toughness rather than a stray line of rules. */
+    ['A Leveler', '{1}{U}', 'Creature — Merfolk',
+      'Level up {2} ({2}: Put a level counter on this.)\nLEVEL 1-4\n0/6\nLEVEL 5+\n6/6\nIslandwalk',
+      '0/1', 'U', 2, 'leveler', '', 0],
   ],
   // one printing per treatment on the plain card, then one per layout
   p: [
@@ -2316,6 +2322,7 @@ const ANAT = {
     [8, 'AAA', '13', 1, '00000000-0000-4000-8000-000000000013', 1, 'borderless'],
     [9, 'AAA', '14', 1, '00000000-0000-4000-8000-000000000014', 1, 0],
     [10, 'AAA', '15', 1, '00000000-0000-4000-8000-000000000015', 1, 0],
+    [11, 'AAA', '16', 3, '00000000-0000-4000-8000-000000000016', 1, 0],
   ],
 };
 t.loadCards(ANAT);
@@ -2386,6 +2393,28 @@ const saga = t.MockCard(byName['A Saga|framed']);
 assert.ok(/border-r border-black\/40/.test(saga), 'a Saga draws its chapters as a paragraph');
 assert.ok(!/border-r border-black\/40/.test(t.MockCard(byName['Plain Card|framed'])),
   'an ordinary card grows a chapter gutter');
+
+/* A LEVEL IS A BAR AND IT IS AT THE END OF THE LINE. Of the three BANDED
+   layouts only Saga banded: the pattern wanted `Level 1` at the start of a line
+   in title case, and a Class writes `{2}{U}: Level 2` with the level LAST while
+   a Leveler writes `LEVEL 1-4` in capitals. 61 Levelers and 69 Classes drew as a
+   run-on paragraph with their levels and P/Ts loose in the middle of it. */
+const lev = t.MockCard(byName['A Leveler|framed']);
+for (const [name, html, n] of [['Leveler', lev, 2], ['Class', t.MockCard(byName['A Class|framed']), 1]])
+  assert.strictEqual([...html.matchAll(/bg-black\/25 px-1 font-bold/g)].length, n,
+    `a ${name} draws ${n === 1 ? 'its level' : 'its levels'} as ordinary rules text`);
+// the marker is normalised, so `LEVEL 1-4` and `Level 2` read the same way
+assert.ok(lev.includes('Level 1-4') && lev.includes('Level 5+'), 'a Leveler lost one of its bands');
+// ...and the band's own power/toughness is IN the oracle text, one line under
+// its marker — the issue assumed this needed a field in gen-cards.mjs
+assert.ok(/Level 1-4<\/span>\s*<span[^>]*>0\/6</.test(lev.replace(/\n\s*/g, '')),
+  "a Leveler's band P/T is loose in the rules text instead of in its band");
+assert.ok(!/<p[^>]*>0\/6<\/p>/.test(lev), 'a band power/toughness is still drawn as a paragraph');
+// a Class carries a cost into its bar; a Leveler has none to carry
+assert.ok(t.MockCard(byName['A Class|framed']).includes('</span>:</span>'),
+  "a Class's level-up cost vanished from its band");
+// and the base rules line that merely mentions levelling up is not a band
+assert.ok(/<p[^>]*>Level up /.test(lev), '"Level up {2}" was mistaken for a band marker');
 
 /* TWO-COLUMN: a Saga and a Class are not stacked cards. The illustration is a
    tall strip down one side — Scryfall crops them 312x752 rather than the 626x457

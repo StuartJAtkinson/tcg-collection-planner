@@ -1103,13 +1103,47 @@ const TypePlate = (f, c, plate, cls = 'relative z-10 -my-2.5') => `
    them as one string with the steps on their own lines, so the box splits on
    the newline it already has rather than on a parser: chapter marks go in a
    gutter down the left, which is where the card prints them. */
-const CHAPTER = /^(?:([IVX]+(?:,\s*[IVX]+)*)\s*(?:—|-)\s*)|^(?:(Level\s+\d+[-+\d]*)\s*)/;
-const BandedText = (text) => (text || '').split('\n').map((line) => {
-  const m = line.match(CHAPTER);
-  return !m ? `<p class="whitespace-pre-line">${symbolise(line)}</p>`
-    : `<div class="flex gap-1"><span class="w-[3.2em] shrink-0 border-r border-black/40 pr-1 text-right font-bold">${
-        m[1] || m[2]}</span><span class="min-w-0 flex-1">${symbolise(line.slice(m[0].length))}</span></div>`;
-}).join('');
+const CHAPTER = /^([IVX]+(?:,\s*[IVX]+)*)\s*(?:—|-)\s*/;
+/* A LEVEL IS A BAR, NOT A GUTTER MARK, and it is at the other end of the line.
+   The old pattern looked for `Level 1` at the START of a line in title case, and
+   neither of the two things that write one does that:
+
+     Class    `{1}{U}{B}: Level 2` — a cost first, the level LAST.
+     Leveler  `LEVEL 1-4` on its own line, in capitals, followed by a bare
+              `0/6` which is that band's power and toughness.
+
+   So of the three BANDED layouts only Saga actually banded, and 61 Levelers and
+   69 Classes drew as a run-on paragraph with their levels and P/Ts loose in it.
+   Printed, both are a shaded bar across the full width with everything below it
+   belonging to that level — which is what this draws, rather than the Saga's
+   left-hand chapter gutter.
+
+   The band P/T needed nothing from gen-cards.mjs, which is what the issue
+   assumed: it is already IN the oracle text, one line under its marker. That it
+   was a loose `0/6` floating in a paragraph is the same fault, not a second. */
+const BAND = /^(?:(\{.+\}):\s*)?level\s+([\d+-]+)$/i;
+const BAND_PT = /^[\d*+-]+\/[\d*+-]+$/;
+const BandedText = (text) => {
+  const lines = (text || '').split('\n');
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    const band = lines[i].match(BAND);
+    if (band) {
+      const pt = BAND_PT.test(lines[i + 1] || '') ? lines[++i] : '';
+      out.push(`<div class="mt-0.5 flex items-center gap-1 rounded-sm bg-black/25 px-1 font-bold">
+        ${band[1] ? `<span class="shrink-0">${symbolise(band[1])}:</span>` : ''}
+        <span class="min-w-0 flex-1 uppercase">Level ${band[2]}</span>
+        ${pt ? `<span class="shrink-0 rounded-sm border border-black/30 bg-black/20 px-1">${pt}</span>` : ''}
+      </div>`);
+      continue;
+    }
+    const m = lines[i].match(CHAPTER);
+    out.push(!m ? `<p class="whitespace-pre-line">${symbolise(lines[i])}</p>`
+      : `<div class="flex gap-1"><span class="w-[3.2em] shrink-0 border-r border-black/40 pr-1 text-right font-bold">${
+          m[1]}</span><span class="min-w-0 flex-1">${symbolise(lines[i].slice(m[0].length))}</span></div>`);
+  }
+  return out.join('');
+};
 
 /* `room` is this box's CAPACITY relative to an ordinary card's rules box, and
    it exists because textFit's ladder was measured against that box and nothing
