@@ -13,7 +13,7 @@ const page = readFileSync('index.html', 'utf8');   // the markup too: <body> car
 const src = `${['sets.js', 'trim.js', 'anatomy.js'].map(f => readFileSync(f, 'utf8')).join('\n')}
 ${page.match(/<script>([\s\S]*)<\/script>/)[1]}`;
 const js = src
-  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, CAN_BE_LOCAL, MISSING_LOCAL, srcBytes, onDisk, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, plateOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, printingsOf, pickPrinting, printKey, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
+  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, CAN_BE_LOCAL, MISSING_LOCAL, srcBytes, onDisk, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, plateOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, finishesOf, printingsOf, pickPrinting, printKey, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
   + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen,'
   + ' setDebug: v => { DEBUG = v; } };';
 
@@ -3142,4 +3142,26 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
   assert.ok(painted.includes('>showing<'), 'nothing says which printing is on show');
   // the band counts what it drew rather than a number written next to it
   assert.ok(painted.includes('>3 in the catalogue'), 'the printings band does not state its own count');
+
+  /* A PRINTING'S FINISHES ARE NOT A HOLDING'S FOIL FLAG. `finishOf` answers "is
+     the copy in your binder foil", which is 0 on every catalogue row — so a
+     foil-only printing read "Nonfoil", and 12,396 of them did. The printing's
+     own finishes are the `fin` bitmask, and a printing can be more than one. */
+  const nonfoil = { fin: 0b001 }, foil = { fin: 0b010 }, both = { fin: 0b011 }, etched = { fin: 0b100 };
+  assert.strictEqual(t.finishesOf(nonfoil), 'Nonfoil', 'a nonfoil printing lost its finish');
+  assert.strictEqual(t.finishesOf(foil), 'Foil', 'a foil-only printing still reads Nonfoil');
+  assert.strictEqual(t.finishesOf(both), 'Nonfoil &middot; Foil', 'a printing issued in both shows only one');
+  assert.strictEqual(t.finishesOf(etched), 'Etched', 'etched is not read off the mask');
+  // ...and a card with no mask at all — the mocks — still answers from its flag
+  assert.strictEqual(t.finishesOf({ foil: 1 }), 'Foil', 'a card with no mask lost its holding finish');
+  assert.strictEqual(t.finishesOf({}), '', 'a card with neither invented a finish');
+
+  /* THE IDENTITY KEY IS SET + NUMBER + LANGUAGE, and finish is not in it: it is
+     an attribute of the printing, which is why one row can offer two. Asserted
+     over the fixture, and true of all 107,347 catalogue rows — 107,347 distinct
+     keys, no collisions. */
+  const keys = t.ALL().map(t.printKey);
+  assert.strictEqual(new Set(keys).size, keys.length, 'set/number/language is not unique');
+  assert.strictEqual(t.printKey({ set: 'LEA', num: '269' }), 'LEA/269/en',
+    'a printing with no language recorded is not read as English');
 }

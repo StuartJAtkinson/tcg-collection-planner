@@ -1332,10 +1332,15 @@ const turnMark = (c, i) => {
     class="shrink-0 text-[0.85em] leading-none opacity-70">${(DFC_MARK[c.dfc] || TURN_MARK)[i ? 1 : 0]}</span>`;
 };
 
-const TitlePlate = (f, c, plate, cls = '', i = 0) => `
+/* `nameCls` pins the type where the plate is NOT a card: nameFit sizes a name
+   to fill the plate it is on, which is right on a card and wrong down a column
+   of identical widths, where it made every title a different size. The card
+   passes nothing and keeps the fit. */
+const TitlePlate = (f, c, plate, cls = '', i = 0, nameCls = '') => `
   <div class="flex items-center justify-between gap-1 rounded-md px-1.5 py-0.5 ${cls}" style="${plate}">
     ${turnMark(c, i)}
-    <span class="truncate font-bold leading-tight ${nameFit((f.n || '').length + 2 * ((f.cost || []).length + (c.hp ? 3 : 0)))}">${f.n}</span>
+    <span class="truncate font-bold leading-tight ${nameCls
+      || nameFit((f.n || '').length + 2 * ((f.cost || []).length + (c.hp ? 3 : 0)))}">${f.n}</span>
     <span class="flex shrink-0 items-center gap-0.5">${c.hp
       ? `<span class="text-[1em] font-bold">${c.hp} HP</span>`
       : (f.cost || []).map(facePip).join('')}</span>
@@ -1839,7 +1844,7 @@ const TitleRow = c => `
              (1.45em of a font size that is itself variable) moved the baseline
              with them. The height is 1.9em: the tallest pip a row can draw is
              1.45em of nameFit's largest 1.18em, which is 1.71em. */''}
-        ${TitlePlate(faceAt(c, 0), c, plateOf(c), 'h-[1.9em]')}
+        ${TitlePlate(faceAt(c, 0), c, plateOf(c), 'h-[1.9em]', 0, 'text-[0.95em]')}
       </div>
     </div>
     ${!holdsCopies() ? '' : `<span class="w-8 shrink-0 text-right tabular-nums text-neutral-300">×${c.qty}</span>`}</div>`;
@@ -5605,13 +5610,26 @@ const FINISH = { mtg: ['Nonfoil', 'Foil'], pokemon: ['Normal', 'Holofoil'] };
 const PKM_SETS = { BS: 'Base Set', PGO: 'Pok&eacute;mon GO', SVI: 'Scarlet &amp; Violet', BRS: 'Brilliant Stars' };
 
 const setName = code => PKM_SETS[code] || (SETS.find(r => r[1] === code) || [])[0] || code;
+/* TWO DIFFERENT QUESTIONS, AND THEY WERE ANSWERED WITH ONE FUNCTION. `finishOf`
+   is a HOLDING's: the copy in your binder is foil or it is not, and `foil` is the
+   flag that says so. A PRINTING's finishes are the ones it was printed in, which
+   is the `fin` bitmask off the catalogue — a printing can be nonfoil AND foil,
+   53,325 of them are, and 12,396 are foil-ONLY.
+
+   Reading the holding's flag for a printing said "Nonfoil" for all 12,396 of
+   those, including the Secret Lair Sol Ring in the screenshot of the very band
+   that was reporting it. The flag is 0 on every catalogue row, so it could not
+   have said anything else. */
 const finishOf = c => FINISH[cardKey()][c.foil ? 1 : 0];
+const finishesOf = c => (c.fin
+  ? FINISHES.filter((_, i) => c.fin & (1 << i)).join(' &middot; ')
+  : c.foil == null ? '' : finishOf(c));
 const factsOf = c => {
   const [head, sub] = (c.type || '').split(' &mdash; ');
   const [pow, tou] = (c.pt || '').split('/');
   return {
     Legality: LEGALITY[cardKey()], Colour: c.col, Language: c.lang, Rarity: rarityName(c.rar),
-    Artist: c.art, Illustrator: c.art, Finish: c.foil == null ? '' : finishOf(c),
+    Artist: c.art, Illustrator: c.art, Finish: finishesOf(c),
     // the type line's subtypes are space-separated on the card, one fact each here
     'Mana value': c.cost ? String(manaValue(c)) : '', Type: c.energy || head, Subtype: (sub || '').split(' ').join(' &middot; '),
     // the card's own list; the mocks have none, so this is blank rather than
@@ -5719,7 +5737,7 @@ const Candidates = () => {
   <div class="${PANEL} max-h-[26rem] overflow-y-auto">
     ${printingsOf(P.card).map((p) => {
       const on = printKey(p) === here;
-      const finish = finishOf(p);
+      const finish = finishesOf(p);
       return `
       <div onclick="pickPrinting('${jsArg(printKey(p))}')" title="Show this printing"
         class="flex cursor-pointer items-center gap-3 border-b border-neutral-900 px-3 py-2 text-sm ${
@@ -5728,7 +5746,7 @@ const Candidates = () => {
         <span class="min-w-0 flex-1 truncate text-neutral-200">${setName(p.set)}</span>
         <span class="w-9 shrink-0 text-right font-mono text-xs tabular-nums text-neutral-500">${p.num}</span>
         <span class="w-6 shrink-0 font-mono text-xs ${(p.lang || 'en') === 'en' ? 'text-neutral-600' : 'text-amber-400'}">${p.lang || 'en'}</span>
-        <span class="w-16 shrink-0 text-xs ${finish === 'Nonfoil' || finish === 'Normal' ? 'text-neutral-600' : 'text-amber-300'}">${finish}</span>
+        <span class="w-24 shrink-0 text-xs ${finish === 'Nonfoil' || finish === 'Normal' ? 'text-neutral-600' : 'text-amber-300'}">${finish}</span>
         <span class="w-16 shrink-0 text-right tabular-nums text-neutral-500">${money(p.usd)}</span>
         ${P.matched
           ? `<span class="w-16 shrink-0 text-right text-xs font-medium ${on ? 'text-emerald-400' : 'text-neutral-700'}">${on ? 'showing' : ''}</span>`
