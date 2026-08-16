@@ -225,6 +225,7 @@ const P = {
   draw: null,            // a drawn pool, or null — set pages only
   card: null,            // the card you clicked through to, or null
   print: null,           // which of its printings is on show — null is the earliest
+  hold: 'compact',       // how the card page draws your copies — the list's own three
   matched: false,        // has that card been matched to a printing yet?
   face: 'frame',         // card page image slot: our drawn frame, or the printed card
   /* THE FILTER IS TWO OBJECTS, for the reason the sort is: nothing narrows
@@ -1832,7 +1833,12 @@ const holdsCopies = () => P.tab === 'binders' || P.tab === 'decks';
    without one, including all 3,250 art-series "Card" printings and every
    full-art. So there is no set-and-number fallback here — it would be a branch
    that never runs. */
-const TitleRow = c => `
+/* `copies` is passed rather than asked, because the answer is about the LIST and
+   not about the card: a search result has a qty of 0 and no business showing a
+   column of zeroes, while a holding on the card page is a copy you own whatever
+   tab you arrived from. Defaulted to the scope's own answer, so every list call
+   site reads as it did. */
+const TitleRow = (c, copies = holdsCopies()) => `
   <div onclick="openCard('${jsArg(c.n)}','${jsArg(printKey(c))}')" title="Open ${jsArg(c.n)}"
     class="flex cursor-pointer items-center gap-2 p-1 text-sm hover:brightness-125">
     <div class="min-w-0 flex-1 rounded-md bg-black/80 p-[2px]">
@@ -1847,7 +1853,7 @@ const TitleRow = c => `
         ${TitlePlate(faceAt(c, 0), c, plateOf(c), 'h-[1.9em]', 0, 'text-[0.95em]')}
       </div>
     </div>
-    ${!holdsCopies() ? '' : `<span class="w-8 shrink-0 text-right tabular-nums text-neutral-300">×${c.qty}</span>`}</div>`;
+    ${!copies ? '' : `<span class="w-8 shrink-0 text-right tabular-nums text-neutral-300">×${c.qty}</span>`}</div>`;
 
 
 /* Details is the identity key — set, language, collector number, finish —
@@ -1918,7 +1924,7 @@ const DebugBand = () => !DEBUG ? '' : `
 // the window, so it can't live inside a <main> that scrolls under it.
 const Frame = (section, { desc = '', stats = '', sub = '', body, over = '' }) => `${TopNav(section, stats)}
   ${sub}
-  <main data-scroll class="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+  <main data-scroll="pane" class="min-h-0 flex-1 overflow-y-auto px-6 py-5">
     ${desc ? `<p class="mb-4 max-w-3xl text-sm text-neutral-400">${desc}</p>` : ''}
     ${body}
     ${DebugBand()}
@@ -2579,8 +2585,13 @@ const LayoutRow = () => {
    table is already in and the alphabet is not a chronology. */
 const COLOUR_NAME = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green' };
 const colourName = s => !s ? 'Colourless' : s.length === 1 ? COLOUR_NAME[s] : `${s.length}-colour`;
-// WUBRG order, and fewer colours first, so mono sits above the gold
-const colourKey = (s = '') => String(s.length).padStart(2, '0')
+/* WUBRG order, fewer colours first so mono sits above the gold — and COLOURLESS
+   LAST rather than first. It sorted first because it has zero colours and the
+   count leads the key, which is arithmetic rather than a decision: it put 18,557
+   artifacts, lands and Eldrazi at the top of every colour-ordered list, ahead of
+   every card anyone was looking for. It is the absence of the thing being
+   ordered, so it goes at the end. */
+const colourKey = (s = '') => (s ? String(s.length).padStart(2, '0') : '99')
   + [...s].map(c => 'WUBRG'.indexOf(c) + 1).sort().join('');
 const priceBand = v => !v ? 'no price' : v < 1 ? 'under £1' : v < 5 ? '£1–5'
   : v < 20 ? '£5–20' : v < 100 ? '£20–100' : '£100+';
@@ -2804,7 +2815,7 @@ const Results = () => {
       ${gs.map(([g, cs], i) => `
         ${g ? `<div style="grid-column:1/-1" class="flex items-center gap-2 ${i ? 'border-t border-neutral-800' : ''} px-2 py-1.5">
           <span class="text-[11px] font-semibold uppercase tracking-wide text-amber-400/80">${g}</span></div>` : ''}
-        ${cs.map(TitleRow).join('')}`).join('')}</div>`;
+        ${cs.map(c => TitleRow(c)).join('')}`).join('')}</div>`;
   }
   if (P.view === 'details') {
     return `<div class="rounded-lg border border-neutral-800 bg-neutral-950/60">
@@ -5667,8 +5678,34 @@ const printingsOf = (name) => {
     .sort((a, b) => (order(a) < order(b) ? -1 : order(a) > order(b) ? 1 : 0));
   return PRINTS;
 };
-const holdingsOf = c => [['binder', cardKey() === 'mtg' ? 'Alara block' : 'Unsorted', c.qty || 1],
-  ['deck', cardKey() === 'mtg' ? 'Bant Exalted' : 'Lost Box', 1]];
+/* YOUR COPIES, AND ONLY THE ONES THAT EXIST. This invented two rows — a binder
+   called "Alara block" and a deck called "Bant Exalted" — for every card in the
+   catalogue, so a card you have never owned reported two copies in places that
+   do not exist.
+
+   The one membership this app actually knows is a deck kept from a draft: the
+   pool rides on the deck row at index 4. Binders have none stored anywhere, so
+   they cannot be searched and are not guessed at. Matched on the PRINTING, not
+   the name — a foil Alpha and a Commander reprint are different things to own,
+   which is what the identity key is for — and grouped by deck so one row is one
+   place holding n copies. */
+const heldOf = (name) => {
+  const out = [];
+  for (const d of LISTS.decks) {
+    const pool = Array.isArray(d[4]) ? d[4] : null;
+    if (!pool) continue;
+    const by = new Map();
+    for (const c of pool) {
+      if (c.n !== name) continue;
+      const k = `${printKey(c)}/${c.foil ? 'f' : ''}`;
+      const at = by.get(k);
+      if (at) at.qty = (at.qty || 1) + (c.qty || 1);
+      else by.set(k, { ...c, qty: c.qty || 1 });
+    }
+    for (const c of by.values()) out.push(['deck', d[0], c]);
+  }
+  return out;
+};
 
 /* OPENED FROM THE CATALOGUE MEANS MATCHED, and that this said otherwise was the
    bug behind a page of em dashes: clicking a real printing in a real list landed
@@ -5734,7 +5771,7 @@ const FlatSource = () => { const toks = flatTokens(openedCard()); return `
 const Candidates = () => {
   const here = printKey(openedCard());
   return `
-  <div class="${PANEL} max-h-[26rem] overflow-y-auto">
+  <div data-scroll="printings" class="${PANEL} max-h-[26rem] overflow-y-auto">
     ${printingsOf(P.card).map((p) => {
       const on = printKey(p) === here;
       const finish = finishesOf(p);
@@ -5780,17 +5817,43 @@ const MeldBand = () => {
     </div>`, { note: 'what this card belongs to' });
 };
 
-const Holdings = () => `
-  <div class="${PANEL} overflow-hidden">
-    ${holdingsOf(openedCard()).map(([kind, where, qty]) => `
-      <div class="flex items-center gap-3 border-b border-neutral-900 px-3 py-2 text-sm">
-        <span class="w-14 shrink-0 text-[10px] uppercase tracking-wide text-neutral-600">${kind}</span>
-        <span class="min-w-0 flex-1 truncate text-neutral-200">${where}</span>
-        <span class="w-6 shrink-0 font-mono text-xs text-neutral-500">${openedCard().lang}</span>
-        <span class="w-16 shrink-0 text-xs text-neutral-500">${finishOf(openedCard())}</span>
-        <span class="w-8 shrink-0 text-right tabular-nums text-neutral-300">&times;${qty}</span></div>`).join('')}
-    <p class="px-3 py-2 text-[11px] text-neutral-600">Holdings are the irreplaceable half &mdash; they survive a re-import, the catalogue does not.</p>
-  </div>`;
+/* THE SAME THREE DISPLAYS AS THE LIST, DRAWN BY THE SAME RENDERERS. A holding is
+   a card you own, so the thing to draw is a card — `TitleRow`, `KeyRow` and
+   `Card` already draw one three ways, and writing a fourth here is how the card
+   page comes to disagree with the list about what a card looks like. What this
+   band adds is the one fact the list has no column for: WHERE the copy is. */
+const HOLD_VIEWS = [['compact', '&#9776;'], ['details', '&#8801;'], ['grid', '&#9638;']];
+function setHold(v) { P.hold = v; render(); }
+const HoldSwitch = () => `<span class="flex items-center gap-1.5">${
+  HOLD_VIEWS.map(([v, icon]) => `<button onclick="setHold('${v}')"
+    class="${v === P.hold ? CHIP_PLUS : CHIP_NEUTRAL} capitalize">
+    <span class="text-neutral-500">${icon}</span>${v}</button>`).join('')}</span>`;
+
+const Holdings = () => {
+  const held = heldOf(P.card);
+  if (!held.length) return `
+    <div class="${PANEL} px-3 py-4 text-sm text-neutral-500">
+      No copies recorded. <span class="text-neutral-600">Decks kept from a draft carry their cards;
+      binders have no membership stored, so they are not searched rather than guessed at.</span></div>`;
+  const where = (kind, name) => `<span class="flex shrink-0 items-baseline gap-1.5">
+    <span class="text-[10px] uppercase tracking-wide text-neutral-600">${kind}</span>
+    <span class="text-neutral-300">${name}</span></span>`;
+  if (P.hold === 'grid') return `
+    <div class="grid gap-3" style="grid-template-columns:repeat(${Math.min(colsOf() || 6, 6)},minmax(0,1fr))">
+      ${held.map(([kind, name, c]) => `<div class="flex flex-col gap-1">
+        ${Card(c)}
+        <div class="flex items-center justify-between gap-2 text-xs">${where(kind, name)}</div>
+      </div>`).join('')}</div>`;
+  return `
+    <div class="${PANEL} overflow-hidden">
+      ${held.map(([kind, name, c]) => `
+        <div class="flex items-center gap-3 border-b border-neutral-900 px-2">
+          <span class="min-w-0 flex-1">${P.hold === 'details' ? KeyRow(c, true) : TitleRow(c, true)}</span>
+          ${where(kind, name)}
+        </div>`).join('')}
+      <p class="px-3 py-2 text-[11px] text-neutral-600">Holdings are the irreplaceable half &mdash; they survive a re-import, the catalogue does not.</p>
+    </div>`;
+};
 
 /* Where the old /preview page lands. It existed because nothing in the app ever
    drew the frame next to the real card, so there was no way to see whether the
@@ -5827,7 +5890,7 @@ const CardFace = () => {
 
 PAGES.card = () => Frame(P.tab, {
   stats: Stats([[P.matched ? money(openedCard().usd) : '&mdash;', 'market'],
-    [String(holdingsOf(openedCard()).reduce((t, [, , q]) => t + q, 0)), 'owned']]),
+    [String(heldOf(P.card).reduce((t, [, , c]) => t + (c.qty || 0), 0)), 'owned']]),
   sub: `
     <div class="shrink-0 border-b border-neutral-800 bg-neutral-900/40">
       <div class="flex w-full flex-nowrap items-center gap-3 px-4 py-2">
@@ -5854,7 +5917,7 @@ PAGES.card = () => Frame(P.tab, {
         ${Band(P.matched ? 'printings' : 'candidates', Candidates(), {
           note: `${num(printingsOf(P.card).length)} in the catalogue &mdash; ${P.matched
             ? 'click one to show it' : 'what the line could mean, and the identity key is what tells them apart'}` })}
-        ${Band('holdings', Holdings(), { note: 'your copies, wherever they live' })}
+        ${Band('holdings', Holdings(), { note: 'your copies, wherever they live', right: HoldSwitch() })}
       </div>
     </div>`,
 });
@@ -5907,15 +5970,25 @@ function render() {
      at its end, so the offset that was true before the render is still true
      after it. Within a route only: arriving at a tab starts at the top, because
      that is where a list you have not read yet begins. */
-  const wasDown = sameRoute ? document.querySelector('[data-scroll]')?.scrollTop || 0 : 0;
+/* EVERY scroller on the page, not just the main pane. The card page's printings
+     band is a scroll box of its own — 864 rows for a basic land — and picking a
+     printing re-renders, so clicking one near the bottom threw the list back to
+     the top and took the row you were aiming at with it. Keyed, because there is
+     more than one now and `querySelector` would keep answering with the first. */
+  // optional-called: check.mjs renders against a stubbed DOM that has no
+  // querySelectorAll, the same reason measureSpread guards its own lookup
+  const wasDown = sameRoute
+    ? [...(document.querySelectorAll?.('[data-scroll]') || [])].map(e => [e.dataset.scroll, e.scrollTop])
+    : [];
   document.getElementById('app').innerHTML = PAGES[route]();
   if (wasAt) {
     const box = document.querySelector('[data-draw-scroll]');
     if (box) box.scrollLeft = wasAt;
   }
-  if (wasDown) {
-    const pane = document.querySelector('[data-scroll]');
-    if (pane) pane.scrollTop = wasDown;
+  for (const [k, top] of wasDown) {
+    if (!top) continue;
+    const el = document.querySelector(`[data-scroll="${k}"]`);
+    if (el) el.scrollTop = top;
   }
   document.title = 'Draft — ' + route;
   measureGutter();
