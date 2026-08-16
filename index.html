@@ -2796,20 +2796,36 @@ const legalSort = (l) => {
   return b < 0 || l.slice(0, b).every(t => groupable(t.f));
 };
 
+/* MEMOISED, ON THE INPUT AND THE ORDER TOGETHER — the same rule `filtered()`
+   and `facetCounts()` already follow, and it was the one step in the pipeline
+   without it. `CARDS()` is called four or five times in a single render (the
+   sentinel twice, the "240 of 107,347" count, the grouping, the binder stat)
+   and each call re-sorted the whole filtered list from scratch. Measured on
+   Search with nothing filtered: one sort of 107,347 printings is **506ms**, and
+   a render was **2,398ms** — 4.7 sorts of the same list, for one answer.
+   Keyed on the ARRAY IDENTITY of the input rather than its length: `filtered()`
+   hands back the same array until the scope or the filter changes, so identity
+   is exactly "is this the same list", where a length would call two different
+   107k-row lists equal. */
+let SORTED = null, SORTED_OF = null, SORTED_BY = null;
 const sortCards = (cs) => {
+  const by = P.sort.map(t => `${t.f}${t.d || ''}`).join(',');
+  if (SORTED_OF === cs && SORTED_BY === by) return SORTED;
   const terms = P.sort.filter(t => t.f !== 'BREAK' && SORT_KEY[t.f]);
-  if (!terms.length) return cs;
   // decorate once: the comparator runs O(n log n) times and would otherwise
   // rebuild every key on every comparison
-  return cs.map(c => [terms.map(t => SORT_KEY[t.f](c)), c])
-    .sort((a, b) => {
-      for (let i = 0; i < terms.length; i++) {
-        if (a[0][i] === b[0][i]) continue;
-        return (a[0][i] < b[0][i] ? -1 : 1) * (terms[i].d === 'd' ? -1 : 1);
-      }
-      return 0;
-    })
-    .map(p => p[1]);
+  SORTED = !terms.length ? cs
+    : cs.map(c => [terms.map(t => SORT_KEY[t.f](c)), c])
+      .sort((a, b) => {
+        for (let i = 0; i < terms.length; i++) {
+          if (a[0][i] === b[0][i]) continue;
+          return (a[0][i] < b[0][i] ? -1 : 1) * (terms[i].d === 'd' ? -1 : 1);
+        }
+        return 0;
+      })
+      .map(p => p[1]);
+  SORTED_OF = cs; SORTED_BY = by;
+  return SORTED;
 };
 
 /* Groups are runs of the sorted list, not slices of it: everything left of the
