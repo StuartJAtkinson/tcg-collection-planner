@@ -2232,6 +2232,29 @@ assert.ok(!painted.includes('/cards (live)'), 'live attribution stuck after swit
   assert.strictEqual(t.LISTS.decks[0][4].map(c => c.n).join(','), 'A,B',
     'a kept draft comes back without the cards that were the point of keeping it');
 
+  /* THE COLUMN COUNT IS A CHOICE, so it survives like every other one. It was
+     the only thing on the page that did not: source, quality, language and the
+     containers all came back and `P.cols` did not, so setting 7 across and
+     reloading gave you 6. Written through setCols, which is the control - a
+     value the store carries but nothing writes to it is a slower version of the
+     same bug. */
+  t.P.view = 'grid'; t.setCols(9);
+  t.P.cols.grid = 3;
+  t.loadState();
+  assert.strictEqual(t.P.cols.grid, 9, 'the column count does not survive a reload');
+  /* ...and it is CLAMPED on the way back in, per view. A layout's range can
+     change; a stored 9 must not outlive a grid whose maximum is now 6, and it
+     is read back through the same [lo, hi] the control enforces. */
+  {
+    const stored = JSON.parse(globalThis.__store.getItem(t.STORE));
+    stored.cols = { grid: 999, compact: 0, gone: 4 };
+    globalThis.__store.setItem(t.STORE, JSON.stringify(stored));
+    t.loadState();
+    assert.strictEqual(t.P.cols.grid, 12, 'a stored column count above the layout maximum was taken as-is');
+    assert.strictEqual(t.P.cols.compact, 1, 'a stored column count below the layout minimum was taken as-is');
+    assert.ok(!('gone' in t.P.cols), 'a view removed since the save came back out of the store');
+  }
+
   /* A SOURCE ADDED SINCE A SAVE KEEPS ITS DEFAULT, and one removed does not come
      back. Assigning the stored object wholesale would get both wrong, and the
      failure is silent - a new source would arrive already configured to whatever
@@ -4063,4 +4086,46 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
   assert.strictEqual(row({ 'card name': 'Nothing At All' }).hits.length, 0, 'an unknown name found a card');
   assert.strictEqual(row({ 'card name': '(Extended Art)' }).hits.length, 0,
     'a name that is nothing but a parenthetical matched everything');
+}
+
+/* CONFIG NAMES THE FILE THE PIPELINE ACTUALLY READS, and this is asserted
+   ACROSS the two files rather than against a string typed twice. The row said
+   `all_cards` / 392 MB while gen-cards.mjs builds the catalogue from
+   default-cards / 78 MB, so both "is it here" and the disk a fresh machine was
+   told to budget for were about a file nothing reads. A generator that changes
+   which bulk file it opens now fails here instead of drifting. */
+{
+  const s = t.SOURCES.scryfall;
+  const wants = s.file(s.def[1]);
+  assert.ok(readFileSync('gen-cards.mjs', 'utf8').includes(wants),
+    `config offers "${s.def[1]}" by default but gen-cards.mjs does not read ${wants}`);
+  /* ...and the SECOND bulk file is named where a person would look. all-cards is
+     not an optional bigger default-cards: it is the only file that can say which
+     languages a printing exists in, so a catalogue built without gen-langs.mjs
+     loses the pip column silently - correctly drawn as absent, with nothing
+     anywhere telling you why or what to run. */
+  assert.ok(readFileSync('gen-langs.mjs', 'utf8').includes(s.file('all_cards')),
+    'gen-langs.mjs no longer reads the all_cards file config sends you to fetch');
+  assert.ok(s.cmd('all_cards').includes('gen-langs.mjs'),
+    'nothing on the config page names gen-langs.mjs, so the language column just goes missing');
+  assert.ok(!s.cmd('oracle_cards').includes('gen-langs.mjs'),
+    'every size is being told to run gen-langs, which only all_cards feeds');
+}
+
+/* EVERY LANGUAGE IS OFFERED, NOT THE TOP SIX. The cap is right for Subtype (868
+   values) and Artist (2,527), where any list is a sample of an open vocabulary.
+   Language is closed at 19 and is the ONE group that arrives already applied -
+   so at six, widening to Japanese was possible and widening to Korean was not,
+   with nothing on screen saying which. */
+{
+  const codes = ['en', 'ja', 'fr', 'de', 'es', 'it', 'zhs', 'pt', 'ko'];
+  const oracle = (n) => [n, '{1}', 'Artifact', 'Text.', '', '', 1, 'normal', '', 0, 0];
+  t.loadCards({ o: [oracle('Polyglot')],
+    p: codes.map((lang, i) => [0, 'PLG', String(i + 1), 2, `a${i}`, 0.1, 0, 1, lang]) });
+  t.pickGame('mtg'); t.clearFilter();
+  const offered = t.facetCounts().Language.map(([code]) => code);
+  assert.strictEqual(offered.length, codes.length,
+    `the Language facet offers ${offered.length} of ${codes.length} languages in scope`);
+  // ...and the one you would widen TO is reachable, which is the whole point
+  assert.ok(offered.includes('ko'), 'the least-printed language in scope cannot be widened to');
 }

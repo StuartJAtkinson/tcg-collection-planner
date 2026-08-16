@@ -104,8 +104,15 @@ const GAMES = {
          of every query a pile of near-duplicates and makes the app do the work
          of ordering them. It is the top group because it is the one you change
          to widen rather than to narrow, which is the opposite of every group
-         below it. */
-      ['chips', 'Language', [], { cols: 3 }],
+         below it.
+         THE NOTE IS LOAD-BEARING, because "language" means two different things
+         two columns apart and both are true. This group counts the CATALOGUE
+         ROW's language - en 104,713, es 1,207, ja 651 - while the Printed in
+         column counts what the printing was ISSUED in, where ja is 61,628. The
+         filter cannot be made to mean the second: `default-cards` is one row per
+         printing, so there is no Japanese row to select. Only a label can tell
+         them apart, and without one they read as a contradiction. */
+      ['chips', 'Language', [], { cols: 3, note: 'the row&rsquo;s own, not every language it exists in' }],
       ['chips', 'Legality', vocab(FORMATS), { cols: 2, note: 'legal in' }],
       ['combos'],
       ['range', 'Mana value', null, { symbols: true }],
@@ -333,13 +340,27 @@ const PACK_COUNT = Object.values(PACK_ART).reduce((n, o) => n + Object.keys(o).l
    file, a card count for the two image sources. */
 const SOURCES = {
   scryfall: { name: 'Scryfall', gives: 'card data &middot; set list', kind: 'data', game: 'mtg',
-    def: ['local', 'all_cards'], full: 'all_cards', units: 1,
+    /* THE DEFAULT IS THE FILE THE PIPELINE ACTUALLY READS. It said `all_cards`,
+       so the "is it here" status and the disk a fresh machine was told to budget
+       for were both about a 392 MB file nothing reads: `gen-cards.mjs` builds
+       the catalogue from `default-cards`, 78 MB. `full` stays `all_cards`
+       because that IS the dearest thing you could put on this disk, which is
+       what the source ordering and the offline summary are asking. */
+    def: ['local', 'default_cards'], full: 'all_cards', units: 1,
     file: q => `data/scryfall-${q.replace(/_/g, '-')}.jsonl.gz`,
-    cmd: q => `npm run import   # fetches data/scryfall-${q.replace(/_/g, '-')}.jsonl.gz`,
+    /* TWO BULK FILES, TWO GENERATORS, and the second one was named nowhere a
+       person would look. `all-cards` is not an optional bigger version of
+       `default-cards` - it is the only file that can say which LANGUAGES a
+       printing exists in, so the pip column is silently absent from any
+       catalogue built without gen-langs.mjs having run over it. */
+    cmd: q => (q === 'all_cards'
+      ? `npm run import                # fetches data/scryfall-all-cards.jsonl.gz\nnode gen-langs.mjs             # writes data/lang-index.json - the language pips\nnode gen-cards.mjs             # folds it into cards.json.gz`
+      : `npm run import   # fetches data/scryfall-${q.replace(/_/g, '-')}.jsonl.gz`),
     local: 'one bulk file, read start to finish with the network off',
     online: 'api.scryfall.com &middot; 10/s, 2/s on search &mdash; ~15 hours for a 108k catalogue',
-    q: [['oracle_cards', 'one row per card', 24.5e6], ['default_cards', 'one row per English printing', 77.5e6],
-        ['all_cards', 'every printing, every language', 391.7e6],
+    q: [['oracle_cards', 'one row per card', 24.5e6],
+        ['default_cards', 'one row per printing &mdash; the catalogue is built from this', 77.5e6],
+        ['all_cards', 'every printing in every language &mdash; needed for the language pips', 391.7e6],
         ['unique_artwork', 'one row per illustration', 37.4e6], ['rulings', 'rulings only', 5.3e6]] },
   sfart: { name: 'Scryfall images', gives: 'card art', kind: 'images', game: 'mtg',
     def: ['online', 'art_crop'], full: 'png', units: MTG_CARDS,
@@ -451,7 +472,9 @@ const slimList = r => [r[0], r[1], r[2], r[3], (Array.isArray(r[4]) ? r[4] : [])
 function saveState() {
   try {
     localStorage.setItem(STORE, JSON.stringify({
-      v: 1, src: CFG.src, lang: P.lang,
+      // cols is a choice you made, like the source and the language beside it -
+      // it was the one that did not survive a reload: set 7 across, come back, get 6
+      v: 1, src: CFG.src, lang: P.lang, cols: P.cols,
       decks: LISTS.decks.map(slimList), binders: LISTS.binders.map(slimList),
     }));
   } catch { /* quota, or a browser with storage off: the app runs, it just forgets */ }
@@ -466,6 +489,13 @@ function loadState() {
      must not come back as a key nothing reads. */
   for (const k of Object.keys(CFG.src)) if (s.src?.[k]) Object.assign(CFG.src[k], s.src[k]);
   if (LANGS.includes(s.lang)) P.lang = s.lang;
+  // per known view, and clamped by that view's own range: a saved 7 must not
+  // outlive a layout whose maximum has since dropped to 5
+  for (const k of Object.keys(P.cols)) {
+    const [lo, hi] = LAYOUT_COLS[k] || [];
+    // `!= null`, not truthiness: a stored 0 is a value to clamp, not a key to skip
+    if (hi && s.cols?.[k] != null) P.cols[k] = Math.min(hi, Math.max(lo, +s.cols[k] || lo));
+  }
   if (Array.isArray(s.decks) && s.decks.length) LISTS.decks = s.decks;
   if (Array.isArray(s.binders) && s.binders.length) LISTS.binders = s.binders;
   holdingsChanged();
@@ -649,6 +679,7 @@ function setCols(v) {
   const [lo, hi] = LAYOUT_COLS[P.view] || [];
   if (!hi) return;                         // a layout with nothing to count
   P.cols[P.view] = Math.min(hi, Math.max(lo, Math.round(+v) || lo));
+  saveState();
   render();
 }
 /* The page shape belongs to the BINDER, so editing it writes back to that
@@ -2853,7 +2884,12 @@ const facetCounts = () => {
        have already narrowed to. In a Kamigawa binder this reads Ninjutsu. */
     Keywords: topN(scoped('Keywords'), c => c.kw || EMPTY, 12),
     Rarity: RARITIES.map(([label]) => [label, n(c => FACET.Rarity(c, label), 'Rarity')]),
-    Language: topN(scoped('Language'), c => [c.lang || 'en'], 6),
+    /* EVERY LANGUAGE, not the top six. A cap is right for Subtype (868 values)
+       and Artist (2,527) where any list is a sample - it is wrong here, because
+       19 is the whole vocabulary and Language is the one group that arrives
+       ALREADY APPLIED. At six, widening to Japanese was possible and widening
+       to Korean was not, with nothing on screen saying so. */
+    Language: topN(scoped('Language'), c => [c.lang || 'en'], LANGS.length || 19),
     Finish: FINISHES.map(f => [f, n(c => FACET.Finish(c, f), 'Finish')]),
     /* Most-illustrated first, the same as Subtype and for the same reason:
        2,527 names is not a chip list, and any six picked by hand would be a
