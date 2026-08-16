@@ -11,10 +11,14 @@ There used to be a second surface, a Next.js 16 + Postgres implementation under
 it on every screen; the bulk downloader it owned survives as `gen-data.mjs`, and
 the rest is in git history.
 
-Plan of record: [ARCHITECTURE.md](ARCHITECTURE.md) — one cache, binder/deck files,
-one control kit. Open items: [ISSUES.md](ISSUES.md). (REDESIGN.md is gone; its data
-decisions are §0 of ARCHITECTURE.md, but the links to it in ARCHITECTURE.md and
-ISSUES.md still dangle.)
+Open items: [ISSUES.md](ISSUES.md) — which is also where the decisions live. Each
+resolved entry records what was measured and why the call went the way it did,
+so the reasoning sits beside the work rather than in a plan document.
+
+ARCHITECTURE.md and REDESIGN.md are both gone. ARCHITECTURE.md planned the
+deleted Next.js surface — `src/pipeline.ts`, eight stage pages, a phase 0 for
+`tsc` errors in a repo that now has no TypeScript and no dependencies — and
+ISSUES.md was citing it as the plan that would close most of its own items.
 
 ## Run the UI
 

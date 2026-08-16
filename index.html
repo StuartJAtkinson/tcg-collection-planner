@@ -131,17 +131,30 @@ const GAMES = {
   pokemon: {
     label: 'Pok&eacute;mon', total: num(PKM_CARDS), sets: `162 sets &middot; ${num(PKM_CARDS)} cards`,
     sort: ['name','set','number','rarity','hp','type','price','language'],
+    /* THE SAME TREATMENT MAGIC'S SIDEBAR GOT, and this was the last of it left
+       in the app. Every chip here carried a hardcoded count - Legality 74/148/
+       252, ten energy types, Card type, Stage, Rarity, Finish - which reads as
+       measured and is typed. There is no Pokemon catalogue yet, so nothing can
+       count them, and a number nobody counted is the mock-binder problem in a
+       sidebar. The VOCABULARIES are real and stay: energy types and evolution
+       stages are facts about Pokemon, not a sample of them, so `vocab` strips
+       the counts and leaves the chips - facetCounts fills them in for real the
+       day a catalogue lands, and ChipGroup draws no number until then.
+       ILLUSTRATOR IS THE EXCEPTION and goes empty, for the reason Magic's
+       Artist is empty: three names out of thousands is a sample presented as a
+       vocabulary, which is a different lie from an invented count. */
     anatomy: [
       ['chips', 'Language', [], { cols: 3 }],
-      ['chips', 'Legality', [['Standard',74],['Expanded',148],['Unlimited',252]], { cols: 2, note: 'legal in' }],
-      ['chips', 'Type', [['Grass',41],['Fire',38],['Water',45],['Lightning',30],['Psychic',34],['Fighting',36],['Darkness',21],['Metal',19],['Colorless',52],['Dragon',6]], { cols: 3, note: 'energy' }],
+      ['chips', 'Legality', vocab(['Standard', 'Expanded', 'Unlimited']), { cols: 2, note: 'legal in' }],
+      ['chips', 'Type', vocab(['Grass', 'Fire', 'Water', 'Lightning', 'Psychic', 'Fighting',
+        'Darkness', 'Metal', 'Colorless', 'Dragon']), { cols: 3, note: 'energy' }],
       ['range', 'HP'],
-      ['chips', 'Card type', [['Pok&eacute;mon',186],['Trainer',48],['Energy',18]], { cols: 3 }],
-      ['chips', 'Stage', [['Basic',94],['Stage 1',52],['Stage 2',28],['V',12],['ex',9]], { cols: 3, note: 'evolution' }],
-      ['chips', 'Rarity', [['Common',88],['Uncommon',54],['Rare',31],['Holo Rare',18],['Illustration Rare',6]], { cols: 2 }],
+      ['chips', 'Card type', vocab(['Pok&eacute;mon', 'Trainer', 'Energy']), { cols: 3 }],
+      ['chips', 'Stage', vocab(['Basic', 'Stage 1', 'Stage 2', 'V', 'ex']), { cols: 3, note: 'evolution' }],
+      ['chips', 'Rarity', vocab(['Common', 'Uncommon', 'Rare', 'Holo Rare', 'Illustration Rare']), { cols: 2 }],
       ['range', 'Retreat cost', null, { other: true }],
-      ['chips', 'Finish', [['Normal',151],['Holofoil',33],['Reverse holo',18]], { cols: 3, other: true }],
-      ['chips', 'Illustrator', [['Mitsuhiro Arita',9],['Ken Sugimori',7],['Atsuko Nishida',4]], { cols: 2, other: true }],
+      ['chips', 'Finish', vocab(['Normal', 'Holofoil', 'Reverse holo']), { cols: 3, other: true }],
+      ['chips', 'Illustrator', [], { cols: 2, other: true }],
     ],
   },
 };
@@ -1370,8 +1383,18 @@ const anatomyKey = c => `${c.layout || 'normal'} | ${c.treat || 'framed'}`;
    class, mutate, modal_dfc, prototype, double_faced_token - and listing all
    fourteen would be a list to keep in step with the catalogue rather than a
    decision. Where the reason is the treatment, name the treatment; where it is
-   one layout's version of it, name the class. */
-const UNALIGNED = new Set(['fullart']);
+   one layout's version of it, name the class.
+
+   TEXTLESS IS THE SECOND, on the evidence the anatomy page had already
+   gathered and that was offered twice before it was taken. 225 printings, and
+   the name is the only thing about them that is uniform: SLD 1471 Mountain
+   prints as a Windows-95 joke frame, P09 Cryptic Command as an oval-window
+   promo. That is per-card furniture chosen by the printer, which is the exact
+   argument that pulled fullart, and it was the last treatment still drawn as an
+   overlay now extendedart has been re-flowed back into an ordinary frame.
+   Overlaying plates on 225 illustrations that share no layout is inventing 225
+   cards to avoid pulling one picture each. */
+const UNALIGNED = new Set(['fullart', 'textless']);
 const unaligned = c => UNALIGNED.has(c.treat || 'framed') || UNALIGNED.has(anatomyKey(c));
 // the face list only matters when there are two of them to draw
 const twoFaced = c => (c.faces?.length > 1 ? c.faces : null);
@@ -2708,30 +2731,36 @@ const ComboSlicer = () => {
 // catalogue cards carry a real em dash, the mocks carry the entity - matching
 // only one left every mock card's full type line standing in for its head
 const typeHead = c => (c.type || '').split(/&mdash;|-/)[0];
-/* MAIN TYPE - the kinds you build a deck out of, and one bucket for everything
-   else. Not the same question as Type: the type line says a Token Creature is a
-   creature and a Snow Artifact Land is an artifact, and neither is a card you
-   would file with the creatures or the artifacts. So the misc types VETO first
-   and the main types are read after, which is also the order a player reads them
-   in - an Artifact Land is a land, an Artifact Creature is a creature.
+/* MAIN TYPE IS A BINARY: the cards you build a deck out of, and the ones you
+   do not. Not the same question as Type - the type line says a Token Creature
+   is a creature and a Snow Artifact Land is an artifact, and neither is a card
+   you would file with the creatures or the artifacts.
 
-   Ordered by how a deck is laid out rather than alphabetically, so the sort key
-   is the position in this list and Other always lands last. */
-const MAIN_TYPES = ['Creature', 'Planeswalker', 'Instant', 'Sorcery', 'Enchantment', 'Artifact'];
-const MAIN_ORDER = [...MAIN_TYPES, 'Other'];
+   IT USED TO RETURN SEVEN VALUES and one of them was not a value. Six spell
+   types and "Other", where Other held 18,544 printings - 17% of the catalogue
+   and its second-largest bucket - filing 6,909 lands and 2,178 tokens in with
+   emblems, schemes, planes and dungeons. As the first term of the default
+   order that made the largest group on the page a bucket of things that are
+   not each other, and the six names it split out are already the Type chips in
+   the sidebar, asked and answered one column away.
+   So the split is the only thing this field was ever contributing: two groups,
+   named for what the division IS. Creature-vs-Instant is Type's question. */
 /* Plane is \b-bounded so it cannot eat Planeswalker, which is the one collision
    in this list. Card is the art-series type line, which is literally "Card". */
 const NOT_MAIN = /\b(token|land|battle|emblem|scheme|plane|phenomenon|vanguard|conspiracy|dungeon|sticker|attraction|contraption|hero|card)\b/;
-/* Case-folded, and one alias - both found by running this over the catalogue
-   rather than by thinking about it. Portal printed its creatures as "Summon
-   Wolf" and the source keeps that wording on 12 printings; one joke card
-   lowercases its own type line ("instant"), and a second capitalises a plane as
-   "pLAnE", which folding files correctly as misc. */
+const MAIN_ORDER = ['Main', 'NotMain'];
+/* Case-folded, which was found by running this over the catalogue rather than
+   by thinking about it: one joke card lowercases its own type line ("instant")
+   and a second capitalises a plane as "pLAnE", which folding files correctly.
+   The `summon` alias went with the seven values - Portal's "Summon Wolf" needed
+   naming only while the answer had to be the word "Creature".
+   NO TYPE LINE IS NOT A DECK CARD. An unmatched import row has no type, and
+   Main is a claim about something you would build with; unknown belongs on the
+   same side as the tokens. */
 const mainType = (c) => {
   const head = typeHead(c).toLowerCase();
-  if (NOT_MAIN.test(head)) return 'Other';
-  if (/\bsummon\b/.test(head)) return 'Creature';
-  return MAIN_TYPES.find(t => head.includes(t.toLowerCase())) || 'Other';
+  if (!head.trim()) return 'NotMain';
+  return NOT_MAIN.test(head) ? 'NotMain' : 'Main';
 };
 const typeTail = c => (c.type || '').split('-')[1] || '';
 const topN = (cards, of, n) => {
@@ -6156,9 +6185,15 @@ PAGES.io = () => Frame('io', {
   stats: Stats([[String(UNRESOLVED.length), 'unresolved']]),
   body: `<div class="${PANEL} max-w-4xl px-4 pt-4">
     ${Band('import', `
+      ${/* THE SOURCE DROPDOWN IS GONE, and it is the third inert control on this
+             screen to go the same way. `readImport` has always auto-detected by
+             header and nothing ever read the selection, so the eleven options
+             could not change the outcome - and auto-detect is not a fallback
+             here, it is the mechanism: 144/144 on the sample and 2,453/2,607 on
+             the real export. It also offered TEN apps while the column map knows
+             SEVEN, so three of its options named a mapping that does not exist.
+             An unrecognised header is a row you add to that table. */''}
       <div class="mb-4 flex flex-wrap items-end gap-3">
-        <label class="flex flex-col gap-1 text-xs text-neutral-400">Source
-          <select class="${FIELD}"><option>Auto-detect</option>${EXPORTERS.map(s => `<option>${s}</option>`).join('')}</select></label>
         <label class="flex flex-col gap-1 text-xs text-neutral-400">Export file
           <input type="file" accept=".csv,text/csv" onchange="readImport(this.files[0])"
             class="text-sm text-neutral-300 file:mr-2 file:rounded file:border-0 file:bg-neutral-700 file:px-2 file:py-1 file:text-neutral-100"></label>

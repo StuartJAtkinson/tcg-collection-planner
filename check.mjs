@@ -1129,41 +1129,53 @@ assert.strictEqual(t.sortDirty(), false, 'the arrangement lands staged but unapp
 // everything left of the break is the grouping: main type, then colour, then rarity
 assert.strictEqual(t.grouping().map(x => x.f).join(), 'kind,colour,rarity',
   'the page break is not after rarity');
-/* MAIN TYPE IS NOT THE TYPE LINE, and the difference is the whole point of the
-   term: the type line says a Token Creature is a creature and a Snow Artifact
-   Land is an artifact, and neither is a card you would file with them. The misc
-   types veto first, so an Artifact Land is a land and an Artifact Creature is a
-   creature - which is the order a player reads them in too. */
+/* MAIN TYPE IS A BINARY, and it is not the type line. The type line says a Token
+   Creature is a creature and a Snow Artifact Land is an artifact, and neither is
+   a card you would file with them - so the misc types VETO and everything else
+   is a card you build a deck out of.
+   It used to return seven values, six spell types and "Other", where Other was
+   18,544 printings - 17% of the catalogue - filing 6,909 lands and 2,178 tokens
+   in with emblems, schemes and dungeons. Creature-vs-Instant is what the Type
+   chips one column away already answer; the split is what this field is for. */
 {
   const kind = type => t.mainType({ type });
-  assert.strictEqual(kind('Creature - Elf Druid'), 'Creature', 'a creature is not a creature');
-  assert.strictEqual(kind('Legendary Creature - Human'), 'Creature', 'a supertype hid the main type');
-  assert.strictEqual(kind('Artifact Creature - Golem'), 'Creature', 'an artifact creature filed as an artifact');
-  assert.strictEqual(kind('Enchantment Creature - Nymph'), 'Creature', 'an enchantment creature filed as an enchantment');
-  assert.strictEqual(kind('Legendary Planeswalker - Jace'), 'Planeswalker', 'Plane ate Planeswalker');
-  for (const [type, want] of [['Instant', 'Instant'], ['Sorcery', 'Sorcery'],
-    ['Enchantment - Aura', 'Enchantment'], ['Artifact - Equipment', 'Artifact']])
-    assert.strictEqual(kind(type), want, `${type} did not file as ${want}`);
+  assert.strictEqual(t.MAIN_ORDER.join(), 'Main,NotMain', 'main type is not a binary any more');
+  for (const type of ['Creature - Elf Druid', 'Legendary Creature - Human',
+    'Artifact Creature - Golem', 'Enchantment Creature - Nymph',
+    'Legendary Planeswalker - Jace', 'Instant', 'Sorcery',
+    'Enchantment - Aura', 'Artifact - Equipment'])
+    assert.strictEqual(kind(type), 'Main', `"${type}" is not a card you build a deck out of`);
+  // Plane is \b-bounded in the veto so it cannot eat Planeswalker - the one
+  // collision in that list, and the reason the assertion above names Jace
+  assert.strictEqual(kind('Plane - Dominaria'), 'NotMain', 'the Planeswalker guard let a Plane through');
   // ...and everything Stuart named as not-main, however it is dressed
   for (const type of ['Basic Land - Forest', 'Artifact Land', 'Snow Land - Mountain',
     'Token Creature - Spirit', 'Battle - Siege', 'Emblem', 'Scheme', 'Plane - Dominaria',
     'Phenomenon', 'Vanguard', 'Conspiracy', 'Dungeon', 'Card', 'Hero'])
-    assert.strictEqual(kind(type), 'Other', `"${type}" is being filed as a main type`);
-  // the sort key is the position in that order, so Other lands last whatever it is
-  assert.strictEqual(t.SORT_KEY.kind({ type: 'Creature' }), 0, 'creatures do not sort first');
+    assert.strictEqual(kind(type), 'NotMain', `"${type}" is being filed as a main type`);
+  /* NO TYPE LINE IS NOT A DECK CARD. An unmatched import row has none, and Main
+     is a claim about something you would build with - unknown belongs on the
+     same side as the tokens. */
+  for (const c of [{}, { type: '' }, { type: '   ' }])
+    assert.strictEqual(t.mainType(c), 'NotMain', 'a card with no type line was filed as a deck card');
+  // the sort key is the position in that order, so the misc pile lands last
+  assert.strictEqual(t.SORT_KEY.kind({ type: 'Creature' }), 0, 'deck cards do not sort first');
   assert.strictEqual(t.SORT_KEY.kind({ type: 'Basic Land - Forest' }), t.MAIN_ORDER.length - 1,
-    'Other does not sort last');
-  assert.strictEqual(t.GROUP_LABEL.kind({ type: 'Instant' }), 'Instant', 'the group header lost its name');
+    'NotMain does not sort last');
   // and the mocks carry &mdash; rather than a real dash, which used to leave the
   // whole type line standing in for its head
-  assert.strictEqual(kind('Creature &mdash; Sliver'), 'Creature', 'an entity dash broke the type head');
-  /* Both of these came out of running the classifier over the catalogue rather
-     than out of reasoning about it: Portal printed creatures as "Summon Wolf"
-     and 12 printings keep that wording, and the type line is not reliably
-     capitalised - one card says "instant" and one says "pLAnE". */
-  assert.strictEqual(kind('Summon Wolf'), 'Creature', 'a Portal creature is filed as misc');
-  assert.strictEqual(kind('instant'), 'Instant', 'a lowercase type line is filed as misc');
-  assert.strictEqual(kind('pLAnE'), 'Other', 'case folding let a plane through as a main type');
+  // the mocks carry &mdash; rather than a real dash, which used to leave the
+  // whole type line standing in for its head
+  assert.strictEqual(kind('Creature &mdash; Sliver'), 'Main', 'an entity dash broke the type head');
+  /* CASE FOLDING came out of running the classifier over the catalogue rather
+     than out of reasoning about it: the type line is not reliably capitalised,
+     one card says "instant" and one says "pLAnE", and only the second of those
+     can be got wrong now - the veto is the only thing being matched. */
+  assert.strictEqual(kind('pLAnE'), 'NotMain', 'case folding let a plane through as a deck card');
+  /* Portal's "Summon Wolf" - 12 printings - needed an alias only while the
+     answer had to be the word "Creature". The veto does not match it, so it
+     files as Main with no special case, which is the right answer either way. */
+  assert.strictEqual(kind('Summon Wolf'), 'Main', 'a Portal creature is filed as misc');
 }
 
 // a sort you actually chose is yours, and survives the tab you set it in
@@ -1377,9 +1389,14 @@ for (const kind of ['Basic', 'Stage 1', 'Stage 2', 'V ', 'ex ', 'Trainer', 'Ener
 assert.ok(pkmCards.some(c => c.hp) && pkmCards.some(c => !c.hp), 'every pokemon fixture has HP, or none does');
 assert.ok(pkmCards.some(c => c.atk) && pkmCards.some(c => c.retreat), 'no attacks or no retreat cost');
 assert.ok(t.MockCard(pkmCards[0]).includes('HP'), 'the pokemon frame does not show HP');
-// the kit draws the real frame, not a picture of one
+/* The kit draws the real frame, not a picture of one - and it draws the HEAD OF
+   THE SORTED LIST, which is what this now asserts against. It used to name
+   `scopedCards()[0]`, the first card in scope UNSORTED, and passed only while
+   the default order happened to put the same card first: changing main type to
+   a binary reordered the head and failed an assertion that was never about the
+   sort at all. */
 t.pickGame('mtg'); go('#/kit');
-assert.ok(painted.includes('aspect-[5/7]') && painted.includes(mtgCards[0].n),
+assert.ok(painted.includes('aspect-[5/7]') && painted.includes(t.CARDS()[0].n),
   'the control kit does not draw the card frame the rest of the app uses');
 
 /* The name has to be readable on every frame, which a hardcoded "dark frames"
@@ -1954,9 +1971,15 @@ t.clearItem();
 
 // --- import/export: one map, both directions ---------------------------
 go('#/io');
-// names as Archidekt's own importer spells them - see docs/import-formats.md
-for (const s of ['Moxfield', 'Deckbox', 'Dragonshield', 'ManaBox', 'Cardsphere', 'Delver Lens', 'Helvault', 'Archidekt', 'Collectr', 'Deckstats'])
-  assert.ok(painted.includes(s), `import is missing the "${s}" source`);
+/* THE PAGE NAMES THE SOURCES IT CAN ACTUALLY MAP, which is the column map's own
+   list - names as Archidekt's own importer spells them, see
+   docs/import-formats.md. It used to name ten, because a Source dropdown offered
+   ten; that control read nothing (readImport auto-detects by header, 144/144 on
+   the sample and 2,453/2,607 on the real export) and three of its options -
+   Helvault, Archidekt, Deckstats - had no column in the table below it. */
+for (const s of t.COLS) assert.ok(painted.includes(s), `import is missing the "${s}" source`);
+assert.ok(!/>Auto-detect</.test(painted),
+  'the Source dropdown is back, and nothing reads it any more than it did before');
 /* LANGUAGE HAS A COLUMN. This used to assert `NO COLUMN YET` was on the page -
    asserting the drift, not the behaviour. That string described the DELETED
    Postgres app's `cards` table, while the schema map two bands below on the same
@@ -3160,6 +3183,19 @@ for (const [kind, label] of t.GAMES.mtg.anatomy)
   if (kind === 'chips') assert.ok(t.facetCounts()[label],
     `"${label}" is drawn from hand-written numbers - facetCounts does not answer it`);
 
+/* ...AND NO GAME'S SPEC CARRIES A COUNT AT ALL, which is the rule the check
+   above can only enforce for the game that has a catalogue. Pokemon is shelved,
+   so nothing counts its chips - and its whole sidebar was typed pairs: Legality
+   74/148/252, ten energy types, Card type, Stage, Rarity, Finish, and three
+   named illustrators. Typed beside a chip, a number reads exactly as measured as
+   a real one. The vocabularies are facts about the game and stay; the counts are
+   `facetCounts`'s to supply, and until it can there is no number to draw. */
+for (const [game, g] of Object.entries(t.GAMES))
+  for (const [kind, label, arg] of g.anatomy)
+    if (kind === 'chips')
+      assert.ok(!(arg || []).some(x => Array.isArray(x) && x.length > 1),
+        `${game}'s "${label}" chips carry hand-typed counts, which read as measured`);
+
 /* A SAVED DECK IS A SNAPSHOT. A deck kept before a field existed has no such
    field, and the sidebar duly reported a Hobbit draft as containing nothing
    Modern-legal - the same plausible-looking lie as the hardcoded counts. The
@@ -3433,18 +3469,32 @@ assert.ok(!t.unaligned({ layout: 'normal', treat: 'framed' }), 'an ordinary card
    middles. Contain shows all of it whatever shape it is; the cover copy behind
    is blurred filler, and top-anchoring puts that filler under the type line
    instead of across the visible top of the card. */
-/* The ONE treatment still drawn with the art as the whole card. fullart left
-   this list when it was declared unalignable; extendedart left it when its type
-   line turned out to have nothing to sit against - see below. */
-for (const n of ['textless']) {
-  const h = treat(n);
+/* NO TREATMENT IS DRAWN THIS WAY ANY MORE, and the path is asserted through the
+   LAYOUTS that still reach it. fullart left when it was declared unalignable,
+   extendedart left when its type line turned out to have nothing to sit against
+   (see below), and textless was the last - 225 printings whose only uniform
+   feature is the name, SLD 1471 Mountain printing as a Windows-95 joke frame
+   and P09 Cryptic Command as an oval-window promo.
+   Planes and Schemes keep the geometry alive: they are printed full-bleed with
+   the title and rules ON the illustration, and Scryfall calls them `framed`
+   because full_art is a flag about a frame these do not have. */
+for (const layout of [...t.LANDSCAPE].filter(l => l !== 'split')) {
+  // the art id matters: with no illustration to place there is no <img> to
+  // assert about, and the card draws "no art loaded" instead
+  const h = t.MockCard({ n: 'X', layout, treat: 'framed', cost: [],
+    type: 'Plane - Zendikar', text: 'Rules text.', art_id: '00000000-0000-4000-8000-000000000001' });
   assert.ok(h.includes('object-contain object-top'),
-    `"${n}" scales the art to cover a card-shaped box, which crops a landscape illustration in half`);
+    `"${layout}" scales the art to cover a card-shaped box, which crops a landscape illustration in half`);
   assert.ok(h.includes('blur-md') && h.includes('object-cover'),
-    `"${n}" contains the art but leaves the rest of the card empty`);
+    `"${layout}" contains the art but leaves the rest of the card empty`);
   assert.strictEqual((h.match(/object-contain/g) || []).length, 1,
-    `"${n}" contains the blurred backdrop too, so nothing fills the card`);
+    `"${layout}" contains the blurred backdrop too, so nothing fills the card`);
 }
+// ...and both overlaid TREATMENTS are pulled rather than drawn, which is the
+// decision itself: a class the shared geometry cannot draw is not drawn at all
+for (const n of t.OVERLAID)
+  assert.ok(t.unaligned({ layout: 'normal', treat: n }),
+    `"${n}" lays plates over an illustration whose furniture is chosen per card`);
 /* ...and the art WINDOW no longer scales its crop AT ALL, in either direction.
    It used to cover a fixed `aspect-[5/3.52]` box - 1.42 against the crop's
    1.37, so every ordinary card lost a sliver off the top and bottom of its
@@ -3986,12 +4036,17 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
      it was tuned against and wrong for the rest -- extended art was exactly that
      until this week. Naming it here drops the class to the printed card, which
      cannot be misaligned because it IS the card.
-     `fullart` is the one entry, put there by looking at this display: 6,085
+     `fullart` was the first, put there by looking at this display: 6,085
      printings whose drawn plates matched no printed card in six samples of
-     `normal | fullart` or twelve printings of Laboratory Maniac. Anything else
-     goes in the same way -- looked at first -- because a class listed here stops
-     being drawn at all. */
-  assert.deepStrictEqual([...t.UNALIGNED].sort().join(), 'fullart',
+     `normal | fullart` or twelve printings of Laboratory Maniac.
+     `textless` is the second, on evidence the anatomy page had already gathered
+     and that was offered twice before it was taken: 225 printings whose only
+     uniform feature is the name -- SLD 1471 Mountain prints as a Windows-95 joke
+     frame, P09 Cryptic Command as an oval-window promo. Same argument, same
+     answer. Anything else goes in the same way -- looked at first -- because a
+     class listed here stops being drawn at all, which is why this assertion is
+     an exact list and not a membership test. */
+  assert.deepStrictEqual([...t.UNALIGNED].sort().join(), 'fullart,textless',
     'the unalignable list changed -- was that decided against #/card\'s align display?');
   {
     const drawn = t.printingsOf('Sol Ring').find(c => !t.unaligned(c) && t.framable(c));
