@@ -400,6 +400,7 @@ function loadState() {
   for (const k of Object.keys(CFG.src)) if (s.src?.[k]) Object.assign(CFG.src[k], s.src[k]);
   if (Array.isArray(s.decks) && s.decks.length) LISTS.decks = s.decks;
   if (Array.isArray(s.binders) && s.binders.length) LISTS.binders = s.binders;
+  holdingsChanged();
 }
 const savedBytes = () => { try { return (localStorage.getItem(STORE) || '').length; } catch { return 0; } };
 function forgetState() {
@@ -933,6 +934,7 @@ function rehydrateDecks() {
       return fresh ? { ...fresh, qty: c.qty ?? 0, foil: c.foil ?? 0 } : c;
     });
   }
+  holdingsChanged();
 }
 async function loadCards(seed) {
   // a seed always wins, so a second one replaces the first — the guard below is
@@ -1345,7 +1347,7 @@ const typeFit = n => n > 44 ? 'text-[0.59em]' : n > 36 ? 'text-[0.68em]' : n > 3
 const SET_BY_CODE = new Map(SETS.map(r => [r[1], r]));
 const setIconUrl = (code) => {
   const r = code && SET_BY_CODE.get(code.toUpperCase());
-  return r ? `https://svgs.scryfall.io/sets/${r[8] || r[1].toLowerCase()}.svg` : '';
+  return r ? `https://svgs.scryfall.io/sets/${r[7] || r[1].toLowerCase()}.svg` : '';
 };
 /* The set symbol, inked by rarity — which is how a real card tells you both at
    once, in the one place on the frame that carries them. It is an external SVG,
@@ -1977,8 +1979,14 @@ const TopNav = (section, stats = '') => `
         l} — clears the current selection" class="border-b-2 px-1 py-3 text-sm font-medium ${k === section
         ? 'border-emerald-500 text-white' : 'border-transparent text-neutral-300 hover:text-white'}">${l}</a>`).join('')}
       ${stats || '<span class="ml-auto"></span>'}
+      ${/* THE BADGE IS A COUNT, and it was the literal 3 on every screen of an
+             app that had never imported anything. An amber pip in the nav means
+             "there is work waiting for you here"; saying so when there is none
+             is the same fiction as a Collected bar over an empty collection. It
+             appears when there is something to resolve and not otherwise. */''}
       ${!P.game ? '' : `<a href="#/io" title="Import" class="flex shrink-0 items-center gap-1.5 rounded-full px-2 py-1 text-sm font-medium ${
-        section === 'io' ? 'bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500' : 'text-neutral-400 hover:bg-neutral-800 hover:text-white'}">Import<span class="rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-neutral-950">3</span></a>`}
+        section === 'io' ? 'bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500' : 'text-neutral-400 hover:bg-neutral-800 hover:text-white'}">Import${
+        UNRESOLVED.length ? `<span class="rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-neutral-950">${UNRESOLVED.length}</span>` : ''}</a>`}
       <a href="#/config" title="Config" aria-label="Config"
          class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-lg
                 ${section === 'config' ? 'bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500' : 'text-neutral-400 hover:bg-neutral-800 hover:text-white'}">⚙</a>
@@ -2718,7 +2726,7 @@ const BLOCK = (() => {
   const m = new Map();
   let block = null;
   for (const r of SETS) {
-    if (!r[5] || !block) block = r;
+    if (!r[4] || !block) block = r;
     m.set(r[1], block);
   }
   return m;
@@ -2980,7 +2988,7 @@ const DraftCell = (label) => {
     return `<button onclick="draftSet('${jsArg(label)}');event.stopPropagation()" title="Draft boosters from this set${collationNote(label)}"
               class="${CHIP_NEUTRAL} hover:border-emerald-500 hover:text-emerald-300">Draft</button>`;
   // two different silences: nothing collated at all, or collated but not into a draft
-  const why = setRow(label)?.[7]
+  const why = setRow(label)?.[6]
     ? 'This set has collation, but none of it is a booster you draft'
     : 'No booster collation published for this set yet';
   return `<span title="${why}" class="text-[10px] text-neutral-700">no pack data</span>`;
@@ -3253,7 +3261,7 @@ const SetList = () => {
   const rows = [];
   for (const r of SETS) {
     const prev = rows[rows.length - 1];
-    rows.push(r[5] && prev ? { r, key: prev.key, block: prev.block } : { r, key: r[2], block: r[1] });
+    rows.push(r[4] && prev ? { r, key: prev.key, block: prev.block } : { r, key: r[2], block: r[1] });
   }
   // One entry per printed row, gap rows included, so every rowspan is a count.
   // A block's art is its own and its sub-sets': the pack usually belongs to the
@@ -3329,9 +3337,9 @@ const SetList = () => {
     // good deal of white balancing aimed at the wrong thing. The difference
     // shows on hover, where it matters, and in the title, which now names the
     // actual reason: a commander set is not a set that failed to be collated.
-    const why = !DRAFTABLE.has(e.r[6])
-      ? `${e.r[0]} is a ${e.r[6].replace(/_/g, ' ')} set — not one you draft`
-      : e.r[7]
+    const why = !DRAFTABLE.has(e.r[5])
+      ? `${e.r[0]} is a ${e.r[5].replace(/_/g, ' ')} set — not one you draft`
+      : e.r[6]
         ? `${e.r[0]} has collation, but none of it is a booster you draft`
         : `No booster collation published for ${e.r[0]} yet`;
     return `<td rowspan="${span.get('#' + e.block)}" class="border-y border-r border-neutral-800/60 p-0 align-top">${
@@ -3359,7 +3367,8 @@ const SetList = () => {
         const month = gutter(e.key.slice(0, 7), MONTHS[+e.key.slice(5, 7) - 1], 'text-base text-neutral-500');
         const pack = packCell(e);
         if (!e.r) return `<tr>${year}${month}${pack}<td colspan="5" style="height:${e.gap}px"></td></tr>`;
-        const [name, code, rel, total, owned, child] = e.r;
+        const [name, code, rel, total, child] = e.r;
+        const owned = ownedIn(code);
         const pct = Math.round(100 * owned / total);
         const on = `${name} (${code})` === picked();
         return `<tr onclick="selectItem('${jsArg(`${name} (${code})`)}')" title="Browse ${jsArg(name)}"
@@ -3397,12 +3406,41 @@ const setRow = (label = picked()) => {
   const m = /\(([^)]+)\)\s*$/.exec(label);
   return SETS.find(r => (m ? r[1] === m[1].toUpperCase() : r[0] === label)) || null;
 };
+/* HOW MUCH OF A SET YOU HAVE, COUNTED. This was column 4 of sets.js, and that
+   column was `hash(code)` — 20,197 cards over 502 sets, so a collection holding
+   nothing reported 19% collected and drew a Collected bar on half the table.
+   Same class of thing as the four mock binders: a number that reads as your
+   collection and is arithmetic on a string.
+   Counted over DISTINCT PRINTINGS rather than copies: "collected" against a set
+   of 291 cards asks how many of them you have, and owning four of one card is
+   not four cards of the 291. Memoised on the lists' identity because the set
+   table asks 986 times per render and the answer only moves when a holding does. */
+/* Invalidated explicitly rather than keyed on something derived: the set table
+   asks 986 times per render, and a key made of list lengths would miss a card
+   added to a binder that already exists — which is exactly what an import does. */
+let OWNED = null;
+const holdingsChanged = () => { OWNED = null; };
+const ownedIn = (code) => {
+  if (!OWNED) {
+    OWNED = new Map();
+    for (const list of [LISTS.binders, LISTS.decks]) for (const row of list) {
+      if (!Array.isArray(row[4])) continue;
+      for (const c of row[4]) {
+        if (!c.set || !(c.qty > 0)) continue;
+        if (!OWNED.has(c.set)) OWNED.set(c.set, new Set());
+        OWNED.get(c.set).add(`${c.num}/${c.lang || 'en'}`);
+      }
+    }
+  }
+  return OWNED.get(code)?.size || 0;
+};
 const STATS = {
   printings: sel => {
     const r = sel && setRow();
-    return r ? [[num(r[3]), 'cards'], [`${Math.round(100 * r[4] / r[3])}%`, 'collected']]
-             : [[num(SETS.length), `sets &middot; ${Math.round(
-                 100 * SETS.reduce((t, x) => t + x[4], 0) / SETS.reduce((t, x) => t + x[3], 0))}% collected`]];
+    const pct = (owned, total) => `${total ? Math.round(100 * owned / total) : 0}%`;
+    if (r) return [[num(r[3]), 'cards'], [pct(ownedIn(r[1]), r[3]), 'collected']];
+    const owned = SETS.reduce((t, x) => t + ownedIn(x[1]), 0);
+    return [[num(SETS.length), `sets &middot; ${pct(owned, SETS.reduce((t, x) => t + x[3], 0))} collected`]];
   },
   binders: sel => {
     if (!(sel && listRow())) return [[String(LISTS.binders.length), 'binders']];
@@ -3534,8 +3572,8 @@ const DRAFTABLE = new Set(['expansion', 'core', 'masters', 'draft_innovation']);
    a commander deck's `set` booster, say — is not something you draft. */
 const packsFor = (label) => {
   const r = setRow(label);
-  if (!r || r[5] || !DRAFTABLE.has(r[6])) return null;
-  if (!r[7]) return [];
+  if (!r || r[4] || !DRAFTABLE.has(r[5])) return null;
+  if (!r[6]) return [];
   const kind = BOOSTER[r[1]]?.[0];
   if (!kind) return [];
   /* The generated index says which kinds the set actually has a sheet for, so
@@ -4056,6 +4094,7 @@ function keepDraw() {
   LISTS.decks.unshift([name, cards.length, `${new Set(cards.map((c) => c.n)).size} distinct`,
     `${P.draw.n} &times; ${packLabel(P.draw.kind)} &middot; ${MODES.find(([m]) => m === P.draw.mode)[1]}`,
     cards.map((c) => ({ ...c, qty: 0 }))]);
+  holdingsChanged();
   P.draw = null; P.ask = null; P.drawBack = null;
   location.hash = '#/decks'; render(); selectItem(name);
 }
@@ -5208,13 +5247,23 @@ const CANON = [
   ['grouping / tags',  'containers',               '-','18','-','-','-','-','1',  1],
 ];
 const COLS = ['Moxfield','Deckbox','DragShield','ManaBox','Cardsphere','Delver','Collectr'];
+/* WHAT AN IMPORT LEFT UNDECIDED. Empty, because nothing has been imported --
+   and that is the whole point of it being a list rather than the literal 3 that
+   used to be painted into the nav badge, the IO tab's stat and the heading of
+   the resolve section. A row lands here when it matches more than one printing:
+   `line` is what was typed, `candidates` are the printings it could mean with a
+   confidence, `why` names the field that was ambiguous. */
+const UNRESOLVED = [];
+let IMPORT_ROWS = 0;      // rows in the last file read, for the "N of M"
+// the grouping column's distinct values in that file: [name, rows, becomes]
+const IMPORT_GROUPS = [];
 // counted off the table rather than typed beside it: the old note said "seven of
 // nine formats carry it" against six columns, five of which do
 const carry = f => CANON.find(r => r[0] === f).slice(2, 2 + COLS.length).filter(v => v !== '-').length;
 
 PAGES.io = () => Frame('io', {
   desc: 'One alias table, not nine parsers: each source maps its own headers onto the same canonical fields. Export runs the same map backwards, but it lives in every page&rsquo;s subheader &mdash; you export whatever you&rsquo;re looking at, so it never needed a tab of its own. An unrecognised header is a mapping you fix here &mdash; never a code change.',
-  stats: Stats([['3', 'unresolved']]),
+  stats: Stats([[String(UNRESOLVED.length), 'unresolved']]),
   body: `<div class="${PANEL} max-w-4xl px-4 pt-4">
     ${Band('import', `
       <div class="mb-4 flex flex-wrap items-end gap-3">
@@ -5244,27 +5293,44 @@ PAGES.io = () => Frame('io', {
       ${SectionHeader('Grouping column &rarr; container',
         '<span class="rounded-full border border-neutral-700 px-2 py-0.5 text-[10px] uppercase tracking-wide text-neutral-400">one-off &middot; this import only</span>')}
       <p class="mb-2 text-[11px] text-neutral-500">The source&rsquo;s folder / tag / portfolio column, read once to decide what each group <em>becomes</em>. This is the only place it&rsquo;s asked: after the import lands, a binder is edited on the binder &mdash; add, remove, arrange &mdash; not by re-running this.</p>
-      ${Table([['Group in the file', 'w-44'], ['Rows', 'w-20'], ['Becomes', 'flex-1']],
-        [['Main', 2410, 'binder'], ['Mono-Red Burn', 74, 'deck'], ['Trade box', 312, 'box'], ['(blank)', 94, '']]
-          .map(([n, c, k]) => [`<span class="text-neutral-200">${n}</span>`,
+      ${'' /* THE GROUPS IN THE FILE YOU LOADED, and there is no file. This listed
+             Main 2410 rows, Mono-Red Burn 74, Trade box 312, (blank) 94 -- an
+             import that had never run, with row counts precise enough to read as
+             a file that had. The step is real and stays; what it cannot do is
+             show four decisions about a file nobody chose. */}
+      ${!IMPORT_GROUPS.length
+        ? `<p class="mb-5 rounded-lg border border-dashed border-neutral-800 px-4 py-6 text-center text-[11px] text-neutral-600">
+             Choose a file above and its groups appear here &mdash; Collectr&rsquo;s Portfolio Name, Deckbox&rsquo;s tags,
+             a Moxfield folder &mdash; one row each, to send to a binder, a box or a deck.</p>`
+        : Table([['Group in the file', 'w-44'], ['Rows', 'w-20'], ['Becomes', 'flex-1']],
+          IMPORT_GROUPS.map(([n, c, k]) => [`<span class="text-neutral-200">${n}</span>`,
             `<span class="text-neutral-500">${c} rows</span>`,
             `<span class="flex flex-wrap items-center gap-1.5">${
               ['binder', 'box', 'deck'].map(x => chip(x[0].toUpperCase() + x.slice(1), k === x ? '+' : '')).join('')}${
-              k ? '' : '<span class="text-neutral-600">&rarr; unsorted</span>'}</span>`]))}
-      <div class="mb-5"></div>
+              k ? '' : '<span class="text-neutral-600">&rarr; unsorted</span>'}</span>`])) + '<div class="mb-5"></div>'}
 
-      ${SectionHeader('Resolve ambiguous', '<span class="text-xs text-neutral-500">3 of 2,796 rows didn&rsquo;t auto-match</span>')}
-      <div class="flex items-start gap-4 rounded-lg border border-neutral-800 bg-neutral-900 p-3">
-        <div class="w-28 shrink-0">${MockCard({ n: 'Lighming Bolt', set: '???', num: '&mdash;', lang: 'en',
-          col: 'R', cost: ['R'], type: 'Instant', rar: 1, text: 'as typed, unmatched' })}
-          <div class="mt-1 text-[10px] text-amber-400">ambiguous name + set</div></div>
-        <div class="flex gap-3 overflow-x-auto">
-          ${[['Lightning Bolt','LEA','161',96],['Lightning Bolt','M11','146',94],['Lightning Bolt','2XM','129',91]].map(([n, s, num, pc]) => `
-            <div class="w-28 shrink-0 cursor-pointer rounded-lg border border-neutral-800 p-1 hover:border-emerald-600">
-              ${MockCard({ n, set: s, num, lang: 'en', col: 'R', cost: ['R'], type: 'Instant', rar: 1,
-                text: 'Lightning Bolt deals 3 damage to any target.', art: 'Christopher Rush' })}
-              <div class="mt-1 text-center text-[10px] text-neutral-500">${pc}%</div></div>`).join('')}
-          <div class="flex items-center"><button class="${BTN_SECONDARY}">Skip</button></div></div></div>`)}
+      ${'' /* A ROW YOU HAVE TO DECIDE ABOUT, and only if one exists. This was a
+             hardcoded "Lighming Bolt" against three hardcoded candidates under
+             the heading "3 of 2,796 rows didn't auto-match" -- of an import that
+             had never run. The mechanism is real and worth keeping; what it
+             cannot do is claim three decisions are waiting when none is. */}
+      ${!UNRESOLVED.length
+        ? `${SectionHeader('Resolve ambiguous', '<span class="text-xs text-neutral-500">nothing imported yet</span>')}
+           <p class="rounded-lg border border-dashed border-neutral-800 px-4 py-6 text-center text-[11px] text-neutral-600">
+             A row that matches more than one printing lands here with its candidates ranked, and you pick.
+             Nothing has been imported, so there is nothing to decide.</p>`
+        : `${SectionHeader('Resolve ambiguous', `<span class="text-xs text-neutral-500">${
+             UNRESOLVED.length} of ${num(IMPORT_ROWS)} rows didn&rsquo;t auto-match</span>`)}
+           ${UNRESOLVED.map(u => `
+           <div class="mb-2 flex items-start gap-4 rounded-lg border border-neutral-800 bg-neutral-900 p-3">
+             <div class="w-28 shrink-0">${MockCard(u.line)}
+               <div class="mt-1 text-[10px] text-amber-400">${u.why}</div></div>
+             <div class="flex gap-3 overflow-x-auto">
+               ${u.candidates.map(([c, pc]) => `
+                 <div class="w-28 shrink-0 cursor-pointer rounded-lg border border-neutral-800 p-1 hover:border-emerald-600">
+                   ${MockCard(c)}
+                   <div class="mt-1 text-center text-[10px] text-neutral-500">${pc}%</div></div>`).join('')}
+               <div class="flex items-center"><button class="${BTN_SECONDARY}">Skip</button></div></div></div>`).join('')}`}`)}
 
     ${ApplyBar(true, '<span class="ml-auto text-[10px] text-neutral-500">nothing is written until Apply</span>')}
   </div>`,
@@ -5442,22 +5508,39 @@ PAGES.config = () => Frame('config', {
             foot: 'The schema is genuinely mixed &mdash; MTGJSON drives, Scryfall fills in. Flipping Scryfall to Live changes only the three highlighted rows; everything MTGJSON owns is unaffected, and <code>sets</code> is live either way.' });
       })(), { note: 'MTG only &mdash; two upstreams, one schema' })}
 
+      ${'' /* COUNTED OFF WHAT IS LOADED. These were typed: cards 108,412 against
+             a catalogue of 107,347 and sets 947 against 986 — close enough to
+             read as measured and wrong, which is the worst of both. A count the
+             page derives cannot drift from the thing it counts; one that is
+             typed always will, and these had. */}
       ${Band('cache', Table([['Table', 'flex-1'], ['Rows', 'w-24 text-right']],
-        [['cards', '108,412'], ['sets', '947'], ['card_facets', '311,905'], ['prices', '144,201']]
+        [['cards', ALL().length], ['sets', SETS.length],
+         ['card_facets', Object.values(facetCounts()).reduce((n, g) => n + g.length, 0)],
+         ['prices', ALL().reduce((n, c) => n + (c.usd ? 1 : 0), 0)]]
           .map(([t, n]) => [`<span class="font-mono text-neutral-300">${t}</span>`,
-            `<span class="tabular-nums text-neutral-500">${n}</span>`]),
-        { foot: 'Disposable. Delete it and rebuild from the sources above.' })
+            `<span class="tabular-nums text-neutral-500">${n.toLocaleString('en-GB')}</span>`]),
+        { foot: 'Disposable. Delete it and rebuild from the sources above &mdash; every row here is counted off what is loaded now.' })
         + `<div class="mt-2 flex"><button class="${BTN_SECONDARY} ml-auto">Rebuild from sources</button></div>`,
         { note: 'disposable' })}
 
-      ${Band('files', Table([['File', 'flex-1'], ['Kind', 'w-16'], ['Rows', 'w-16 text-right']],
-        [['binders/alara-block', 'binder', 412], ['binders/unsorted', 'binder', 3016],
-         ['decks/mono-red-burn', 'deck', 74], ['decks/bant-exalted', 'deck', 60]]
-          .map(([f, kind, n]) => [`<span class="font-mono text-neutral-300">${f}.csv</span>`,
-            `<span class="text-neutral-600">${kind}</span>`,
-            `<span class="tabular-nums text-neutral-500">${n}</span>`]),
-        { foot: 'Yours, irreplaceable. set &middot; language &middot; collector no &middot; finish &middot; qty. The file <em>is</em> the export.' }),
-        { note: 'irreplaceable' })}
+      ${'' /* ONE ROW PER CONTAINER YOU ACTUALLY HAVE. This listed four filenames
+             -- binders/alara-block.csv, decks/bant-exalted.csv -- which were the
+             four mock binders and decks written out a second time, so it went on
+             naming them after they were deleted. The file IS the export, so the
+             list of files is the list of containers, and an empty collection
+             exports nothing. */}
+      ${Band('files', (() => {
+        const rows = [...LISTS.binders.map(r => [r, 'binder']), ...LISTS.decks.map(r => [r, 'deck'])];
+        const slug = n => String(n).toLowerCase().replace(/&[a-z]+;/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        return !rows.length
+          ? `<p class="rounded-lg border border-dashed border-neutral-800 px-4 py-6 text-center text-[11px] text-neutral-600">
+               Nothing collected yet. One CSV per binder and per deck, written when there is something in one.</p>`
+          : Table([['File', 'flex-1'], ['Kind', 'w-16'], ['Rows', 'w-16 text-right']],
+            rows.map(([r, kind]) => [`<span class="font-mono text-neutral-300">${kind}s/${slug(r[0])}.csv</span>`,
+              `<span class="text-neutral-600">${kind}</span>`,
+              `<span class="tabular-nums text-neutral-500">${(r[4] || []).length}</span>`]),
+            { foot: 'Yours, irreplaceable. set &middot; language &middot; collector no &middot; finish &middot; qty. The file <em>is</em> the export.' });
+      })(), { note: 'irreplaceable' })}
 
     </div>
 

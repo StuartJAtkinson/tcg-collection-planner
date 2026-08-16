@@ -13,7 +13,7 @@ const page = readFileSync('index.html', 'utf8');   // the markup too: <body> car
 const src = `${['sets.js', 'trim.js', 'anatomy.js'].map(f => readFileSync(f, 'utf8')).join('\n')}
 ${page.match(/<script>([\s\S]*)<\/script>/)[1]}`;
 const js = src
-  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, canBeLocal, missingLocal, srcKeys, srcQualities, srcBytes, onDisk, Table, DisplayChip, GroupHead, CARD_VIEWS, UNALIGNED, unaligned, anatomyKey, AlignList, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, VIEWS, FORMATS, CARD_TYPES, RARITIES, FINISHES, RARITY_NAME, FINISH, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, plateOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, heldOf, setBand, BandList, finishesOf, printingsOf, pickPrinting, printKey, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, CANON, COLS, flatLine, P, TABS, LISTS, GAMES, CFG, render, grouping,'
+  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, canBeLocal, missingLocal, srcKeys, srcQualities, srcBytes, onDisk, Table, DisplayChip, GroupHead, CARD_VIEWS, UNALIGNED, unaligned, anatomyKey, AlignList, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, VIEWS, FORMATS, CARD_TYPES, RARITIES, FINISHES, RARITY_NAME, FINISH, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, plateOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, heldOf, setBand, BandList, finishesOf, printingsOf, pickPrinting, printKey, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, UNRESOLVED, IMPORT_GROUPS, ownedIn, holdingsChanged, CANON, COLS, flatLine, P, TABS, LISTS, GAMES, CFG, render, grouping,'
   + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen,'
   + ' setDebug: v => { DEBUG = v; } };';
 
@@ -422,13 +422,41 @@ const codes = t.SETS.map(r => r[1]);
 assert.strictEqual(new Set(codes).size, codes.length,
   `duplicate set codes: ${codes.filter((c, i) => codes.indexOf(c) !== i).slice(0, 5)}`);
 assert.ok(t.SETS.length > 900, `only ${t.SETS.length} sets — this is not all of them`);
-assert.strictEqual(t.SETS[0][5], 0, 'the list opens on a sub-set with no parent above it');
+assert.strictEqual(t.SETS[0][4], 0, 'the list opens on a sub-set with no parent above it');
 for (const [i, r] of t.SETS.entries()) {
   assert.ok(/^\d{4}-\d\d-\d\d$/.test(r[2]), `${r[1]} has no release date`);
-  assert.ok(r[4] <= r[3], `${r[1]} owns ${r[4]} of ${r[3]} cards`);
-  if (i) assert.ok(r[2] <= t.SETS[i - 1][2] || r[5] || t.SETS[i - 1][5],
+  if (i) assert.ok(r[2] <= t.SETS[i - 1][2] || r[4] || t.SETS[i - 1][4],
     `${r[1]} breaks the newest-block-first order`);
 }
+/* OWNERSHIP IS COUNTED, NOT STORED. sets.js carried an `owned` column that was
+   `hash(code)` — 20,197 cards over 502 of the 986 sets — so a collection holding
+   nothing reported "19% collected" in the header and drew a Collected bar on
+   half the table. Same class of thing as the four mock binders: a number that
+   reads as your collection and is arithmetic on a string. The column is gone,
+   so a row is eight wide, and `ownedIn` counts your holdings instead. */
+assert.ok(t.SETS.every(r => r.length === 8), 'a SETS row still carries the mock ownership column');
+assert.strictEqual(t.SETS.reduce((n, r) => n + t.ownedIn(r[1]), 0), 0,
+  'an uncollected app still reports cards collected');
+ctx.location.hash = '#/printings'; t.clearItem(); t.render();
+assert.ok(header(painted).includes('0% collected'), 'a collection holding nothing does not say 0%');
+{
+  // ...and a real holding is counted, per DISTINCT printing rather than per copy:
+  // "collected" asks how many of a set's cards you have, and four of one card is
+  // not four of them
+  const s0 = t.SETS.find(r => r[3] > 2);
+  t.LISTS.binders.push(['Counted', '', [3, 3], '', [
+    { n: 'A', set: s0[1], num: '1', lang: 'en', qty: 4 },
+    { n: 'A', set: s0[1], num: '1', lang: 'en', qty: 1 },
+    { n: 'B', set: s0[1], num: '2', lang: 'en', qty: 1 },
+    { n: 'C', set: s0[1], num: '3', lang: 'en', qty: 0 },
+  ]]);
+  t.holdingsChanged();
+  assert.strictEqual(t.ownedIn(s0[1]), 2, 'ownership counts copies rather than distinct printings');
+  assert.strictEqual(t.ownedIn('NOSUCH'), 0, 'an unheld set claims cards');
+  t.LISTS.binders.pop(); t.holdingsChanged();
+  assert.strictEqual(t.ownedIn(s0[1]), 0, 'removing a holding does not un-count it');
+}
+
 // every year between the oldest and newest set is represented — the gutter is
 // the only thing dividing 900+ rows, so a gap in it is a hole in the list
 const years = new Set(t.SETS.map(r => +r[2].slice(0, 4)));
@@ -632,7 +660,7 @@ assert.ok(table.includes(`draftSet('${t.jsArg(`${draftable[0]} (${draftable[1]})
 assert.ok(t.packsFor(`${draftable[0]} (${draftable[1]})`)?.length && t.packsFor(draftable[0])?.length,
   'a set resolves in one naming form but not the other');
 // and the sets that cannot be drafted get a button-shaped nothing
-const tokenRow = t.SETS.find(r => r[6] === 'token');
+const tokenRow = t.SETS.find(r => r[5] === 'token');
 assert.ok(!table.includes(`draftSet('${t.jsArg(`${tokenRow[0]} (${tokenRow[1]})`)}')`),
   'a token set is offered a draft in the list');
 assert.ok(table.includes('no pack data'), 'the list never explains a set it cannot draft');
@@ -678,7 +706,7 @@ assert.ok(/writing-mode:vertical-rl/.test(painted), 'the date labels are not rot
 // months after its parent, and a rowspan over rows that aren't adjacent
 // overlaps the next cell and shears the table sideways.
 const blockRel = [];
-for (const r of t.SETS) blockRel.push(r[5] && blockRel.length ? blockRel.at(-1) : r[2]);
+for (const r of t.SETS) blockRel.push(r[4] && blockRel.length ? blockRel.at(-1) : r[2]);
 for (const width of [4, 7]) {
   const keys = blockRel.map(d => d.slice(0, width));
   const runs = [];
@@ -789,7 +817,7 @@ for (const c of mtgCards) {
      sub-set can ship months later. Sorting by `set` splits a release across the
      list; sorting by `release` keeps it together. */
   {
-    const parent = t.SETS.find(r => !r[5] && t.SETS[t.SETS.indexOf(r) + 1]?.[5]);
+    const parent = t.SETS.find(r => !r[4] && t.SETS[t.SETS.indexOf(r) + 1]?.[4]);
     const sub = t.SETS[t.SETS.indexOf(parent) + 1];
     assert.ok(parent && sub, 'no parent/sub-set pair in SETS to test a release with');
     assert.strictEqual(t.SORT_KEY.release({ set: sub[1] }), t.SORT_KEY.release({ set: parent[1] }),
@@ -1069,7 +1097,7 @@ assert.ok(/mask:url\('https:\/\/svgs\.scryfall\.io[^']+'\) center\/contain/.test
 assert.ok(marked.includes(t.RARITY_DOT[4]), 'the set symbol is not inked with the rarity colour');
 // a sub-set borrows its parent's icon, which is why the slug is stored at all
 const tokens = t.SETS.find(r => r[1] === 'TMKM');
-assert.strictEqual(tokens[8], 'mkm', 'TMKM no longer shares the MKM icon, so this stops testing the slug');
+assert.strictEqual(tokens[7], 'mkm', 'TMKM no longer shares the MKM icon, so this stops testing the slug');
 assert.ok(t.setIconUrl('TMKM').endsWith('/mkm.svg'), 'a sub-set does not fall back to its parent symbol');
 assert.ok(t.setIconUrl('MKM').endsWith('/mkm.svg'), 'a set whose slug is its own code lost its symbol');
 assert.strictEqual(t.setIconUrl('NOSUCH'), '', 'an unknown set invented a symbol');
@@ -1741,7 +1769,18 @@ assert.ok(!painted.includes('NO COLUMN YET'), 'the import map still claims langu
 assert.ok(painted.includes('Resolve ambiguous'), 'no ambiguous-row resolver');
 // the grouping step is a one-off, and says so
 assert.ok(/one-off/.test(painted), 'the grouping step is not marked as a one-off');
+/* THE GROUPS IN THE FILE YOU LOADED, and with no file there are none. This
+   listed Main 2410 rows, Mono-Red Burn 74, Trade box 312, (blank) 94 — an import
+   that had never run, with counts precise enough to read as one that had. */
+assert.strictEqual(t.IMPORT_GROUPS.length, 0, 'a fresh app has groups from a file nobody chose');
+assert.ok(painted.includes('Choose a file above'), 'the grouping step invents groups');
+for (const g of ['Trade box', '2410 rows']) assert.ok(!painted.includes(g), `the hardcoded group "${g}" is back`);
+// ...and once a file is read, each group is a row that can go to any of the three
+t.IMPORT_GROUPS.push(['Main', 2410, 'binder'], ['(blank)', 94, '']);
+ctx.location.hash = '#/io'; t.render();
 assert.ok(/Binder[\s\S]{0,400}Box[\s\S]{0,400}Deck/.test(painted), 'grouping column cannot designate binder/box/deck');
+assert.ok(painted.includes('&rarr; unsorted'), 'a group sent nowhere does not say where it lands');
+t.IMPORT_GROUPS.length = 0;
 
 // --- config: two columns, coherent groups, a source toggle that moves ---
 go('#/config');
@@ -1795,6 +1834,44 @@ for (const k of srcShown) {
   if (cmd) assert.ok(painted.includes(cmd.replace(/&/g, '&amp;').replace(/</g, '&lt;')),
     `"${s.name}" does not show the command that fetches it`);
 }
+/* NOTHING CLAIMS WORK OR CONTENTS THAT DO NOT EXIST. Three counters were
+   literals painted onto a fresh app: the nav's amber Import pip said 3, the IO
+   tab's stat said "3 unresolved", and Config's files band listed
+   binders/alara-block.csv and decks/bant-exalted.csv -- the four mock containers
+   written out a second time, so it went on naming them after they were deleted.
+   An amber pip means "there is work waiting for you here"; saying so when there
+   is none is the same fiction as a Collected bar over an empty collection. */
+assert.strictEqual(t.UNRESOLVED.length, 0, 'a fresh app has rows waiting to be resolved');
+/* THE CACHE COUNTS ARE COUNTED. They were typed — cards 108,412 against a
+   catalogue of 107,347 and sets 947 against 986 — close enough to read as
+   measured and wrong, which is the worst of both. */
+assert.ok(painted.includes(t.ALL().length.toLocaleString('en-GB')), 'the cache row does not count the catalogue');
+assert.ok(painted.includes(t.SETS.length.toLocaleString('en-GB')), 'the cache row does not count the sets');
+for (const stale of ['108,412', '947<', '311,905', '144,201'])
+  assert.ok(!painted.includes(stale), `the typed cache count "${stale}" is back`);
+{
+  // this file's own fixtures are containers, so the empty case is asserted with
+  // them set aside — the app itself ships with neither
+  const [bs, ds] = [t.LISTS.binders.splice(0), t.LISTS.decks.splice(0)];
+  ctx.location.hash = '#/config'; t.render();
+  assert.ok(painted.includes('Nothing collected yet'), 'the files band invents files for an empty collection');
+  t.LISTS.binders.push(...bs); t.LISTS.decks.push(...ds);
+  ctx.location.hash = '#/config'; t.render();
+  // ...and with containers it names THEM, derived, rather than four dead literals
+  assert.ok(painted.includes('binders/alara-block.csv'), 'the files band does not name the containers that exist');
+  for (const f of ['bant-exalted', 'unsorted.csv'])
+    assert.ok(painted.includes(f) === t.LISTS.decks.concat(t.LISTS.binders).some(r =>
+      f.startsWith(String(r[0]).toLowerCase().replace(/&[a-z]+;/g, '').replace(/[^a-z0-9]+/g, '-'))),
+      `Config's files band and the container list disagree about "${f}"`);
+}
+{
+  ctx.location.hash = '#/io'; t.render();
+  assert.ok(!/bg-amber-500[^>]*>\d/.test(painted), 'the Import badge shows a count with nothing to resolve');
+  assert.ok(painted.includes('nothing imported yet'), 'the resolve section invents rows to resolve');
+  assert.ok(!painted.includes('Lighming Bolt'), 'the hardcoded unresolved row is back');
+  ctx.location.hash = '#/config'; t.render();
+}
+
 // the one question the band exists to answer, and both answers to it
 assert.ok(painted.includes('Work offline'), 'config has no offline control');
 for (const m of Object.keys(t.OFFLINE_MODES))
@@ -2148,18 +2225,18 @@ assert.strictEqual(t.packsFor('nonesuch'), null, 'an unknown set claims to print
    anyone worked out how it's collated). A set can be the first and not the
    second, which is what TRK is. */
 const byType = {};
-for (const r of t.SETS) { const v = byType[r[6]] ??= [0, 0]; v[0]++; if (r[7]) v[1]++; }
+for (const r of t.SETS) { const v = byType[r[5]] ??= [0, 0]; v[0]++; if (r[6]) v[1]++; }
 assert.ok(byType.token[1] === 0 && byType.expansion[1] / byType.expansion[0] > 0.9,
   'set_type does not separate the sets you can open from the ones you cannot');
 const trk = t.SETS.find(r => r[1] === 'TRK');
-assert.ok(trk[6] === 'expansion' && !trk[7], 'TRK is no longer the un-collated expansion this tests');
+assert.ok(trk[5] === 'expansion' && !trk[6], 'TRK is no longer the un-collated expansion this tests');
 assert.deepStrictEqual(t.packsFor(trk[0]).length, 0, 'a draftable set with no collation is treated as undraftable');
 go('#/printings'); t.selectItem(trk[0]); t.render();
 // "not yet" rather than "never", and no button at all rather than a dead one
 assert.ok(painted.includes('>no pack data</span>') && /No booster collation published/.test(painted),
   'an un-collated set does not say why it cannot be drafted');
 assert.ok(!painted.includes('askDraw('), 'an un-collated set can still be drafted');
-const tokenSet = t.SETS.find(r => r[6] === 'token');
+const tokenSet = t.SETS.find(r => r[5] === 'token');
 assert.strictEqual(t.packsFor(tokenSet[0]), null, 'a token set offers a booster');
 
 /* The collation itself. Which booster a set is drafted with is read from
@@ -2206,7 +2283,7 @@ for (const [name, code] of [['Murders at Karlov Manor', 'MKM'], ['The Lost Caver
     `${code}: the boosters offered are not the ones the collation has`);
 }
 // a set whose collation is real but holds no draft/play config is not draftable
-const undraftable = t.SETS.find(r => r[7] && !B[r[1]] && !r[5] && t.DRAFTABLE?.has?.(r[6]));
+const undraftable = t.SETS.find(r => r[6] && !B[r[1]] && !r[4] && t.DRAFTABLE?.has?.(r[5]));
 if (undraftable) assert.deepStrictEqual(t.packsFor(undraftable[0]).length, 0,
   'a set collated only into non-draft products still offers a draft');
 // the note that carries the numbers, since they get no column of their own
@@ -2243,7 +2320,7 @@ assert.deepStrictEqual([...t.costTokens('')], [], 'an empty cost is not empty');
    own — which is exactly what shipped and had to be fixed. Seeded rather than
    fetched: the harness has no network, and the mock fallback is a fixed sample
    that is deliberately never filtered, so only a real catalogue tests this. */
-const twoSets = t.SETS.filter(r => !r[5]).slice(0, 2);
+const twoSets = t.SETS.filter(r => !r[4]).slice(0, 2);
 await t.loadCards({
   o: [['Alpha Card', '{G}', 'Creature — Elf', 'One.', '1/1', 'G', 1],
       ['Beta Card', '{U}', 'Instant', 'Two.', '', 'U', 1]],
