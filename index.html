@@ -5958,9 +5958,25 @@ function resolveRow(v) {
   const name = (v['card name'] || '').trim();
   const lang = (v.language || '').trim().toLowerCase() || P.lang;
   const pool = ALL();
+  /* THE SIX ROWS THAT RESOLVED TO NOTHING WERE TWO FAULTS, NOT SIX ODDITIES, and
+     both are the same shape: the row's name is a PREFIX of the catalogue's.
+       - Collectr writes the variant into the product name - "Herald's Horn
+         (Extended Art)", "Insidious Bookworms (Version 2)", "Frogkin Kidnapper
+         (No PW Symbol)". 39 rows in the export end in a parenthetical; they only
+         bite when the set did not resolve, because set+number never reads a name.
+       - A transform card is named by its FRONT FACE where the catalogue carries
+         both - "Grizzled Outcasts" against "Grizzled Outcasts // Krallenhorde
+         Wantons". 4,926 catalogue rows have a // name, so this one is wide.
+     As written FIRST and reduced second, never the reverse: "Insidious Bookworms
+     (Version 2)" must not match Version 1 while an exact row still exists. */
+  const bare = name.replace(/\s*\([^)]*\)\s*$/, '').trim();
+  const isName = (c, n) => n && (c.n === n || String(c.n).split(' // ')[0] === n);
   let hits = code && num ? pool.filter(c => c.set === code && c.num === num) : [];
-  if (!hits.length && code && name) hits = pool.filter(c => c.set === code && c.n === name);
-  if (!hits.length && name) hits = pool.filter(c => c.n === name);
+  for (const n of hits.length ? [] : [name, bare]) {
+    if (code) hits = pool.filter(c => c.set === code && isName(c, n));
+    if (!hits.length) hits = pool.filter(c => isName(c, n));
+    if (hits.length) break;
+  }
   if (!hits.length) return { hits: [], lang };
   // a language the row named narrows it, when the catalogue has such a row
   const inLang = hits.filter(c => (c.lang || 'en') === lang);

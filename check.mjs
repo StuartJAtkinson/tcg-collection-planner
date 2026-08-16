@@ -13,7 +13,7 @@ const page = readFileSync('index.html', 'utf8');   // the markup too: <body> car
 const src = `${['sets.js', 'trim.js', 'anatomy.js'].map(f => readFileSync(f, 'utf8')).join('\n')}
 ${page.match(/<script>([\s\S]*)<\/script>/)[1]}`;
 const js = src
-  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, canBeLocal, missingLocal, srcKeys, srcQualities, srcBytes, onDisk, Table, DisplayChip, GroupHead, CARD_VIEWS, UNALIGNED, unaligned, anatomyKey, setFact, AlignList, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, VIEWS, FORMATS, CARD_TYPES, RARITIES, FINISHES, RARITY_NAME, FINISH, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, plateOf, scopedCards, LANGS, langFilter, langName, setLang, contrast, relLum, SURFACE, FRAME, lum, surfaceKey, mix, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, roles, roleOf, roleCount, ROLE_MIN, fieldLabel, zoneWeight, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, heldOf, heldByPrint, setBand, BandList, framable, printingsOf, alignFacts, finishesOf, printingsOf, pickPrinting, printKey, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, addSortTo, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, UNRESOLVED, IMPORT_GROUPS, filtered, ownedIn, holdingsChanged, CANON, COLS, flatLine, P, TABS, LISTS, GAMES, CFG, render, grouping,'
+  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, canBeLocal, missingLocal, srcKeys, srcQualities, srcBytes, onDisk, Table, DisplayChip, GroupHead, CARD_VIEWS, UNALIGNED, unaligned, anatomyKey, setFact, AlignList, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, VIEWS, FORMATS, CARD_TYPES, RARITIES, FINISHES, RARITY_NAME, FINISH, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, plateOf, scopedCards, LANGS, langFilter, langName, setLang, contrast, relLum, SURFACE, FRAME, lum, surfaceKey, mix, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, roles, roleOf, roleCount, ROLE_MIN, fieldLabel, zoneWeight, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, heldOf, heldByPrint, setBand, BandList, framable, printingsOf, alignFacts, finishesOf, printingsOf, pickPrinting, printKey, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, addSortTo, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, UNRESOLVED, IMPORT_GROUPS, filtered, ownedIn, holdingsChanged, CANON, COLS, flatLine, P, TABS, LISTS, GAMES, CFG, render, grouping, resolveRow,'
   + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen,'
   + ' setDebug: v => { DEBUG = v; } };';
 
@@ -3966,4 +3966,51 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
   assert.strictEqual(new Set(keys).size, keys.length, 'set/number/language is not unique');
   assert.strictEqual(t.printKey({ set: 'LEA', num: '269' }), 'LEA/269/en',
     'a printing with no language recorded is not read as English');
+}
+
+/* THE ROW'S NAME IS A PREFIX OF THE CATALOGUE'S -- both faults behind the six
+   rows of the real export that resolved to nothing. Measured before and after
+   over MTGCards.csv: 2,451 matched / 150 ambiguous / 6 missed became 2,453 /
+   154 / 0, and the totals reconcile at 2,607 either way. The two rules pull in
+   opposite directions and both are wanted: the front face MATCHES a row that
+   was being dropped, the parenthetical strip makes four rows AMBIGUOUS, which
+   is the honest outcome for a card whose set is "Buy-A-Box Promos". */
+{
+  const oracle = (n) => [n, '{1}', 'Artifact', 'Text.', '', '', 1, 'normal', '', 0, 0];
+  t.loadCards({ o: [oracle('Grizzled Outcasts // Krallenhorde Wantons'), oracle('Herald’s Horn'),
+                    oracle('Ambush'), oracle('Ambush (Version 2)')], p: [
+    [0, 'ISD', '193', 2, 'a1', 0.1, 0, 1],
+    [1, 'C17', '228', 2, 'a2', 4.4, 0, 1],
+    [1, 'CMM', '300', 2, 'a3', 3.9, 0, 1],
+    [2, 'CSP', '51', 1, 'a4', 0.1, 0, 1],
+    [3, 'CSP', '51a', 1, 'a5', 0.1, 0, 1],
+  ] });
+  t.pickGame('mtg');
+  const row = (o) => t.resolveRow({ 'card name': '', 'set code': '', 'set name': '',
+    'collector number': '', language: '', ...o });
+
+  // 1. a transform card named by its front face, where the catalogue carries both
+  const dfc = row({ 'card name': 'Grizzled Outcasts', 'set code': 'ISD' });
+  assert.strictEqual(dfc.hits.length, 1, 'a transform card named by its front face resolves to nothing');
+  assert.strictEqual(dfc.hits[0].num, '193', 'the front-face match landed on the wrong printing');
+  // ...and it must not need the set: 4,926 catalogue rows carry a // name
+  assert.strictEqual(row({ 'card name': 'Grizzled Outcasts' }).hits.length, 1,
+    'the front face only matches when the set is already known');
+
+  // 2. Collectr writes the variant into the product name; stripping it finds the
+  //    card, and with no set to narrow on that is AMBIGUOUS rather than matched
+  const paren = row({ 'card name': 'Herald’s Horn (Extended Art)' });
+  assert.strictEqual(paren.hits.length, 2, 'the parenthetical variant still resolves to nothing');
+
+  // 3. AS WRITTEN BEATS REDUCED. Trying the stripped name first would file
+  //    "Ambush (Version 2)" as Ambush while an exact row for it exists.
+  assert.strictEqual(row({ 'card name': 'Ambush (Version 2)', 'set code': 'CSP' }).hits[0].num, '51a',
+    'the reduced name won over an exact one');
+  assert.strictEqual(row({ 'card name': 'Ambush', 'set code': 'CSP' }).hits[0].num, '51',
+    'an exact name picked up a variant');
+
+  // 4. ...and neither rule widens a miss into a match
+  assert.strictEqual(row({ 'card name': 'Nothing At All' }).hits.length, 0, 'an unknown name found a card');
+  assert.strictEqual(row({ 'card name': '(Extended Art)' }).hits.length, 0,
+    'a name that is nothing but a parenthetical matched everything');
 }
