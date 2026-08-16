@@ -3156,6 +3156,38 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
   assert.strictEqual(t.finishesOf({ foil: 1 }), 'Foil', 'a card with no mask lost its holding finish');
   assert.strictEqual(t.finishesOf({}), '', 'a card with neither invented a finish');
 
+  /* LEGALITY IS READ, NOT RECITED. The card page printed one fixed string for
+     every Magic card — "Modern · Legacy · Vintage · Commander" — which is right
+     for 11,405 of 107,347 and wrong for the other 89%. The bitmask has been
+     there since the filter started counting it, so the page was contradicting
+     the band above it. */
+  const legalOf = (bits) => t.factsOf({ legal: bits }).Legality;
+  assert.strictEqual(legalOf(0b000000100), 'Modern', 'a single-format card does not read its one format');
+  assert.strictEqual(legalOf(0b000011100), 'Modern &middot; Legacy &middot; Vintage',
+    'the formats are not read off the mask in order');
+  assert.strictEqual(legalOf(0b111111111), t.GAMES.mtg.anatomy[0][2].map(x => x[0]).join(' &middot; ') + ' &middot; Historic',
+    'a card legal everywhere does not list every format');
+  /* 0 is NOT the same as absent, and this is the distinction the fallback turns
+     on: 9,222 catalogue cards are legal in nothing tracked — tokens, art series,
+     un-cards — while a mock row has no bitmask at all and keeps its fiction. */
+  assert.strictEqual(legalOf(0), '', 'a card legal in nothing claims a format');
+  assert.strictEqual(t.factsOf({}).Legality, 'Modern &middot; Legacy &middot; Vintage &middot; Commander',
+    'a card with no bitmask lost the mock fallback');
+  /* RESTRICTED IS LEGAL, AT ONE COPY. The generator counted only `legal` of the
+     source's four states, so every restricted card — the Power Nine, Sol Ring —
+     read as legal in NOTHING. It rides in `legal` so the filter counts what you
+     can actually play, and `rest` says which formats limit you to one. */
+  const vintage = 1 << 4;
+  assert.strictEqual(t.factsOf({ legal: vintage, rest: 0 }).Legality, 'Vintage',
+    'an unrestricted format is being marked restricted');
+  assert.ok(t.factsOf({ legal: vintage, rest: vintage }).Legality.includes('Vintage'),
+    'a restricted card lost the format it is legal in');
+  assert.ok(/Vintage[\s\S]*restricted/.test(t.factsOf({ legal: vintage, rest: vintage }).Legality),
+    'a restricted format does not say it is restricted');
+  // and the two masks cannot disagree: you cannot be restricted where you are not legal
+  for (const c of t.ALL()) if (c.rest !== undefined)
+    assert.strictEqual(c.rest & ~c.legal, 0, `${c.n} is restricted in a format it is not legal in`);
+
   /* HOLDINGS ARE THE COPIES THAT EXIST. This invented two rows for every card in
      the catalogue — a binder called "Alara block" and a deck called "Bant
      Exalted" — so a card nobody has ever owned reported two copies in two places

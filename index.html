@@ -822,7 +822,7 @@ const materialise = ({ o, p, artists = [''], flavour = [''], kws = [''] }) => {
      of the same handful of strings. */
   const kwCache = kws.map(s => (s ? s.split('|') : EMPTY));
   return p.map(([oi, set, num, rar, art_id, usd, treat, fin, lang, art, flav, dfc]) => {
-    const [n, cost, type, text, pt, col, cmc, layout, loy, faces, legal, meld, kw] = o[oi];
+    const [n, cost, type, text, pt, col, cmc, layout, loy, faces, legal, meld, kw, rest] = o[oi];
     if (faces && !faceCache.has(oi)) faceCache.set(oi, faces.map(materialiseFace));
     /* Flavour is the one per-printing field that has to reach a FACE, and faces
        are shared by reference across every printing of an oracle — so a card
@@ -840,6 +840,10 @@ const materialise = ({ o, p, artists = [''], flavour = [''], kws = [''] }) => {
              // three zeros, which looks like missing data because it is; `fin ?? 1`
              // read as "every printing is nonfoil", which looks like an answer
              legal: legal || 0, fin: fin || 0,
+             /* Restricted is legal, at one copy — it rides in `legal` so the
+                filter counts what you can play, and here so the card page can
+                say which formats limit you to one. */
+             rest: rest || 0,
              // the two anatomy facts, defaulted here so nothing downstream has to
              layout: layout || 'normal', treat: treat || 'framed',
              faces: fs,
@@ -5616,7 +5620,23 @@ PAGES.kit = () => Frame('kit', {
    keyed by game: a page that says "Noble Hierarch, Human Druid" no matter which
    card you clicked is a picture of a card page, not a card page. Legality is the
    only fact the fixtures can't carry. */
+/* THE FORMATS THIS CARD IS ACTUALLY LEGAL IN, off the same bitmask the filter
+   counts. The card page printed one fixed string — "Modern · Legacy · Vintage ·
+   Commander" — for every Magic card in the catalogue, which is right for **11,405
+   of 107,347** and wrong for the other 89%: there are 63 real combinations, the
+   commonest being Pioneer through Historic (17,398), and **9,222 cards are legal
+   in nothing tracked at all** — tokens, art series, un-cards. A page that says
+   otherwise is contradicting the filter one band above it, which has been reading
+   the real bits since the day they were added.
+
+   The string stays for the mocks alone, which carry no bitmask: an absent field
+   is not the same as a card legal in nothing, and 0 must keep meaning nothing. */
 const LEGALITY = { mtg: 'Modern &middot; Legacy &middot; Vintage &middot; Commander', pokemon: 'Unlimited' };
+const legalIn = c => (c.legal === undefined
+  ? LEGALITY[cardKey()]
+  : FORMATS.filter((_, i) => c.legal & (1 << i))
+      .map((f, i) => f + (c.rest & (1 << FORMATS.indexOf(f)) ? ' <span class="text-amber-400/80">(restricted)</span>' : ''))
+      .join(' &middot; '));
 const FINISH = { mtg: ['Nonfoil', 'Foil'], pokemon: ['Normal', 'Holofoil'] };
 const PKM_SETS = { BS: 'Base Set', PGO: 'Pok&eacute;mon GO', SVI: 'Scarlet &amp; Violet', BRS: 'Brilliant Stars' };
 
@@ -5639,7 +5659,7 @@ const factsOf = c => {
   const [head, sub] = (c.type || '').split(' &mdash; ');
   const [pow, tou] = (c.pt || '').split('/');
   return {
-    Legality: LEGALITY[cardKey()], Colour: c.col, Language: c.lang, Rarity: rarityName(c.rar),
+    Legality: legalIn(c), Colour: c.col, Language: c.lang, Rarity: rarityName(c.rar),
     Artist: c.art, Illustrator: c.art, Finish: finishesOf(c),
     // the type line's subtypes are space-separated on the card, one fact each here
     'Mana value': c.cost ? String(manaValue(c)) : '', Type: c.energy || head, Subtype: (sub || '').split(' ').join(' &middot; '),

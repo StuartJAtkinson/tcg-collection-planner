@@ -67,12 +67,30 @@ const faceOf = (f, c) => [
    is the same fact written 26x over. The order is the order the filter draws
    them in, so the bit index IS the chip index and neither side keeps a map.
 
-   Only `legal` counts. Scryfall also says `restricted` (Vintage's list) and
-   `banned`, and folding those into "legal" would overcount Vintage by its
-   restricted cards; a restricted card is playable, but the chip says legal. */
+   THE PARAGRAPH THAT STOOD HERE WAS WRONG, and it is worth keeping the
+   correction rather than quietly deleting it: it argued that only `legal` should
+   count, because folding in `restricted` "would overcount Vintage". It undercounts
+   it instead. Restricted is not a milder kind of banned — it is legal, at one
+   copy — so a Vintage deck may contain Black Lotus and every chip, count and
+   card page that said otherwise was wrong about the most famous cards in the
+   game. See legalOf/restOf below. */
 const FORMATS = ['standard', 'pioneer', 'modern', 'legacy', 'vintage', 'commander', 'pauper', 'brawl', 'historic'];
+/* FOUR STATES, NOT TWO. The source says not_legal / legal / banned / restricted,
+   and counting only `legal` filed every RESTRICTED card as legal in nothing —
+   which is the Power Nine, Sol Ring, and 1,024 format-entries in all. Restricted
+   means legal, at one copy: a Vintage deck may contain Black Lotus, so a page
+   that says otherwise is wrong in the way that matters to the person building
+   the deck.
+
+   Two masks rather than one, because "legal" and "legal but limited to one" are
+   different answers and folding them together loses the second: `legal` carries
+   both so the filter counts what you can actually play, and `rest` carries the
+   restriction so the card page can say which it is. `rest` is 0 for all but 355
+   oracles, so it costs nothing in the tail. */
 const legalOf = (c) => FORMATS.reduce((m, f, i) =>
-  m | (c.legalities?.[f] === 'legal' ? 1 << i : 0), 0);
+  m | (/^(legal|restricted)$/.test(c.legalities?.[f] ?? '') ? 1 << i : 0), 0);
+const restOf = (c) => FORMATS.reduce((m, f, i) =>
+  m | (c.legalities?.[f] === 'restricted' ? 1 << i : 0), 0);
 
 /* THE TURN INDICATOR. A two-sided card carries a small mark in the top-left of
    its title bar saying which way it turns and into what — a sun and a crescent
@@ -168,7 +186,7 @@ const meldOf = (c) => {
 const [kws, kwIdx] = dict();
 
 const oracleIdx = new Map();
-const oracles = [];      // [name, cost, type, text, pt, col, cmc, layout, loy, faces, legal, meld, kw]
+const oracles = [];      // [name, cost, type, text, pt, col, cmc, layout, loy, faces, legal, meld, kw, rest]
 const printings = [];    // [oracle, set, number, rarity, artId, usd, treatment, finishes, lang, artist, flavour, dfc]
 
 const rl = readline.createInterface({
@@ -220,6 +238,7 @@ for await (const raw of rl) {
       legalOf(c),
       meldOf(c),
       intern([kws, kwIdx], (c.keywords || []).join('|')),
+      restOf(c),
     ]);
   }
   printings.push([
