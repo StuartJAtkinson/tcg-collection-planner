@@ -221,11 +221,15 @@ const P = {
   sort: DEFAULT_SORT(),        // applied — what the results are actually ordered by
   sortDraft: DEFAULT_SORT(),   // staged — what you're building on the bar
   view: null,
-  ask: null,             // the one question the hovering button asks
+  ask: null,             // the one question the bar's Draft button asks
   draw: null,            // a drawn pool, or null — set pages only
   card: null,            // the card you clicked through to, or null
   print: null,           // which of its printings is on show — null is the earliest
-  hold: 'compact',       // how the card page draws your copies — the list's own three
+  // the card page's two bands, each drawn by the list's own three displays.
+  // Separate, because they answer different questions: the identity key is what
+  // tells 864 printings apart, and a copy you own is a card you want to look at
+  prints: 'details',     // how the card page draws every printing of the card
+  hold: 'compact',       // how the card page draws your copies
   matched: false,        // has that card been matched to a printing yet?
   face: 'frame',         // card page image slot: our drawn frame, or the printed card
   /* THE FILTER IS TWO OBJECTS, for the reason the sort is: nothing narrows
@@ -1062,8 +1066,8 @@ const plateOf = (c, bg = frameOf(c)) =>
 const PAIRED = new Set(['split', 'adventure', 'flip', 'prepare']);
 const LANDSCAPE = new Set(['planar', 'scheme', 'split']);
 const BANDED = new Set(['saga', 'class', 'leveler']);
-// the two treatments where the art IS the card and the text is laid over it
-const OVERLAID = new Set(['fullart', 'textless']);
+// the treatments where the art IS the card and the text is laid over it
+const OVERLAID = new Set(['fullart', 'textless', 'extendedart']);
 // the face list only matters when there are two of them to draw
 const twoFaced = c => (c.faces?.length > 1 ? c.faces : null);
 const faceAt = (c, i) => c.faces?.[i] || c;
@@ -1467,9 +1471,7 @@ const FootPlate = (f, c, plate) => `
 /* THE BREAKOUT ART. `framed` and `showcase` put the illustration in a window
    with the frame around it; the other four do not, and each fails differently
    if it is drawn as though it did:
-     extendedart  the art runs out to the card's left and right edges but the
-                  frame stays — negative margin equal to the black edge, which
-                  is a percentage, so it tracks the card at any size.
+     extendedart  the art is the whole card and the plates float on top of it.
      borderless   there is no black edge to run out to; the wrapper drops it.
      fullart      the art is the whole card and the plates float on top of it.
      textless     the same, with no rules plate at all. */
@@ -1597,11 +1599,10 @@ const CardSide = (c, i, bg, plate, treat, layout) => {
      is not worth reading — so past a point the only way to fit them is to give
      the box the height rather than take it off the type. The art is still half
      the card, which is what the printed card does. */
-  const aspect = wide ? 'aspect-[7/1.8]'
-    : treat === 'extendedart' ? 'aspect-[5/3.2]' : 'aspect-[5/3.52]';
+  const aspect = wide ? 'aspect-[7/1.8]' : 'aspect-[5/3.52]';
   const art = over
     ? `<div class="absolute inset-0">${ArtWindow(c, i, 'h-full w-full rounded-none border-0', true)}</div>`
-    : ArtWindow(c, i, `my-1 w-full shrink-0 ${aspect} ${treat === 'extendedart' ? '-mx-[3.65%] w-[107.3%]' : ''}`);
+    : ArtWindow(c, i, `my-1 w-full shrink-0 ${aspect}`);
   /* The type plate tucks up under the art window's lower edge on a portrait
      card, which is what the negative margin is for. A landscape card has less
      than half the height to spend, so the same overlap is a collision rather
@@ -1814,11 +1815,10 @@ const Card = c => `
   </div>`;
 
 /* Compact is the card's title line and nothing else: the name and the mana
-   cost, which is exactly what the top of the mockup draws — plus the count,
-   where the scope is a thing that holds copies. It is the layout for reading a
-   deck or a binder as a list, not for telling two printings apart.
+   cost, which is exactly what the top of the mockup draws — plus how many you
+   own. It is the layout for reading a deck or a binder as a list, not for
+   telling two printings apart.
    Details is the full identity key with the anatomy columns; that's the pair. */
-const holdsCopies = () => P.tab === 'binders' || P.tab === 'decks';
 /* A COMPACT ROW IS THE CARD'S TITLE PLATE, drawn by the same function the card
    draws it with — `TitlePlate` over `plateOf`, inside the frame colour, inside
    the black edge. Not a list row styled to look like one: a copy is how the two
@@ -1837,12 +1837,19 @@ const holdsCopies = () => P.tab === 'binders' || P.tab === 'decks';
    without one, including all 3,250 art-series "Card" printings and every
    full-art. So there is no set-and-number fallback here — it would be a branch
    that never runs. */
-/* `copies` is passed rather than asked, because the answer is about the LIST and
-   not about the card: a search result has a qty of 0 and no business showing a
-   column of zeroes, while a holding on the card page is a copy you own whatever
-   tab you arrived from. Defaulted to the scope's own answer, so every list call
-   site reads as it did. */
-const TitleRow = (c, copies = holdsCopies()) => `
+/* QTY IS A COLUMN EVERYWHERE, on the same argument as the price beside it: how
+   many you own is a fact about a card you are looking at, not about the tab you
+   arrived from. It used to be drawn only on Binders and Decks — so the same
+   printing said "×4" in a deck and nothing at all in Search, and the card page
+   needed a separate Holdings band to answer a question the list refused to.
+   Zero reads as "none" rather than ×0: the difference between a card you have
+   none of and a card you have four of is the whole point of the column, and a
+   column of ×0 down a search result reads as a broken count. */
+const QtyCell = c => `<span class="w-10 shrink-0 text-right text-xs tabular-nums ${
+  c.qty ? 'text-neutral-300' : 'text-neutral-700'}" title="Copies you own">${
+  c.qty ? `×${c.qty}` : 'none'}</span>`;
+
+const TitleRow = c => `
   <div onclick="openCard('${jsArg(c.n)}','${jsArg(printKey(c))}')" title="Open ${jsArg(c.n)}"
     class="flex cursor-pointer items-center gap-2 p-1 text-sm hover:brightness-125">
     <div class="min-w-0 flex-1 rounded-md bg-black/80 p-[2px]">
@@ -1857,7 +1864,7 @@ const TitleRow = (c, copies = holdsCopies()) => `
         ${TitlePlate(faceAt(c, 0), c, plateOf(c), 'h-[1.9em]', 0, 'text-[0.95em]')}
       </div>
     </div>
-    ${!copies ? '' : `<span class="w-8 shrink-0 text-right tabular-nums text-neutral-300">×${c.qty}</span>`}</div>`;
+    ${QtyCell(c)}</div>`;
 
 
 /* Details is the identity key — set, language, collector number, finish —
@@ -1869,14 +1876,20 @@ const KeyRow = (c, detail = false) => `
     <span class="w-10 shrink-0 font-mono uppercase text-neutral-500">${c.set}</span>
     <span class="w-6 shrink-0 font-mono ${c.lang === 'en' ? 'text-neutral-600' : 'text-amber-400'}">${c.lang}</span>
     <span class="w-9 shrink-0 text-right font-mono tabular-nums text-neutral-500">${c.num}</span>
-    <span class="w-14 shrink-0 font-mono text-[10px] ${c.foil ? 'text-amber-300' : 'text-neutral-600'}">${c.foil ? 'foil' : 'nonfoil'}</span>
+    ${/* The PRINTING's finishes, not the holding's foil flag. `foil` is 0 on
+          every catalogue row, so this column could only ever say "nonfoil" —
+          including on the 12,396 printings that are foil-ONLY. finishesOf reads
+          the finish bitmask and falls back to the flag where there is no mask,
+          which is the mocks and an unrehydrated holding. */''}
+    <span class="w-20 shrink-0 truncate font-mono text-[10px] ${
+      /^(Nonfoil|Normal)$/.test(finishesOf(c)) ? 'text-neutral-600' : 'text-amber-300'}">${finishesOf(c).toLowerCase()}</span>
     <span class="flex shrink-0 gap-0.5">${(c.cost || []).map(costPip).join('') || pips(c.col || '')}</span>
     <span class="min-w-0 flex-1 truncate text-neutral-200">${c.n}</span>
     ${!detail ? '' : `<span class="w-40 shrink-0 truncate text-neutral-400">${c.type}</span>
     <span class="w-20 shrink-0 truncate text-neutral-500">${rarityName(c.rar)}</span>
     <span class="w-8 shrink-0 text-right tabular-nums text-neutral-500" title="${
       c.hp ? 'HP' : 'Mana value'}">${c.hp || manaValue(c)}</span>`}
-    <span class="w-8 shrink-0 text-right tabular-nums text-neutral-300">×${c.qty}</span>
+    ${QtyCell(c)}
     <span class="w-16 shrink-0 text-right tabular-nums text-neutral-500">${money(c.usd)}</span></div>`;
 
 /* ======================= HEADER ======================================= */
@@ -1924,17 +1937,14 @@ const DebugBand = () => !DEBUG ? '' : `
 /* The app is a flex column filling the viewport: header, subheader, then one
    scrolling pane. Whoever is active owns the scrollbar — which is why an open
    selector can take over the window. */
-// `over` is the one thing that isn't in the scrolling pane: an overlay covers
-// the window, so it can't live inside a <main> that scrolls under it.
-const Frame = (section, { desc = '', stats = '', sub = '', body, over = '' }) => `${TopNav(section, stats)}
+const Frame = (section, { desc = '', stats = '', sub = '', body }) => `${TopNav(section, stats)}
   ${sub}
   <main data-scroll="pane" class="min-h-0 flex-1 overflow-y-auto px-6 py-5">
     ${desc ? `<p class="mb-4 max-w-3xl text-sm text-neutral-400">${desc}</p>` : ''}
     ${body}
     ${DebugBand()}
     <button onclick="DEBUG=!DEBUG;render()" class="${BTN_SECONDARY} mt-4">${DEBUG ? 'Hide' : 'Show'} debug</button>
-  </main>
-  ${over}`;
+  </main>`;
 
 /* ======================= THE SELECTOR =================================
    A second header, spanning the window like the first. Collapsed it names the
@@ -2032,6 +2042,7 @@ const Selector = () => {
           : `<span class="${HIT}">${label}</span>`}
         <span class="ml-auto flex shrink-0 items-center gap-3">
           ${CardCount()}
+          ${DraftBar()}
           ${sel && tab().keyed ? EditInline() : ''}
           ${definite ? ExportInline() : ''}
           ${sel ? `<button onclick="clearItem()" class="${BTN_SECONDARY}">Clear</button>` : ''}</span>
@@ -2875,6 +2886,30 @@ const DraftCell = (label) => {
     ? 'This set has collation, but none of it is a booster you draft'
     : 'No booster collation published for this set yet';
   return `<span title="${why}" class="text-[10px] text-neutral-700">no pack data</span>`;
+};
+
+/* THE SAME BUTTON THE ROW HAS, ON THE BAR, ONCE THE SET IS PICKED. It was a
+   trigger hovering bottom-right over the table, labelled "Boosters" — a floating
+   control in the one corner of the window that has nothing to do with the set it
+   acts on, naming a thing rather than the action, while the rows underneath had
+   been saying "Draft" all along. The bar already carries everything you can do
+   to the current selection (Edit, Export, Clear); this belongs with them, beside
+   the set's own name. Same three answers as the row, because it is the same
+   question: draftable, collated-but-not-drafted, or not a set you open. */
+const DraftBar = () => {
+  const sel = P.tab === 'printings' ? picked() : null;
+  const packs = sel ? packsFor(sel) : null;
+  if (!packs) return '';
+  // "not yet" and "never" are different, and the disabled FAB said so; keep it
+  /* No collationNote in the title, unlike the row: the note carries "N cards on
+     the sheets", and the bar's one rule is that it never shows a count the top
+     bar's stats could contradict. The next screen is the question, which names
+     the collation in full. */
+  return packs.length
+    ? `<button onclick="askDraw('${jsArg(sel)}')" title="Draft boosters from this set"
+         class="${BTN_PRIMARY}">Draft</button>`
+    : `<span title="No booster collation published for this set yet &mdash; Wizards doesn&#39;t release it, and it gets reverse-engineered from opened packs"
+         class="text-[11px] text-neutral-600">no pack data</span>`;
 };
 
 /* Where a gutter label goes: the middle of the part of its block you can see.
@@ -3926,22 +3961,6 @@ function keepDraw() {
   P.draw = null; P.ask = null; P.drawBack = null;
   location.hash = '#/decks'; render(); selectItem(name);
 }
-
-/* The trigger hovers over the set rather than sitting in the header row: it is
-   not a property of the set the way Export or Clear are, it is a thing you go
-   and do, and it should be reachable without scrolling back to the top. */
-const DrawFab = () => {
-  const packs = P.tab === 'printings' && picked() ? packsFor(picked()) : null;
-  if (!packs) return '';
-  const at = 'fixed bottom-6 right-6 z-30 shadow-2xl shadow-black/60 ring-4 ring-neutral-950/70';
-  // A draftable set with no collation yet is not the same as a token set, and
-  // saying so is the difference between "not yet" and "never".
-  return packs.length
-    ? `<button onclick="askDraw('${jsArg(picked())}')" class="${BTN_PRIMARY_LG} ${at}">Boosters</button>`
-    : `<button disabled title="No booster collation published for this set yet &mdash; Wizards doesn&#39;t release it, and it gets reverse-engineered from opened packs"
-         class="${BTN_SECONDARY_LG} ${at} cursor-not-allowed opacity-50">Boosters
-         <span class="ml-2 text-[10px] font-normal text-neutral-500">no pack data yet</span></button>`;
-};
 
 /* The window everything happens in: the question first, then the boosters, over
 /* Opening boosters is A PAGE now, not a band floating over one. It was a band
@@ -5019,10 +5038,6 @@ const BrowsePage = () => {
   return Frame(P.tab, {
     stats: Stats(STATS[P.tab](picked())),
     sub: Selector(),
-    // The trigger floats over the set; the question and the packs are drawn once
-    // at the top level, because they are a window over the app rather than a
-    // part of this page — see render().
-    over: DrawFab(),
     /* A binder carries no filter. It was MADE by one — a set binder, or a fixed
        combination chosen once — so narrowing it afterwards asks a question the
        binder has already answered. Looking for a card is what Search and
@@ -5442,7 +5457,10 @@ const anatomyClasses = () => {
    as wrong. Without this the page is 51 rows of cards and no way to tell a
    layout that is drawing correctly from one that is drawing plausibly. */
 const LAYOUT_NOTE = {
-  normal: 'one face, art in a window',
+  // the layout is how many faces there are and where they sit; whether the art
+  // is in a window is the TREATMENT's half of the line, and it said so twice —
+  // "one face, art in a window · art is the whole card" on every full-art normal
+  normal: 'one face, nothing unusual about its shape',
   token: 'no mana cost, no collector rarity to speak of',
   art_series: 'two sides, both of them art — the back is the signed print',
   front_card: 'a Jumpstart theme divider: a name, a picture and a colour',
@@ -5471,7 +5489,7 @@ const LAYOUT_NOTE = {
 const TREAT_NOTE = {
   framed: 'art inside its window',
   showcase: 'an alternate frame, same anatomy',
-  extendedart: 'art runs out to the left and right edges, frame intact',
+  extendedart: 'art is the whole card and the text sits on top of it',
   borderless: 'no black edge at all',
   fullart: 'art is the whole card and the text sits on top of it',
   textless: 'art is the whole card and there is no rules box',
@@ -5788,29 +5806,26 @@ const FlatSource = () => { const toks = flatTokens(openedCard()); return `
 /* Scrolls rather than truncates: a name is 1 to 864 printings and the five basic
    lands are all over 800, so "the first ten and a count" would hide the whole
    question on exactly the cards that have most of it. */
+/* THE PRINTINGS ARE A LIST OF CARDS, so they get the list's three displays —
+   the same switch, the same renderers, the same qty column. It was a bespoke
+   table of its own with hand-picked columns, which is how a page comes to
+   disagree with the rest of the app about what a card looks like; the holdings
+   band directly beneath it had already been converted and the two sat there
+   contradicting each other.
+   Clicking a row is `openCard(name, key)`, which on this page IS pickPrinting:
+   same name, new printing, same route. So the ordinary card renderers need no
+   card-page special case to be clickable here. */
 const Candidates = () => {
   const here = printKey(openedCard());
-  return `
-  <div data-scroll="printings" class="${PANEL} max-h-[26rem] overflow-y-auto">
-    ${printingsOf(P.card).map((p) => {
-      const on = printKey(p) === here;
-      const finish = finishesOf(p);
-      return `
-      <div onclick="pickPrinting('${jsArg(printKey(p))}')" title="Show this printing"
-        class="flex cursor-pointer items-center gap-3 border-b border-neutral-900 px-3 py-2 text-sm ${
-          on ? 'bg-emerald-500/10' : 'hover:bg-neutral-900/60'}">
-        <span class="w-12 shrink-0 font-mono text-xs uppercase text-neutral-500">${p.set}</span>
-        <span class="min-w-0 flex-1 truncate text-neutral-200">${setName(p.set)}</span>
-        <span class="w-9 shrink-0 text-right font-mono text-xs tabular-nums text-neutral-500">${p.num}</span>
-        <span class="w-6 shrink-0 font-mono text-xs ${(p.lang || 'en') === 'en' ? 'text-neutral-600' : 'text-amber-400'}">${p.lang || 'en'}</span>
-        <span class="w-24 shrink-0 text-xs ${finish === 'Nonfoil' || finish === 'Normal' ? 'text-neutral-600' : 'text-amber-300'}">${finish}</span>
-        <span class="w-16 shrink-0 text-right tabular-nums text-neutral-500">${money(p.usd)}</span>
-        ${P.matched
-          ? `<span class="w-16 shrink-0 text-right text-xs font-medium ${on ? 'text-emerald-400' : 'text-neutral-700'}">${on ? 'showing' : ''}</span>`
-          : `<button onclick="event.stopPropagation();setMatched(true);pickPrinting('${jsArg(printKey(p))}')"
-               class="${BTN_SECONDARY} w-16 shrink-0">Match</button>`}</div>`;
-    }).join('')}
-  </div>`;
+  const mark = (c) => {
+    if (!P.matched) return `<button onclick="event.stopPropagation();setMatched(true);pickPrinting('${jsArg(printKey(c))}')"
+      class="${BTN_SECONDARY} shrink-0">Match</button>`;
+    return `<span class="w-16 shrink-0 text-right text-xs font-medium ${
+      printKey(c) === here ? 'text-emerald-400' : 'text-neutral-800'}">${printKey(c) === here ? 'showing' : ''}</span>`;
+  };
+  // taller in grid: 26rem of card is a row and a half, where it is a dozen rows
+  return `<div data-scroll="printings" class="${P.prints === 'grid' ? 'max-h-[44rem]' : 'max-h-[26rem]'} overflow-y-auto">${
+    BandList(printingsOf(P.card), P.prints, mark, c => printKey(c) === here)}</div>`;
 };
 
 /* MELD, and the honest thing to say about it. The other two anatomy relations
@@ -5837,17 +5852,44 @@ const MeldBand = () => {
     </div>`, { note: 'what this card belongs to' });
 };
 
-/* THE SAME THREE DISPLAYS AS THE LIST, DRAWN BY THE SAME RENDERERS. A holding is
-   a card you own, so the thing to draw is a card — `TitleRow`, `KeyRow` and
-   `Card` already draw one three ways, and writing a fourth here is how the card
-   page comes to disagree with the list about what a card looks like. What this
-   band adds is the one fact the list has no column for: WHERE the copy is. */
-const HOLD_VIEWS = [['compact', '&#9776;'], ['details', '&#8801;'], ['grid', '&#9638;']];
-function setHold(v) { P.hold = v; render(); }
-const HoldSwitch = () => `<span class="flex items-center gap-1.5">${
-  HOLD_VIEWS.map(([v, icon]) => `<button onclick="setHold('${v}')"
-    class="${v === P.hold ? CHIP_PLUS : CHIP_NEUTRAL} capitalize">
+/* THE SAME THREE DISPLAYS AS THE LIST, DRAWN BY THE SAME RENDERERS. A printing
+   is a card and a holding is a card, so the thing to draw is a card — `TitleRow`,
+   `KeyRow` and `Card` already draw one three ways, and writing a fourth here is
+   how the card page comes to disagree with the list about what a card looks
+   like. What each band adds is the one fact the list has no column for: which
+   printing is showing, and where the copy lives.
+   `content-visibility` because this is the one list with no paging: a basic land
+   is 864 printings, and in grid that is 864 mock cards in a 26rem scroller. The
+   browser skips the ones it is not showing; the rows are cheap enough to leave
+   alone. */
+const BAND_VIEWS = [['compact', '&#9776;'], ['details', '&#8801;'], ['grid', '&#9638;']];
+function setBand(k, v) { P[k] = v; render(); }
+const BandSwitch = (k) => `<span class="flex items-center gap-1.5">${
+  BAND_VIEWS.map(([v, icon]) => `<button onclick="setBand('${k}','${v}')"
+    class="${v === P[k] ? CHIP_PLUS : CHIP_NEUTRAL} capitalize">
     <span class="text-neutral-500">${icon}</span>${v}</button>`).join('')}</span>`;
+
+/* `P.cols.grid`, not `colsOf()`. colsOf answers for the LIST's current layout,
+   and the card page has no layout — P.view is null there, so it answered 1 and
+   drew a single card the width of the band. The grid count is the one you set
+   for grids; capped at 6 because this band is a column of the page, not the
+   whole pane. */
+const BandList = (cs, view, right, on = () => false) => (view === 'grid'
+  ? `<div class="grid gap-3 p-1" style="grid-template-columns:repeat(${Math.min(P.cols.grid || 6, 6)},minmax(0,1fr))">
+      ${cs.map(c => `<div class="flex flex-col gap-1 rounded ${on(c) ? 'ring-1 ring-emerald-500' : ''}"
+        style="content-visibility:auto;contain-intrinsic-size:auto 16rem">
+        ${Card(c)}
+        <div class="flex items-center justify-between gap-2 text-xs">${right(c)}</div>
+      </div>`).join('')}</div>`
+  : `<div class="${PANEL} overflow-hidden">
+      ${/* No border here: KeyRow draws its own rule and TitleRow deliberately
+            has none, exactly as they do in the list. A border on the wrapper
+            doubled the first and invented the second. */''}
+      ${cs.map(c => `<div class="flex items-center gap-3 px-2 ${
+        on(c) ? 'bg-emerald-500/10' : ''}" style="content-visibility:auto;contain-intrinsic-size:auto 2.2rem">
+        <span class="min-w-0 flex-1">${view === 'details' ? KeyRow(c, true) : TitleRow(c)}</span>
+        ${right(c)}
+      </div>`).join('')}</div>`);
 
 const Holdings = () => {
   const held = heldOf(P.card);
@@ -5855,24 +5897,12 @@ const Holdings = () => {
     <div class="${PANEL} px-3 py-4 text-sm text-neutral-500">
       No copies recorded. <span class="text-neutral-600">Decks kept from a draft carry their cards;
       binders have no membership stored, so they are not searched rather than guessed at.</span></div>`;
-  const where = (kind, name) => `<span class="flex shrink-0 items-baseline gap-1.5">
+  // the rows carry the place, so the renderers get the card and nothing else
+  const where = new Map(held.map(([kind, name, c]) => [c, `<span class="flex shrink-0 items-baseline gap-1.5">
     <span class="text-[10px] uppercase tracking-wide text-neutral-600">${kind}</span>
-    <span class="text-neutral-300">${name}</span></span>`;
-  if (P.hold === 'grid') return `
-    <div class="grid gap-3" style="grid-template-columns:repeat(${Math.min(colsOf() || 6, 6)},minmax(0,1fr))">
-      ${held.map(([kind, name, c]) => `<div class="flex flex-col gap-1">
-        ${Card(c)}
-        <div class="flex items-center justify-between gap-2 text-xs">${where(kind, name)}</div>
-      </div>`).join('')}</div>`;
-  return `
-    <div class="${PANEL} overflow-hidden">
-      ${held.map(([kind, name, c]) => `
-        <div class="flex items-center gap-3 border-b border-neutral-900 px-2">
-          <span class="min-w-0 flex-1">${P.hold === 'details' ? KeyRow(c, true) : TitleRow(c, true)}</span>
-          ${where(kind, name)}
-        </div>`).join('')}
-      <p class="px-3 py-2 text-[11px] text-neutral-600">Holdings are the irreplaceable half &mdash; they survive a re-import, the catalogue does not.</p>
-    </div>`;
+    <span class="text-neutral-300">${name}</span></span>`]));
+  return `${BandList([...where.keys()], P.hold, c => where.get(c))}
+    <p class="px-3 py-2 text-[11px] text-neutral-600">Holdings are the irreplaceable half &mdash; they survive a re-import, the catalogue does not.</p>`;
 };
 
 /* Where the old /preview page lands. It existed because nothing in the app ever
@@ -5936,8 +5966,9 @@ PAGES.card = () => Frame(P.tab, {
         ${MeldBand()}
         ${Band(P.matched ? 'printings' : 'candidates', Candidates(), {
           note: `${num(printingsOf(P.card).length)} in the catalogue &mdash; ${P.matched
-            ? 'click one to show it' : 'what the line could mean, and the identity key is what tells them apart'}` })}
-        ${Band('holdings', Holdings(), { note: 'your copies, wherever they live', right: HoldSwitch() })}
+            ? 'click one to show it' : 'what the line could mean, and the identity key is what tells them apart'}`,
+          right: BandSwitch('prints') })}
+        ${Band('holdings', Holdings(), { note: 'your copies, wherever they live', right: BandSwitch('hold') })}
       </div>
     </div>`,
 });

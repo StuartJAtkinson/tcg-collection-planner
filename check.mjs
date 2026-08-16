@@ -13,7 +13,7 @@ const page = readFileSync('index.html', 'utf8');   // the markup too: <body> car
 const src = `${['sets.js', 'trim.js', 'anatomy.js'].map(f => readFileSync(f, 'utf8')).join('\n')}
 ${page.match(/<script>([\s\S]*)<\/script>/)[1]}`;
 const js = src
-  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, CAN_BE_LOCAL, MISSING_LOCAL, srcBytes, onDisk, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, plateOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, heldOf, setHold, finishesOf, printingsOf, pickPrinting, printKey, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
+  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, CAN_BE_LOCAL, MISSING_LOCAL, srcBytes, onDisk, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, plateOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, heldOf, setBand, BandList, finishesOf, printingsOf, pickPrinting, printKey, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
   + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen,'
   + ' setDebug: v => { DEBUG = v; } };';
 
@@ -361,10 +361,20 @@ assert.ok(!/minmax\(\d+px/.test(rows), 'a px track is back, so the count is not 
 assert.ok(t.TitleRow({ n: 'Knight of the Reliquary', cost: ['3', 'G', 'W'] }).includes('truncate'),
   'a name too long for its column has nothing to truncate it');
 
-// on a set or a search there are no copies to count, so the column is not drawn
+/* QTY IS A COLUMN ON EVERY SCOPE. It used to be drawn on Binders and Decks
+   alone — so the same printing said ×4 in a deck and nothing at all in Search,
+   and the card page needed a Holdings band to answer a question the list
+   refused to. Zero reads "none", not ×0: the difference between owning none and
+   owning four is the whole point of the column, and ×0 down a search result
+   reads as a broken count rather than an answer. */
+for (const [qty, want, avoid] of [[0, '>none<', '×'], [3, '×3', '>none<']]) {
+  const row = t.TitleRow({ n: 'Anything', qty });
+  assert.ok(row.includes(want), `a qty of ${qty} does not draw "${want}"`);
+  assert.ok(!row.includes(avoid), `a qty of ${qty} still draws "${avoid}"`);
+}
 go('#/printings'); t.setView('compact'); t.render();
-assert.ok(!/>×\d/.test(painted.slice(painted.indexOf('>view<'))),
-  'compact counts copies on a scope that does not hold any');
+assert.ok(/title="Copies you own"/.test(painted.slice(painted.indexOf('>view<'))),
+  'a set list drops the qty column');
 go('#/decks'); t.setView('grid'); t.render();
 
 // --- the generated set list is well formed ------------------------------
@@ -1979,17 +1989,20 @@ console.log('config: 2 columns, 11 groups in order. 8 sources, each priced local
 // A pack is a thing a SET prints, so the control exists on one set and nowhere
 // else — not on a binder, a deck, a search, or an unpicked set list.
 t.pickGame('mtg'); go('#/printings'); t.clearItem();
-// the list now carries per-row Draft buttons, but the hovering trigger belongs
-// to a picked set and must not be there while you're still choosing
-assert.ok(!painted.includes('fixed bottom-6'), 'the set list offers the hovering draw before a set is picked');
+/* THE TRIGGER IS ON THE BAR, NOT HOVERING OVER THE PAGE. It used to be a fixed
+   bottom-right button labelled "Boosters"; it is the bar's Draft button now,
+   beside the set it acts on and alongside Export and Clear. So the check is that
+   nothing floats, and that the bar carries it. */
+assert.ok(!painted.includes('fixed bottom-6'), 'the draw trigger still hovers over the page');
 const drawable = t.SETS.find(r => t.packsFor(r[0])?.length);
 t.selectItem(drawable[0]); t.render();
-assert.ok(painted.includes('>Boosters<'), `a picked set (${drawable[1]}) offers no draw`);
+assert.ok(painted.includes(`askDraw('${t.jsArg(drawable[0])}')`), `a picked set (${drawable[1]}) offers no draw`);
+assert.ok(!painted.includes('Boosters<'), 'the trigger still names the thing rather than the action');
 for (const r of ['#/binders', '#/decks', '#/search']) {
   go(r);
   const list = t.LISTS[r.slice(2)];
   if (list) { t.selectItem(list[0][0]); t.render(); }
-  assert.ok(!painted.includes('>Boosters<'), `${r} offers a pack it cannot print`);
+  assert.ok(!painted.includes('askDraw('), `${r} offers a pack it cannot print`);
 }
 // a set with no print run of its own has no collation, which is most of them
 const none = t.SETS.filter(r => !t.packsFor(r[0])?.length).length;
@@ -2007,9 +2020,10 @@ const trk = t.SETS.find(r => r[1] === 'TRK');
 assert.ok(trk[6] === 'expansion' && !trk[7], 'TRK is no longer the un-collated expansion this tests');
 assert.deepStrictEqual(t.packsFor(trk[0]).length, 0, 'a draftable set with no collation is treated as undraftable');
 go('#/printings'); t.selectItem(trk[0]); t.render();
-assert.ok(painted.includes('no pack data yet') && painted.includes('disabled'),
-  'an un-collated set does not say why its button is dead');
-assert.ok(!painted.includes('onclick="askDraw()"'), 'an un-collated set can still be drafted');
+// "not yet" rather than "never", and no button at all rather than a dead one
+assert.ok(painted.includes('>no pack data</span>') && /No booster collation published/.test(painted),
+  'an un-collated set does not say why it cannot be drafted');
+assert.ok(!painted.includes('askDraw('), 'an un-collated set can still be drafted');
 const tokenSet = t.SETS.find(r => r[6] === 'token');
 assert.strictEqual(t.packsFor(tokenSet[0]), null, 'a token set offers a booster');
 
@@ -2146,14 +2160,15 @@ assert.ok(/Play Booster/.test(note) && /\d+ cards on the sheets/.test(note) && /
   `collationNote does not carry the collation: ${note}`);
 assert.strictEqual(t.collationNote('nonesuch'), '', 'an unknown set claims a collation');
 go('#/printings'); t.selectItem(tokenSet[0]); t.render();
-assert.ok(!painted.includes('Boosters'), 'a token set draws the button anyway');
+assert.ok(!painted.includes('askDraw('), 'a token set draws the button anyway');
 
 // every draw below deals from the real collation, so the set's sheets and a
 // catalogue covering them are seeded first
 const sheetKeys = seedCollation(drawable[1]);
 go('#/printings'); t.selectItem(drawable[0]); t.render();
-// the trigger hovers over the set and asks before it does anything
-assert.ok(/fixed bottom-6[^>]*right-6[^>]*>Boosters</.test(painted), 'the trigger is not a hovering button');
+// the trigger sits on the bar with the set's other actions, and asks before it
+// does anything
+assert.ok(/askDraw\([^)]*\)[^>]*>Draft</.test(painted), 'the bar does not carry the draft trigger');
 assert.ok(!painted.includes('booster 1 of'), 'clicking nothing already opened a pack');
 /* The question is step one of a PAGE of its own: it names the three things you
    can be opening boosters for and how many each takes, and nothing else — no
@@ -2815,7 +2830,7 @@ assert.ok(treat('fullart').includes('absolute inset-0'), 'a full-art printing pu
    middles. Contain shows all of it whatever shape it is; the cover copy behind
    is blurred filler, and top-anchoring puts that filler under the type line
    instead of across the visible top of the card. */
-for (const n of ['fullart', 'textless']) {
+for (const n of ['fullart', 'textless', 'extendedart']) {
   const h = treat(n);
   assert.ok(h.includes('object-contain object-top'),
     `"${n}" scales the art to cover a card-shaped box, which crops a landscape illustration in half`);
@@ -2830,7 +2845,15 @@ const framedArt = treat('framed');
 assert.ok(framedArt.includes('object-cover') && !framedArt.includes('object-contain'),
   'the ordinary art window letterboxes its crop instead of filling');
 assert.ok(!treat('textless').includes('Rules text.'), 'a textless printing draws a rules box');
-assert.ok(treat('extendedart').includes('-mx-[3.65%]'), 'extended art stays inside the window');
+/* EXTENDED ART IS AN OVERLAID TREATMENT, not a window with wider margins. It
+   used to be drawn as the framed card with the art window pulled out to the
+   black edge — 4,208 printings of a treatment whose whole point is that the
+   illustration is not in a box. Now the art is the card and the plates float on
+   it, which is the same rule fullart and textless follow; what tells them apart
+   is that this one keeps its rules box. */
+assert.ok(!treat('extendedart').includes('-mx-['), 'extended art is still an art window with a negative margin');
+assert.ok(treat('extendedart').includes('Rules text.'),
+  'extended art dropped its rules box — it is fullart with text, not textless');
 for (const n of ['fullart', 'borderless', 'textless', 'extendedart'])
   assert.notStrictEqual(treat(n), treat('framed'), `"${n}" renders identically to a framed card`);
 
@@ -3135,7 +3158,11 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
   for (const code of ['LEA', 'LEB', 'CMD'])
     assert.ok(painted.includes(`>${code}</span>`), `the printings band is missing ${code}`);
   assert.ok(!painted.includes('>232<'), 'another card\'s printing is listed under this one');
-  assert.strictEqual((painted.match(/pickPrinting\('/g) || []).length, 3,
+  /* Each row is a way to show that printing — and it is the LIST's own renderer
+     doing it, not a table the card page drew for itself. `openCard(name, key)`
+     on the page you are already on IS pickPrinting: same name, new printing,
+     same route, so the ordinary row needs no card-page special case. */
+  assert.strictEqual((painted.match(/openCard\('Sol Ring','[A-Z]+\//g) || []).length, 3,
     'the printings are not each a way to show that printing');
   t.pickPrinting('LEA/269/en');
   assert.strictEqual(t.openedCard().set, 'LEA', 'picking a printing did not switch to it');
@@ -3208,16 +3235,29 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
   assert.strictEqual(held.length, 1, 'two copies of one printing are two holdings');
   assert.strictEqual(held[0][1], 'Test deck', 'the holding does not name the deck it is in');
   assert.strictEqual(held[0][2].qty, 3, 'the copies are not added up');
-  // the same three displays as the list, drawn by the list's own renderers
-  for (const v of ['compact', 'details', 'grid']) {
-    t.setHold(v); go('#/card');
-    assert.ok(painted.includes('Test deck'), `${v} holdings lost where the copy is`);
-    assert.ok(painted.includes(`setHold('${v}')`), `${v} is not offered as a display`);
+  /* BOTH BANDS GET THE LIST'S THREE DISPLAYS, drawn by the list's own renderers.
+     The holdings band had them and the printings band directly above it did not,
+     so two lists of the same cards sat on one page disagreeing about what a card
+     looks like. One switch, one list renderer, two pieces of state — separate
+     because the identity key is what tells 864 printings apart, while a copy you
+     own is a card you want to look at. */
+  for (const band of ['prints', 'hold']) {
+    for (const v of ['compact', 'details', 'grid']) {
+      t.setBand(band, v); go('#/card');
+      assert.ok(painted.includes(`setBand('${band}','${v}')`), `${band}: ${v} is not offered as a display`);
+      if (band === 'hold') assert.ok(painted.includes('Test deck'), `${v} holdings lost where the copy is`);
+      if (band === 'prints') assert.ok(painted.includes('>showing<'), `${v} printings lost which one is on show`);
+    }
+    t.setBand(band, 'grid'); go('#/card');
+    assert.ok(painted.includes('aspect-[5/7]'), `the grid ${band} does not draw the card`);
+    t.setBand(band, 'details');
   }
-  t.setHold('grid');
-  assert.ok(painted.includes('aspect-[5/7]'), 'the grid holding does not draw the card');
-  t.setHold('compact'); go('#/card');
-  assert.ok(painted.includes('&times;3') || painted.includes('×3'), 'the quantity is not shown');
+  t.setBand('hold', 'compact'); go('#/card');
+  assert.ok(painted.includes('×3'), 'the quantity is not shown');
+  // the two are independent: setting one display does not move the other
+  t.setBand('prints', 'grid');
+  assert.strictEqual(t.P.hold, 'compact', 'the two bands share one display setting');
+  t.setBand('prints', 'details');
   t.LISTS.decks.shift();
 
   /* THE IDENTITY KEY IS SET + NUMBER + LANGUAGE, and finish is not in it: it is
