@@ -164,45 +164,23 @@ const TABS = {
    not a fact about the binder — it is a count of whatever the tab is showing,
    and every binder reports the same pool until membership exists. Written-down
    counts only look right; these move with the data and with the x by y. */
-/* What a binder HOLDS, as a rule over the catalogue rather than a stored list.
-   Every binder drawing the same 18 mock cards was the tab having no idea what
-   was in it; a rule gives each one its own cards, its own count and its own
-   page count, and it costs one predicate per binder. It is not the real answer
-   — the real answer is holdings, which arrive with the Collectr import — but a
-   rule is derived from the catalogue rather than typed in, so it cannot drift
-   out of step with it the way "3016" did. Unsorted has no rule of its own: it
-   is defined as the remainder, which is what its description already said. */
-const DUALS = new Set(['Tundra', 'Underground Sea', 'Badlands', 'Taiga', 'Savannah', 'Scrubland',
-  'Volcanic Island', 'Bayou', 'Plateau', 'Tropical Island', 'Flooded Strand', 'Polluted Delta',
-  'Bloodstained Mire', 'Wooded Foothills', 'Windswept Heath', 'Marsh Flats', 'Scalding Tarn',
-  'Verdant Catacombs', 'Arid Mesa', 'Misty Rainforest']);
-const STAPLES = new Set(['Sol Ring', 'Arcane Signet', 'Command Tower', 'Cultivate', "Kodama's Reach",
-  'Swords to Plowshares', 'Path to Exile', 'Counterspell', 'Cyclonic Rift', 'Rhystic Study',
-  'Smothering Tithe', 'Beast Within', 'Chaos Warp', 'Demonic Tutor', 'Vampiric Tutor',
-  'Lightning Greaves', 'Swiftfoot Boots', 'Skullclamp', 'Solemn Simulacrum', 'Eternal Witness',
-  "Sensei's Divining Top", 'Blasphemous Act', 'Toxic Deluge', 'Craterhoof Behemoth', 'Mana Crypt']);
-const ALARA = ['ALA', 'CON', 'ARB'];
-const BINDER_RULE = {
-  'Alara block': c => ALARA.includes(c.set),
-  'Duals &amp; fetches': c => DUALS.has(c.n),
-  'Commander staples': c => STAPLES.has(c.n),
-};
-const binderHolds = name => BINDER_RULE[name]
-  || (c => !Object.values(BINDER_RULE).some(r => r(c)));
-const LISTS = {
-  binders: [
-    ['Alara block', 'sorted colour &rsaquo; rarity', [3, 3]],
-    ['Unsorted', 'everything not in another binder', [3, 3]],
-    ['Duals &amp; fetches', 'sorted set &rsaquo; number', [2, 2]],
-    ['Commander staples', 'sorted colour', [4, 3]],
-  ],
-  decks: [
-    ['Mono-Red Burn', 60, '23 distinct', 'legacy &middot; complete'],
-    ['Bant Exalted', 60, '27 distinct', 'modern &middot; 4 missing'],
-    ['Jeskai Monks', 60, '31 distinct', 'modern &middot; complete'],
-    ['Grixis Control', 75, '44 distinct', 'commander &middot; 11 missing'],
-  ],
-};
+/* NOTHING IS COLLECTED UNTIL SOMETHING SAYS SO. These were four binders and
+   four decks of invented furniture — "Bant Exalted, 60, 27 distinct, modern ·
+   4 missing" — which read as a collection while being nothing of the sort: no
+   binder had a membership stored anywhere, so opening one showed the same 18
+   mock cards as every other, and the counts beside the names were prose. A real
+   import lands beside that and you cannot tell which half is yours.
+   `BINDER_RULE` went with them, and by its own argument: it gave each mock
+   binder a predicate over the catalogue (the Alara sets, twenty duals,
+   twenty-five Commander staples, and Unsorted as the remainder) explicitly as a
+   stand-in, its comment saying "the real answer is holdings, which arrive with
+   the Collectr import". They have arrived, so a rule that dresses catalogue
+   cards up as a collection is now the thing standing between you and seeing
+   your own. A container holds its stored membership — index 4, the shape a
+   kept draft has always used — and nothing until it has one.
+   check.mjs seeds its own lists where a test needs one, which is the right way
+   round: a fixture belongs to the test that depends on it. */
+const LISTS = { binders: [], decks: [] };
 
 /* HOW A COLLECTION IS FILED, and now the default everywhere rather than the
    binder's private arrangement: main type, colour, rarity high to low, then the
@@ -987,14 +965,15 @@ const ALL = () => (CATALOGUE && P.game === 'mtg') ? CATALOGUE : (CARD_ROWS[P.gam
    (`BINDER_RULE`), so it can say which catalogue cards are its own. */
 const scopedCards = () => {
   const mocks = CARD_ROWS[P.game] || CARD_ROWS.mtg;
-  /* A deck kept from a draft carries its own cards — index 4 — because that
-     pool is the only membership this app has ever actually known. The four
-     sample decks have none and still fall through to the mocks, which is the
-     honest render for a deck whose contents were never stated. */
-  if (P.tab === 'decks') return listRow()?.[4] || mocks;
+  /* A CONTAINER HOLDS WHAT IS STORED ON IT — index 4, the shape a kept draft
+     has always used, and now the shape an imported binder uses too. One branch
+     for both tabs, because "a binder holds cards" and "a deck holds cards" were
+     never two questions; they were two answers to one, and the binder's was a
+     predicate over the catalogue standing in for a membership it did not have.
+     Falls through to the mocks only where there is nothing picked, which is the
+     empty-app state rather than a lie about a named container. */
+  if (P.tab === 'decks' || P.tab === 'binders') return listRow()?.[4] || mocks;
   const all = ALL();
-  if (P.tab === 'binders')
-    return all === mocks || !picked() ? mocks : all.filter(binderHolds(picked()));
   // the fallback sample is a fixed dozen from a handful of sets, not a catalogue:
   // filtering it by the picked set empties the page instead of narrowing it
   if (all === mocks) return mocks;
@@ -2057,11 +2036,32 @@ const SelectorRow = (name, a, b, on) => `
 const listLine = (row) => P.tab === 'binders'
   ? `${row[2][0]} &times; ${row[2][1]} pockets &middot; ${row[2][0] * row[2][1]} a page`
   : `${num(row[1])} cards &middot; ${row[2]}`;
-const SelectorList = () => P.tab === 'printings' ? SetList() : `
-  <div class="mt-4 grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(14rem,1fr))]">
-    ${(LISTS[P.tab] || []).map(row =>
-      SelectorRow(row[0], listLine(row), P.tab === 'binders' ? row[1] : row[3],
-        row[0] === picked())).join('')}</div>`;
+/* AN EMPTY LIST SAYS WHAT IT IS WAITING FOR. With the four mock binders and
+   four mock decks gone the tab rendered as a blank page under a bar reading
+   "All binders" — which looks like a bug rather than a state, and it is the
+   FIRST thing you see on a fresh app. Both routes in are named, because both
+   are real: an import, or a draft you keep. */
+const EMPTY_LIST = {
+  binders: ['No binders yet', 'A binder arrives from an import: Collectr\'s Portfolio Name, Deckbox\'s tags, a Moxfield folder. The grouping step decides what each one becomes.'],
+  decks: ['No decks yet', 'A deck arrives from an import, or from keeping a draft &mdash; open boosters on a set and the pool becomes a deck.'],
+};
+const SelectorList = () => {
+  if (P.tab === 'printings') return SetList();
+  const rows = LISTS[P.tab] || [];
+  if (!rows.length) {
+    const [title, why] = EMPTY_LIST[P.tab] || ['Nothing here yet', ''];
+    return `<div class="mt-4 rounded-lg border border-dashed border-neutral-800 px-4 py-10 text-center">
+      <p class="text-sm text-neutral-400">${title}</p>
+      <p class="mx-auto mt-1 max-w-md text-[11px] text-neutral-600">${why}</p>
+      <div class="mt-4 flex flex-wrap justify-center gap-1.5">
+        <a href="#/io" class="${BTN_PRIMARY}">Import a file</a>
+        <a href="#/printings" class="${BTN_SECONDARY}">Open boosters</a></div>
+    </div>`;
+  }
+  return `<div class="mt-4 grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(14rem,1fr))]">
+    ${rows.map(row => SelectorRow(row[0], listLine(row), P.tab === 'binders' ? row[1] : row[3],
+      row[0] === picked())).join('')}</div>`;
+};
 
 /* Export belongs to a definite thing, so it rides in the bar exactly when the
    scope is definite: Search (all cards) or one selected set/binder/deck. While
@@ -5187,18 +5187,27 @@ const EXPORTERS = ['Moxfield','Deckbox','Dragonshield','ManaBox','Cardsphere','D
    identifies a card — set, collector number and language do, which is why they
    are the key. Carrying a column purely to hand it back on export is a column
    this app has no use for. */
+/* COLLECTR'S COLUMN is read off a real export (2,796 rows, 20 portfolios), not
+   from documentation, and it is the odd one out in two ways worth having in the
+   table rather than in a footnote:
+     - it gives the set by NAME and never by code, so it is the only source with
+       nothing in `set code`. Matching it means resolving "10th Edition" against
+       SETS, which is a lookup the other five can skip.
+     - it carries NO language column, in a table where five of the other six do.
+   It also blanks the collector number on 936 of those 2,796 rows, which is why
+   `set name + product name` has to be a workable match on its own. */
 const CANON = [
-  ['quantity',         'holdings.quantity',        '1','1','1','7','1','1',  1],
-  ['card name',        'cards.name',               '3','3','2','1','3','2',  1],
-  ['set code',         'sets.code',                '4','5','4','2','-','-',  1],
-  ['set name',         'sets.name',                '-','4','5','3','4','3',  1],
-  ['collector number', 'cards.collector_number',   '10','6','3','4','-','5', 1],
-  ['finish / variant', 'holdings.finish',          '7','9','7','5','7','4',  1],
-  ['condition',        'holdings.condition',       '5','7','8','14','5','-', 1],
-  ['language',         'mtg_card_printings.lang',  '6','8','9','15','6','-', 1],
-  ['grouping / tags',  'containers',               '-','18','-','-','-','-', 1],
+  ['quantity',         'holdings.quantity',        '1','1','1','7','1','1','11',  1],
+  ['card name',        'cards.name',               '3','3','2','1','3','2','4',   1],
+  ['set code',         'sets.code',                '4','5','4','2','-','-','-',   1],
+  ['set name',         'sets.name',                '-','4','5','3','4','3','3',   1],
+  ['collector number', 'cards.collector_number',   '10','6','3','4','-','5','5',  1],
+  ['finish / variant', 'holdings.finish',          '7','9','7','5','7','4','7',   1],
+  ['condition',        'holdings.condition',       '5','7','8','14','5','-','9',  1],
+  ['language',         'mtg_card_printings.lang',  '6','8','9','15','6','-','-',  1],
+  ['grouping / tags',  'containers',               '-','18','-','-','-','-','1',  1],
 ];
-const COLS = ['Moxfield','Deckbox','DragShield','ManaBox','Cardsphere','Delver'];
+const COLS = ['Moxfield','Deckbox','DragShield','ManaBox','Cardsphere','Delver','Collectr'];
 // counted off the table rather than typed beside it: the old note said "seven of
 // nine formats carry it" against six columns, five of which do
 const carry = f => CANON.find(r => r[0] === f).slice(2, 2 + COLS.length).filter(v => v !== '-').length;
@@ -5867,18 +5876,25 @@ const printingsOf = (name) => {
    place holding n copies. */
 const heldOf = (name) => {
   const out = [];
-  for (const d of LISTS.decks) {
-    const pool = Array.isArray(d[4]) ? d[4] : null;
-    if (!pool) continue;
-    const by = new Map();
-    for (const c of pool) {
-      if (c.n !== name) continue;
-      const k = `${printKey(c)}/${c.foil ? 'f' : ''}`;
-      const at = by.get(k);
-      if (at) at.qty = (at.qty || 1) + (c.qty || 1);
-      else by.set(k, { ...c, qty: c.qty || 1 });
+  /* BOTH LISTS, because both hold cards the same way now. This searched decks
+     alone and said so — "binders have no membership stored anywhere, so they are
+     not searched rather than guessed at" — which was true while a binder's
+     contents were a predicate over the catalogue. Membership is index 4 on
+     either, so a copy in a binder is a copy you own and was going unreported. */
+  for (const [kind, list] of [['binder', LISTS.binders], ['deck', LISTS.decks]]) {
+    for (const d of list) {
+      const pool = Array.isArray(d[4]) ? d[4] : null;
+      if (!pool) continue;
+      const by = new Map();
+      for (const c of pool) {
+        if (c.n !== name) continue;
+        const k = `${printKey(c)}/${c.foil ? 'f' : ''}`;
+        const at = by.get(k);
+        if (at) at.qty = (at.qty || 1) + (c.qty || 1);
+        else by.set(k, { ...c, qty: c.qty || 1 });
+      }
+      for (const c of by.values()) out.push([kind, d[0], c]);
     }
-    for (const c of by.values()) out.push(['deck', d[0], c]);
   }
   return out;
 };
@@ -6070,8 +6086,8 @@ const Holdings = () => {
   const held = heldOf(P.card);
   if (!held.length) return `
     <div class="${PANEL} px-3 py-4 text-sm text-neutral-500">
-      No copies recorded. <span class="text-neutral-600">Decks kept from a draft carry their cards;
-      binders have no membership stored, so they are not searched rather than guessed at.</span></div>`;
+      No copies recorded. <span class="text-neutral-600">Binders and decks are both searched &mdash; a copy
+      is wherever you filed it. Nothing is collected until an import or a kept draft says so.</span></div>`;
   // the rows carry the place, so the renderers get the card and nothing else
   const where = new Map(held.map(([kind, name, c]) => [c, `<span class="flex shrink-0 items-baseline gap-1.5">
     <span class="text-[10px] uppercase tracking-wide text-neutral-600">${kind}</span>

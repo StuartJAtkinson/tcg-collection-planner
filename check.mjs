@@ -67,6 +67,44 @@ const seedCollation = (code) => {
 const header = h => h.slice(0, h.indexOf('</header>'));
 // the subheader: everything between the top bar and the scrolling pane
 const header2 = h => h.slice(h.indexOf('</header>'), h.includes('<main') ? h.indexOf('<main') : undefined);
+/* AN EMPTY LIST SAYS WHAT IT IS WAITING FOR, and this is checked BEFORE the
+   fixtures go in, because a fresh app is the first thing anyone sees. It used to
+   be impossible to reach: the app shipped four binders and four decks, so the
+   empty state had no way to render and did not exist — the tab drew a blank page
+   under a bar reading "All binders". */
+for (const [tab, wants] of [['binders', 'No binders yet'], ['decks', 'No decks yet']]) {
+  t.pickGame('mtg'); ctx.location.hash = '#/' + tab; t.render();
+  assert.strictEqual(t.LISTS[tab].length, 0, `the app ships with ${tab} already in it`);
+  assert.ok(painted.includes(wants), `an empty ${tab} tab renders a blank page`);
+  // both ways in are named, because both are real
+  assert.ok(painted.includes('href="#/io"') && painted.includes('href="#/printings"'),
+    `an empty ${tab} tab does not say how to fill it`);
+}
+t.P.game = null;
+/* THE APP SHIPS WITH NOTHING COLLECTED, so the fixtures live here. They used to
+   be four binders and four decks declared in index.html — invented furniture
+   that read as a collection while holding nothing, and which a real import would
+   have landed beside indistinguishably. A fixture belongs to the test that
+   depends on it, which is the right way round: these exist because the binder
+   and deck suites need a container to open, not because the app has an opinion
+   about what you own.
+   Index 4 is the membership, the shape a kept draft has always used; index 2 on
+   a binder is its page shape. Cards are attached per suite, because most of
+   these assertions are about the SHELL — the selector, the subheader, the sort
+   bar — and a container with no cards renders all of it. */
+t.LISTS.binders.push(
+  ['Alara block', 'sorted colour &rsaquo; rarity', [3, 3]],
+  ['Unsorted', 'everything not in another binder', [3, 3]],
+  ['Duals &amp; fetches', 'sorted set &rsaquo; number', [2, 2]],
+  ['Commander staples', 'sorted colour', [4, 3]],
+);
+t.LISTS.decks.push(
+  ['Mono-Red Burn', 60, '23 distinct', 'legacy &middot; complete'],
+  ['Bant Exalted', 60, '27 distinct', 'modern &middot; 4 missing'],
+  ['Jeskai Monks', 60, '31 distinct', 'modern &middot; complete'],
+  ['Grixis Control', 75, '44 distinct', 'commander &middot; 11 missing'],
+);
+
 // browse tabs open with the selector filling the window, so most assertions
 // need a selection made first — that's what puts filter/sort/view on screen
 const DEFAULT_PICK = { printings: 'Foundations (FDN)', binders: 'Alara block', decks: 'Mono-Red Burn' };
@@ -2229,9 +2267,14 @@ go('#/binders'); t.clearItem(); t.render();
 assert.ok(t.CARDS().every(c => !['a-1', 'a-2', 'b-1'].includes(c.art_id)),
   'an unpicked binder is claiming catalogue cards as its contents');
 
-/* Every binder drawing the same cards was the whole complaint. A binder holds
-   what its rule says it holds, the rules do not overlap, and Unsorted is the
-   remainder — so the four binders partition the catalogue between them. */
+/* A CONTAINER HOLDS WHAT IS STORED ON IT, and a binder is a deck in this one
+   respect. Every binder used to draw the same 18 mock cards, which was the
+   original complaint; the answer at the time was `BINDER_RULE` — a predicate per
+   binder over the catalogue (the Alara sets, twenty duals, twenty-five Commander
+   staples, Unsorted as the remainder), explicitly a stand-in until holdings
+   arrived. They have, so the rule is gone and membership is index 4, the shape a
+   kept draft has always used. What this pins is that the two tabs read the SAME
+   index: they were two answers to one question and only one of them was real. */
 await t.loadCards({
   o: [['Noble Hierarch', '{G}', 'Creature — Human Druid', '', '0/1', 'G', 1],
       ['Misty Rainforest', '', 'Land', '', '', '', 0],
@@ -2240,16 +2283,46 @@ await t.loadCards({
   p: [[0, 'CON', '71', 3, 'alara', 42], [1, 'ZEN', '225', 3, 'dual', 60],
       [2, 'C21', '263', 2, 'staple', 2], [3, 'MKM', '99', 1, 'other', 0.1]],
 });
-const holds = {};
-for (const [name] of t.LISTS.binders) {
-  t.selectItem(name); t.render();
-  holds[name] = t.CARDS().map(c => c.art_id).sort().join();
+{
+  const by = Object.fromEntries(t.ALL().map(c => [c.art_id, c]));
+  const give = (list, name, ids) => list.find(r => r[0] === name)[4] = ids.map(i => ({ ...by[i], qty: 1 }));
+  give(t.LISTS.binders, 'Alara block', ['alara']);
+  give(t.LISTS.binders, 'Duals &amp; fetches', ['dual']);
+  give(t.LISTS.binders, 'Commander staples', ['staple']);
+  give(t.LISTS.binders, 'Unsorted', ['other']);
+  give(t.LISTS.decks, 'Mono-Red Burn', ['other', 'staple']);
+  const holds = {};
+  for (const [name] of t.LISTS.binders) {
+    go('#/binders'); t.selectItem(name); t.render();
+    holds[name] = t.CARDS().map(c => c.art_id).sort().join();
+  }
+  assert.strictEqual(holds['Alara block'], 'alara', 'a binder does not hold what is stored on it');
+  assert.strictEqual(holds['Duals &amp; fetches'], 'dual', 'a binder is holding another binder\'s cards');
+  assert.strictEqual(holds['Commander staples'], 'staple', 'a binder is holding another binder\'s cards');
+  assert.strictEqual(holds['Unsorted'], 'other', 'a binder is holding another binder\'s cards');
+  assert.strictEqual(new Set(Object.values(holds)).size, 4, 'two binders hold the same cards');
+  // ...and a deck reads the same index, which is the point of there being one branch
+  go('#/decks'); t.selectItem('Mono-Red Burn'); t.render();
+  assert.strictEqual(t.CARDS().map(c => c.art_id).sort().join(), 'other,staple',
+    'a deck and a binder do not read membership the same way');
+  // a container with nothing stored claims no catalogue cards as its contents
+  t.LISTS.binders.find(r => r[0] === 'Unsorted')[4] = undefined;
+  go('#/binders'); t.selectItem('Unsorted'); t.render();
+  assert.ok(t.CARDS().every(c => !['alara', 'dual', 'staple', 'other'].includes(c.art_id)),
+    'an empty binder is claiming catalogue cards as its contents');
+  // ...and a copy in a BINDER is a copy you own. heldOf searched decks alone,
+  // which was right while a binder's contents were a predicate over the
+  // catalogue and is not now that they are stored the same way.
+  // Sol Ring is in both fixtures — the staples binder and the burn deck — so it
+  // is two holdings, which is the whole point of the band naming WHERE each is
+  const sol = t.heldOf('Sol Ring');
+  assert.strictEqual(sol.length, 2, 'a copy held in a binder is not reported as held');
+  assert.strictEqual(sol.map(h => `${h[0]}:${h[1]}`).sort().join(),
+    'binder:Commander staples,deck:Mono-Red Burn',
+    'a holding does not name the kind and the container it is in');
+  // the fixtures go back to empty: the suites below assert on an uncollected app
+  for (const list of [t.LISTS.binders, t.LISTS.decks]) for (const r of list) r[4] = undefined;
 }
-assert.strictEqual(holds['Alara block'], 'alara', 'the Alara binder does not hold the Alara card');
-assert.strictEqual(holds['Duals &amp; fetches'], 'dual', 'the fetchland binder does not hold the fetchland');
-assert.strictEqual(holds['Commander staples'], 'staple', 'the staples binder does not hold Sol Ring');
-assert.strictEqual(holds['Unsorted'], 'other', 'Unsorted is not the remainder');
-assert.strictEqual(new Set(Object.values(holds)).size, 4, 'two binders hold the same cards');
 t.clearItem();
 
 const note = t.collationNote('Modern Horizons 3');
