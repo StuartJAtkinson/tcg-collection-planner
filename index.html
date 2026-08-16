@@ -5172,6 +5172,21 @@ PAGES.search = PAGES.printings = PAGES.binders = PAGES.decks = () => BrowsePage(
 const EXPORTERS = ['Moxfield','Deckbox','Dragonshield','ManaBox','Cardsphere','Delver Lens','Helvault','Archidekt','Collectr','Deckstats'];
 /* Verified from Archidekt's own importer bundle — see docs/import-formats.md.
    Numbers are the column's position in that app's export; '-' means absent. */
+/* LANGUAGE HAS A COLUMN, and this said otherwise for as long as the row has
+   existed. `NO COLUMN YET` described the DELETED Postgres app's `cards` table,
+   which had no `lang` — that app is gone, and the schema map two bands down this
+   same page has listed `mtg_card_printings — uuid, lang, finishes, promo` the
+   whole time, so the page contradicted itself in two places.
+   Language is not merely storable, it is already everywhere: read off the
+   printing rather than assumed (2,634 of 107,347 are not English, across 19
+   languages), part of `printKey`, a column in Details, a row on the card page,
+   a facet in the sidebar, and a token on the import line — `1 Sol Ring (CMR) 700
+   [en]`. The one thing it genuinely is not is a fact about a HOLDING; see
+   ISSUES.md, because that is a real gap and not this row's business.
+   External uid is gone. Nine importers each carry their own id and none of them
+   identifies a card — set, collector number and language do, which is why they
+   are the key. Carrying a column purely to hand it back on export is a column
+   this app has no use for. */
 const CANON = [
   ['quantity',         'holdings.quantity',        '1','1','1','7','1','1',  1],
   ['card name',        'cards.name',               '3','3','2','1','3','2',  1],
@@ -5180,11 +5195,13 @@ const CANON = [
   ['collector number', 'cards.collector_number',   '10','6','3','4','-','5', 1],
   ['finish / variant', 'holdings.finish',          '7','9','7','5','7','4',  1],
   ['condition',        'holdings.condition',       '5','7','8','14','5','-', 1],
-  ['language',         'NO COLUMN YET',            '6','8','9','15','6','-', 0],
+  ['language',         'mtg_card_printings.lang',  '6','8','9','15','6','-', 1],
   ['grouping / tags',  'containers',               '-','18','-','-','-','-', 1],
-  ['external uid',     'mtg_card_printings',       '-','-','-','9','-','-',  0],
 ];
 const COLS = ['Moxfield','Deckbox','DragShield','ManaBox','Cardsphere','Delver'];
+// counted off the table rather than typed beside it: the old note said "seven of
+// nine formats carry it" against six columns, five of which do
+const carry = f => CANON.find(r => r[0] === f).slice(2, 2 + COLS.length).filter(v => v !== '-').length;
 
 PAGES.io = () => Frame('io', {
   desc: 'One alias table, not nine parsers: each source maps its own headers onto the same canonical fields. Export runs the same map backwards, but it lives in every page&rsquo;s subheader &mdash; you export whatever you&rsquo;re looking at, so it never needed a tab of its own. An unrecognised header is a mapping you fix here &mdash; never a code change.',
@@ -5211,7 +5228,8 @@ PAGES.io = () => Frame('io', {
             `<span class="font-mono text-[10px] ${ours.startsWith('NO') ? 'text-amber-400' : 'text-neutral-500'}">${ours}</span>`,
             ...rest.map(v => `<span class="font-mono tabular-nums ${v === '-' ? 'text-neutral-700' : 'text-emerald-400'}">${v}</span>`)];
         }),
-        { foot: 'Numbers are the column&rsquo;s <em>position</em> in that app&rsquo;s export &mdash; Archidekt maps positionally, so this fingerprints a file by shape even when the header text is unfamiliar. We alias-match headers first and fall back to this. <span class="text-amber-400">Language has nowhere to land: <code>cards</code> has no <code>lang</code> column, so set + language + collector number isn&rsquo;t representable in <code>holdings</code> yet &mdash; and seven of nine formats carry it.</span>' })}
+        { foot: `Numbers are the column&rsquo;s <em>position</em> in that app&rsquo;s export &mdash; Archidekt maps positionally, so this fingerprints a file by shape even when the header text is unfamiliar. We alias-match headers first and fall back to this. Language lands on the printing, where the identity key already reads it: ${
+          carry('language')} of these ${COLS.length} exports carry it, and ${num(2634)} of ${num(107347)} catalogue printings are not English.` })}
       <div class="mb-5"></div>
 
       ${SectionHeader('Grouping column &rarr; container',
