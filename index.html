@@ -1018,6 +1018,13 @@ const rarityName = r => (RARITY_NAME[P.game] || RARITY_NAME.mtg)[r - 1] || '';
 // same rule the real frame uses
 const frameOf = c => c.energy ? (PKM_FRAME[c.energy] || '#8c8c8c')
   : !c.col ? '#8c8c8c' : c.col.length > 1 ? '#cfa036' : (FRAME[c.col] || '#8c8c8c');
+/* The title and type plates are 45% of the frame over black, and their ink falls
+   out of that mix rather than out of a list of dark colours. Written once and
+   read by everything that draws a plate — the card, its back face, and the
+   compact row — because two copies of this is how a green card comes to be one
+   green on a card and a different green in the list. */
+const plateOf = (c, bg = frameOf(c)) =>
+  `background:color-mix(in srgb, ${bg} 45%, #000);color:${ink(lum(bg) * 0.45)}`;
 
 /* ======================= CARD ANATOMY ==================================
    MockCard was written for the shape almost every card has: one name, one art
@@ -1738,7 +1745,7 @@ const MockCard = (c, fit, side) => {
   const layout = c.layout || 'normal';
   const treat = c.treat || 'framed';
   const bg = frameOf(c);
-  const plate = `background:color-mix(in srgb, ${bg} 45%, #000);color:${ink(lum(bg) * 0.45)}`;
+  const plate = plateOf(c, bg);
   const wide = LANDSCAPE.has(layout);
   const sided = SIDED.has(layout) && twoFaced(c);
   /* Nothing for a frame to hold, so the scan IS the render. It still goes
@@ -1769,7 +1776,7 @@ const MockCard = (c, fit, side) => {
          <div class="side-b h-full w-full">${(() => {
            const back = faceAt(c, 1);
            const bbg = frameOf({ col: back.col, energy: c.energy });
-           return draw(1, bbg, `background:color-mix(in srgb, ${bbg} 45%, #000);color:${ink(lum(bbg) * 0.45)}`);
+           return draw(1, bbg, plateOf(c, bbg));
          })()}</div>
          <!-- In the ART WINDOW's top corner, not the title bar's: the title bar's
               right end is where the mana cost is drawn, and the first position
@@ -1801,11 +1808,32 @@ const Card = c => `
    deck or a binder as a list, not for telling two printings apart.
    Details is the full identity key with the anatomy columns; that's the pair. */
 const holdsCopies = () => P.tab === 'binders' || P.tab === 'decks';
+/* A COMPACT ROW IS THE CARD'S TITLE PLATE, drawn by the same function the card
+   draws it with — `TitlePlate` over `plateOf`, inside the frame colour, inside
+   the black edge. Not a list row styled to look like one: a copy is how the two
+   come to disagree, and this row had already drifted to flat neutral-200 text
+   on a neutral-900 rule while the card carried the colour.
+
+   What the colour buys is a list you can read at a glance rather than one you
+   have to read: a green card is green here too, gold is multicolour, grey is
+   colourless — the same rule, because it is the same call.
+
+   The cost-pip fallback is gone with it. The old row drew colour identity pips
+   when a card had no cost, which the frame now says on its own — a land is a
+   grey plate whether or not it has anything to spend.
+
+   EVERY PRINTING HAS A NAME, checked rather than assumed: 0 of 107,347 are
+   without one, including all 3,250 art-series "Card" printings and every
+   full-art. So there is no set-and-number fallback here — it would be a branch
+   that never runs. */
 const TitleRow = c => `
   <div onclick="openCard('${jsArg(c.n)}')" title="Open ${jsArg(c.n)}"
-    class="flex cursor-pointer items-center gap-3 border-b border-neutral-900 px-2 py-1.5 text-sm hover:bg-neutral-900/60">
-    <span class="min-w-0 flex-1 truncate text-neutral-200">${c.n}</span>
-    <span class="flex shrink-0 gap-0.5">${(c.cost || []).map(costPip).join('') || pips(c.col || '')}</span>
+    class="flex cursor-pointer items-center gap-2 p-1 text-sm hover:brightness-125">
+    <div class="min-w-0 flex-1 rounded-md bg-black/80 p-[2px]">
+      <div class="rounded-[5px] p-[2px]" style="background:${frameOf(c)}">
+        ${TitlePlate(faceAt(c, 0), c, plateOf(c))}
+      </div>
+    </div>
     ${!holdsCopies() ? '' : `<span class="w-8 shrink-0 text-right tabular-nums text-neutral-300">×${c.qty}</span>`}</div>`;
 
 

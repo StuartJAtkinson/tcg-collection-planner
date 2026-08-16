@@ -13,7 +13,7 @@ const page = readFileSync('index.html', 'utf8');   // the markup too: <body> car
 const src = `${['sets.js', 'trim.js', 'anatomy.js'].map(f => readFileSync(f, 'utf8')).join('\n')}
 ${page.match(/<script>([\s\S]*)<\/script>/)[1]}`;
 const js = src
-  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, CAN_BE_LOCAL, MISSING_LOCAL, srcBytes, onDisk, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
+  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, CAN_BE_LOCAL, MISSING_LOCAL, srcBytes, onDisk, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, plateOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
   + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen,'
   + ' setDebug: v => { DEBUG = v; } };';
 
@@ -1092,9 +1092,21 @@ for (const [size, overflowsAt] of [[1.09, 144], [1, 207], [0.91, 274], [0.82, 37
   assert.ok(/text-\[[\d.]+cqw\]/.test(face), 'the face does not anchor a root size to its own width');
   assert.strictEqual((face.match(/text-\[[\d.]+px\]/g) || []).join(), '',
     'a fixed px font size is back on the card face, so it will not follow zoom');
-  // the list rows are not inside a card box, so they keep their px pips
-  assert.ok(/text-\[[\d.]+px\]/.test(t.TitleRow({ n: 'Noble Hierarch', cost: ['1', 'G'], set: 'CON' })),
-    'the list row went container-relative with no container to measure');
+  /* A COMPACT ROW IS THE CARD'S TITLE PLATE, so it sizes in em off the row's own
+     font size — em has something to resolve against anywhere. What it must not
+     pick up is cqw, which needs the container query the list has not got. */
+  const row = t.TitleRow({ n: 'Noble Hierarch', cost: ['1', 'G'], set: 'CON', col: 'G' });
+  assert.ok(!/cqw/.test(row), 'the list row went container-relative with no container to measure');
+  assert.ok(/text-\[[\d.]+em\]/.test(row), 'the row does not size off its own text');
+  /* ...and it is the SAME plate, not one that matches today: both come from
+     plateOf, so a change to the mix reaches the card and the list together. */
+  const green = { n: 'Llanowar Elves', cost: ['G'], col: 'G', type: 'Creature — Elf' };
+  assert.ok(t.TitleRow(green).includes(t.plateOf(green)), 'the row does not use the card plate');
+  assert.ok(t.MockCard(green).includes(t.plateOf(green)), 'the card no longer uses its own plate');
+  assert.ok(t.TitleRow(green).includes(t.frameOf(green)), 'the row is not wrapped in the frame colour');
+  // a multicolour card is gold in the list exactly as it is on the card
+  assert.strictEqual(t.frameOf({ col: 'GW' }), '#cfa036', 'multicolour lost its gold');
+  assert.ok(t.TitleRow({ n: 'X', col: 'GW' }).includes('#cfa036'), 'a gold card is not gold in the list');
 }
 
 // 3. rules text renders its symbols
