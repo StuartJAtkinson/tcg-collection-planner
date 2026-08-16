@@ -748,6 +748,9 @@
   .grid-flow-col {
     grid-auto-flow: column;
   }
+  .\[grid-template-columns\:4\.5rem_1fr\] {
+    grid-template-columns: 4.5rem 1fr;
+  }
   .\[grid-template-columns\:repeat\(auto-fill\,minmax\(14rem\,1fr\)\)\] {
     grid-template-columns: repeat(auto-fill,minmax(14rem,1fr));
   }
@@ -1304,6 +1307,9 @@
   .py-10 {
     padding-block: calc(var(--spacing) * 10);
   }
+  .pt-1\.5 {
+    padding-top: calc(var(--spacing) * 1.5);
+  }
   .pt-2 {
     padding-top: calc(var(--spacing) * 2);
   }
@@ -1507,12 +1513,6 @@
   }
   .text-amber-400 {
     color: var(--color-amber-400);
-  }
-  .text-amber-400\/70 {
-    color: color-mix(in srgb, oklch(82.8% 0.189 84.429) 70%, transparent);
-    @supports (color: color-mix(in lab, red, red)) {
-      color: color-mix(in oklab, var(--color-amber-400) 70%, transparent);
-    }
   }
   .text-amber-400\/80 {
     color: color-mix(in srgb, oklch(82.8% 0.189 84.429) 80%, transparent);

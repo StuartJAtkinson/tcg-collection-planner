@@ -13,7 +13,7 @@ const page = readFileSync('index.html', 'utf8');   // the markup too: <body> car
 const src = `${['sets.js', 'trim.js', 'anatomy.js'].map(f => readFileSync(f, 'utf8')).join('\n')}
 ${page.match(/<script>([\s\S]*)<\/script>/)[1]}`;
 const js = src
-  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, canBeLocal, missingLocal, srcKeys, srcQualities, srcBytes, onDisk, Table, DisplayChip, GroupHead, CARD_VIEWS, UNALIGNED, unaligned, anatomyKey, AlignList, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, VIEWS, FORMATS, CARD_TYPES, RARITIES, FINISHES, RARITY_NAME, FINISH, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, plateOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, heldOf, setBand, BandList, finishesOf, printingsOf, pickPrinting, printKey, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, UNRESOLVED, IMPORT_GROUPS, filtered, ownedIn, holdingsChanged, CANON, COLS, flatLine, P, TABS, LISTS, GAMES, CFG, render, grouping,'
+  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, canBeLocal, missingLocal, srcKeys, srcQualities, srcBytes, onDisk, Table, DisplayChip, GroupHead, CARD_VIEWS, UNALIGNED, unaligned, anatomyKey, AlignList, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, VIEWS, FORMATS, CARD_TYPES, RARITIES, FINISHES, RARITY_NAME, FINISH, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, plateOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, heldOf, heldByPrint, setBand, BandList, framable, printingsOf, alignFacts, finishesOf, printingsOf, pickPrinting, printKey, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, UNRESOLVED, IMPORT_GROUPS, filtered, ownedIn, holdingsChanged, CANON, COLS, flatLine, P, TABS, LISTS, GAMES, CFG, render, grouping,'
   + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen,'
   + ' setDebug: v => { DEBUG = v; } };';
 
@@ -1384,9 +1384,16 @@ t.pickGame('pokemon'); t.openCard('Pikachu'); t.setMatched(true);
 for (const l of ['HP', 'Stage', 'Retreat cost', 'Illustrator'])
   assert.ok(painted.includes(`>${l}</span>`), `the pokemon card page is missing "${l}"`);
 assert.ok(!painted.includes('>Toughness</span>'), 'the pokemon card page leaked MTG anatomy');
-// holdings are the irreplaceable half and are listed whether or not it matched
+/* THE HOLDINGS BAND IS FOLDED INTO THE PRINTINGS LIST. It was a second list of
+   the same cards under the same page, from when the printings list had no
+   quantity column and could not say what you owned. Qty is a column everywhere
+   now, so the band was one answer given twice — and two lists of the same cards
+   on one page is how they come to disagree. What it carried that a column does
+   not is WHERE, so a held printing names its containers on its own row. */
 t.setMatched(false);
-assert.ok(painted.includes('>holdings<'), 'an unmatched card hides where the copies are');
+assert.ok(!painted.includes('>holdings<'), 'the holdings band is back as a section of its own');
+assert.ok(painted.includes('>printings<') || painted.includes('>candidates<'),
+  'the printings band went with it');
 t.pickGame('mtg'); go('#/search');
 
 // --- one counting format: exact while exact is worth reading -----------
@@ -3096,7 +3103,30 @@ const treat = n => t.MockCard(byName[`Plain Card|${n}`]);
 const edge = h => h.match(/bg-black\/70 (\S+) shadow-lg/)[1];
 assert.strictEqual(edge(treat('borderless')), 'p-0', 'a borderless printing keeps its black edge');
 assert.strictEqual(edge(treat('framed')), 'p-[3.5%]', 'an ordinary printing lost its black edge');
-assert.ok(treat('fullart').includes('absolute inset-0'), 'a full-art printing puts its art in a window');
+/* FULLART IS PULLED, NOT DRAWN — decided at #/card's Align display, which is
+   what that display is for. Drawn, a full-art card got opaque plates at fixed
+   positions over the illustration; printed, it has a translucent title bar, an
+   ornate border, a text panel of a different shape, and on a full-art land
+   almost no furniture at all, placed per card and per promo. Checked over six
+   samples of `normal | fullart` and again down twelve printings of Laboratory
+   Maniac: not one matched. 6,085 printings stop being invented. */
+assert.ok(t.UNALIGNED.has('fullart'), 'fullart is being drawn again rather than pulled');
+assert.ok(!treat('fullart').includes('color-mix'), 'a full-art printing still draws frame plates');
+assert.ok(/cards\.scryfall\.io\/(normal|large|png|small)\//.test(treat('fullart')),
+  'a full-art printing draws neither a frame nor the printed card');
+/* A KEY IS A TREATMENT OR A FULL CLASS. `fullart` crosses fourteen layouts, and
+   listing all fourteen would be a list to keep in step with the catalogue
+   rather than a decision. */
+for (const layout of ['normal', 'token', 'transform', 'saga', 'split', 'meld'])
+  assert.ok(t.unaligned({ layout, treat: 'fullart' }), `${layout}/fullart is drawn despite the treatment`);
+assert.ok(!t.unaligned({ layout: 'normal', treat: 'framed' }), 'an ordinary card stopped being drawn');
+{
+  // ...and a class key still works, for where it is one layout's version
+  t.UNALIGNED.add('saga | framed');
+  assert.ok(t.unaligned({ layout: 'saga', treat: 'framed' }), 'a full-class key no longer matches');
+  assert.ok(!t.unaligned({ layout: 'normal', treat: 'framed' }), 'a class key matched the wrong class');
+  t.UNALIGNED.delete('saga | framed');
+}
 /* THE CROP'S SHAPE IS NOT IN THE DATA. Measured across the overlaid classes,
    Scryfall's art_crop comes back 626x457, 626x747, 684x722, 745x505, 619x808
    and 312x752, and the bulk file says which for none of them. `object-cover`
@@ -3106,7 +3136,9 @@ assert.ok(treat('fullart').includes('absolute inset-0'), 'a full-art printing pu
    middles. Contain shows all of it whatever shape it is; the cover copy behind
    is blurred filler, and top-anchoring puts that filler under the type line
    instead of across the visible top of the card. */
-for (const n of ['fullart', 'textless', 'extendedart']) {
+/* The two treatments still DRAWN with the art as the whole card. fullart left
+   this list when it was declared unalignable; extendedart is here on request. */
+for (const n of ['textless', 'extendedart']) {
   const h = treat(n);
   assert.ok(h.includes('object-contain object-top'),
     `"${n}" scales the art to cover a card-shaped box, which crops a landscape illustration in half`);
@@ -3496,50 +3528,47 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
   for (const c of t.ALL()) if (c.rest !== undefined)
     assert.strictEqual(c.rest & ~c.legal, 0, `${c.n} is restricted in a format it is not legal in`);
 
-  /* HOLDINGS ARE THE COPIES THAT EXIST. This invented two rows for every card in
-     the catalogue — a binder called "Alara block" and a deck called "Bant
-     Exalted" — so a card nobody has ever owned reported two copies in two places
-     that do not exist. The one membership this app knows is a deck kept from a
-     draft, and binders have none stored anywhere, so they are not searched
-     rather than guessed at. */
+  /* HOLDINGS ARE THE COPIES THAT EXIST, AND THEY LIVE ON THE PRINTING'S OWN ROW.
+     There used to be a separate Holdings band; it was a second list of the same
+     cards under the same page, from back when the printings list had no quantity
+     column and could not answer "do I own this". Qty is a column everywhere now,
+     so the band was one answer given twice, and two lists of the same cards on
+     one page is how they come to disagree. What it carried that a column does
+     not is WHERE, so a held printing names its containers on its own row. */
   // length, not deepStrictEqual: the page's arrays are built in the vm's realm,
   // where the prototype check fails on two values that are otherwise equal
   assert.strictEqual(t.heldOf('Sol Ring').length, 0, 'a card nobody owns still reports copies');
-  go('#/card');
-  assert.ok(painted.includes('No copies recorded'), 'an unowned card does not say so');
+  t.setBand('prints', 'details'); go('#/card');
   assert.ok(!painted.includes('Alara block') && !painted.includes('Bant Exalted'),
     'the invented binder and deck are back');
-  // ...and a deck that really holds it says so, once, with the copies added up
+  /* A CATALOGUE ROW'S QTY IS 0 BY CONSTRUCTION, which is what made the band look
+     necessary: `printingsOf` hands back catalogue rows, so the Qty column read
+     "none" on a card that was sitting in your binder. The rows are decorated
+     with your real quantities before anything draws them. */
+  assert.ok(painted.includes('>none<'), 'an unowned printing does not read none');
   const one = t.ALL().find(c => c.set === 'LEA' && c.n === 'Sol Ring');
   t.LISTS.decks.unshift(['Test deck', '', '', '', [{ ...one, qty: 2 }, { ...one, qty: 1 }]]);
+  t.holdingsChanged();
   const held = t.heldOf('Sol Ring');
   assert.strictEqual(held.length, 1, 'two copies of one printing are two holdings');
   assert.strictEqual(held[0][1], 'Test deck', 'the holding does not name the deck it is in');
   assert.strictEqual(held[0][2].qty, 3, 'the copies are not added up');
-  /* BOTH BANDS GET THE LIST'S THREE DISPLAYS, drawn by the list's own renderers.
-     The holdings band had them and the printings band directly above it did not,
-     so two lists of the same cards sat on one page disagreeing about what a card
-     looks like. One switch, one list renderer, two pieces of state — separate
-     because the identity key is what tells 864 printings apart, while a copy you
-     own is a card you want to look at. */
-  for (const band of ['prints', 'hold']) {
-    for (const v of ['compact', 'details', 'grid']) {
-      t.setBand(band, v); go('#/card');
-      assert.ok(painted.includes(`setBand('${band}','${v}')`), `${band}: ${v} is not offered as a display`);
-      if (band === 'hold') assert.ok(painted.includes('Test deck'), `${v} holdings lost where the copy is`);
-      if (band === 'prints') assert.ok(painted.includes('>showing<'), `${v} printings lost which one is on show`);
-    }
-    t.setBand(band, 'grid'); go('#/card');
-    assert.ok(painted.includes('aspect-[5/7]'), `the grid ${band} does not draw the card`);
-    t.setBand(band, 'details');
+  // ...and that reaches the row: the quantity, and where the copies are
+  go('#/card');
+  assert.ok(painted.includes('\u00d73'), 'the printing does not carry the copies you own');
+  assert.ok(painted.includes('deck Test deck'), 'the printing does not say where the copies are');
+  /* THE PRINTINGS BAND GETS THE LIST'S THREE DISPLAYS, drawn by the list's own
+     renderers -- writing a fourth here is how the card page comes to disagree
+     with the list about what a card looks like. */
+  for (const v of ['compact', 'details', 'grid']) {
+    t.setBand('prints', v); go('#/card');
+    assert.ok(painted.includes(`setBand('prints','${v}')`), `${v} is not offered as a display`);
+    assert.ok(painted.includes('>showing<'), `${v} printings lost which one is on show`);
   }
-  t.setBand('hold', 'compact'); go('#/card');
-  assert.ok(painted.includes('×3'), 'the quantity is not shown');
-  // the two are independent: setting one display does not move the other
-  t.setBand('prints', 'grid');
-  assert.strictEqual(t.P.hold, 'compact', 'the two bands share one display setting');
+  t.setBand('prints', 'grid'); go('#/card');
+  assert.ok(painted.includes('aspect-[5/7]'), 'the grid printings do not draw the card');
   t.setBand('prints', 'details');
-  t.LISTS.decks.shift();
+  t.LISTS.decks.shift(); t.holdingsChanged();
 
   /* ALIGN ART — every printing beside its own high-quality pull, so a
      misalignment noticed on one card can be pinned to a printing and then to
@@ -3558,25 +3587,50 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
 
   /* A CLASS THE FRAME CANNOT DRAW IS DECLARED, NOT NUDGED. The tempting fix for
      a misaligned class is a per-class offset, which is right for the printings
-     it was tuned against and wrong for the rest — extended art was exactly that
-     until this week. Naming a class here drops it to the printed card, which
-     cannot be misaligned because it IS the card. Empty by default: a class
-     listed here stops being drawn at all, and that is not a guess worth
-     making. */
-  assert.strictEqual(t.UNALIGNED.size, 0,
-    'a class is declared unalignable — was that decided against #/card\'s align display?');
-  const key = t.anatomyKey(t.openedCard());
-  const before = t.MockCard(t.openedCard());
-  t.UNALIGNED.add(key);
-  const after = t.MockCard(t.openedCard());
-  assert.ok(before.includes('color-mix') && !after.includes('color-mix'),
-    'declaring a class unalignable did not stop it being drawn');
-  assert.ok(after.includes('cards.scryfall.io') || after.includes('art/sf/'),
-    'an unalignable class draws neither a frame nor the printed card');
-  go('#/card');
-  assert.ok(painted.includes('this class is declared unalignable'),
-    'align does not say why a class shows one image instead of two');
-  t.UNALIGNED.delete(key);
+     it was tuned against and wrong for the rest -- extended art was exactly that
+     until this week. Naming it here drops the class to the printed card, which
+     cannot be misaligned because it IS the card.
+     `fullart` is the one entry, put there by looking at this display: 6,085
+     printings whose drawn plates matched no printed card in six samples of
+     `normal | fullart` or twelve printings of Laboratory Maniac. Anything else
+     goes in the same way -- looked at first -- because a class listed here stops
+     being drawn at all. */
+  assert.deepStrictEqual([...t.UNALIGNED].sort().join(), 'fullart',
+    'the unalignable list changed -- was that decided against #/card\'s align display?');
+  {
+    const drawn = t.printingsOf('Sol Ring').find(c => !t.unaligned(c) && t.framable(c));
+    const key = t.anatomyKey(drawn);
+    const before = t.MockCard(drawn);
+    assert.ok(before.includes('color-mix'), 'the sample card was not being drawn to begin with');
+    t.UNALIGNED.add(key);
+    const after = t.MockCard(drawn);
+    assert.ok(!after.includes('color-mix'), 'declaring a class unalignable did not stop it being drawn');
+    assert.ok(after.includes('cards.scryfall.io') || after.includes('art/sf/'),
+      'an unalignable class draws neither a frame nor the printed card');
+    t.UNALIGNED.delete(key);
+  }
+  /* THE NUMBERS, BECAUSE THIS IS THE DEBUG VIEW. It showed two pictures and a
+     class name, which says THAT a card is wrong and nothing about why -- and why
+     is always one of a handful of facts that were already computed and simply
+     not on screen. `natural` is the one nothing else in the app can know: the
+     crop's shape is not in the catalogue, Scryfall returns 626x457, 312x752,
+     684x722 and more, and it is the usual reason a frame looks stretched. */
+  t.setBand('prints', 'align'); go('#/card');
+  for (const f of ['verdict', 'layout', 'geometry', 'sided', 'crop', 'card', 'natural'])
+    assert.ok(painted.includes(`>${f}</dt>`), `align does not report "${f}"`);
+  assert.ok(/naturalWidth/.test(painted), 'align does not read the crop\'s real size off the image');
+  assert.ok(painted.includes('art_crop') && /\/(normal|large|png)\//.test(painted),
+    'align does not name both URLs, so a wrong picture cannot be told from a misplaced one');
+  {
+    // the verdict names the RULE, not just the outcome -- there are two ways to
+    // be pulled and they are different problems
+    const full = t.printingsOf('Sol Ring').find(c => c.treat === 'fullart');
+    if (full) {
+      t.openCard('Sol Ring', t.printKey(full)); t.setBand('prints', 'align'); go('#/card');
+      assert.ok(painted.includes('class declared unalignable'),
+        'align does not say which rule pulled the printed card');
+    }
+  }
   t.setBand('prints', 'details');
 
   /* THE IDENTITY KEY IS SET + NUMBER + LANGUAGE, and finish is not in it: it is

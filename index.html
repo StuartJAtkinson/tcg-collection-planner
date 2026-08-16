@@ -228,11 +228,10 @@ const P = {
   draw: null,            // a drawn pool, or null — set pages only
   card: null,            // the card you clicked through to, or null
   print: null,           // which of its printings is on show — null is the earliest
-  // the card page's two bands, each drawn by the list's own three displays.
-  // Separate, because they answer different questions: the identity key is what
-  // tells 864 printings apart, and a copy you own is a card you want to look at
-  prints: 'details',     // how the card page draws every printing of the card
-  hold: 'compact',       // how the card page draws your copies
+  // how the card page draws every printing of the card. There was a second one
+  // of these for a Holdings band; that band was the same cards listed twice and
+  // is folded into this list, which carries your quantity and where it is
+  prints: 'details',
   matched: false,        // has that card been matched to a printing yet?
   face: 'frame',         // card page image slot: our drawn frame, or the printed card
   /* THE FILTER IS TWO OBJECTS, for the reason the sort is: nothing narrows
@@ -1122,12 +1121,25 @@ const anatomyKey = c => `${c.layout || 'normal'} | ${c.treat || 'framed'}`;
    all. Name it here and the app pulls the complete printed card for it, which
    cannot be misaligned because it IS the card — the same path an art-series
    printing already takes for the same reason.
-   EMPTY ON PURPOSE. Nothing goes in until #/card's Align display shows it
-   failing, because a class listed here stops being drawn at all and that is not
-   a guess worth making. The overlaid treatments are the likely first entries:
-   the title sits ON the illustration at a position chosen per card. */
-const UNALIGNED = new Set([]);
-const unaligned = c => UNALIGNED.has(anatomyKey(c));
+
+   FULLART IS THE FIRST ENTRY, and it was decided by looking at #/card's Align
+   display rather than by argument, which is what that display is for. Drawn, a
+   full-art card gets opaque plates at fixed positions over the illustration.
+   Printed, it has a translucent title bar, an ornate border, a text panel of a
+   different shape, and on a full-art land almost no furniture at all — placed
+   per card, per set, per promo. Checked over six samples of `normal | fullart`
+   and again down the twelve printings of Laboratory Maniac: not one matched.
+   That is exactly "too custom to represent programmatically", so 6,085
+   printings stop being invented and start being shown.
+
+   A KEY IS A TREATMENT OR A FULL CLASS. `fullart` crosses fourteen layouts —
+   normal, token, transform, saga, split, meld, adventure, leveler, emblem,
+   class, mutate, modal_dfc, prototype, double_faced_token — and listing all
+   fourteen would be a list to keep in step with the catalogue rather than a
+   decision. Where the reason is the treatment, name the treatment; where it is
+   one layout's version of it, name the class. */
+const UNALIGNED = new Set(['fullart']);
+const unaligned = c => UNALIGNED.has(c.treat || 'framed') || UNALIGNED.has(anatomyKey(c));
 // the face list only matters when there are two of them to draw
 const twoFaced = c => (c.faces?.length > 1 ? c.faces : null);
 const faceAt = (c, i) => c.faces?.[i] || c;
@@ -5973,6 +5985,21 @@ const printingsOf = (name) => {
    the name — a foil Alpha and a Commander reprint are different things to own,
    which is what the identity key is for — and grouped by deck so one row is one
    place holding n copies. */
+/* WHERE EVERY COPY OF THIS PRINTING IS, keyed by the printing rather than by
+   the card. `heldOf` answers "which containers hold this NAME", which is what a
+   separate Holdings band needed; the printings list needs the other cut — for
+   THIS row, how many and where — because the row is already the printing. */
+const heldByPrint = (name) => {
+  const by = new Map();
+  for (const [kind, where, c] of heldOf(name)) {
+    const k = printKey(c);
+    if (!by.has(k)) by.set(k, { qty: 0, at: [] });
+    const e = by.get(k);
+    e.qty += c.qty || 0;
+    e.at.push(`${kind} ${where}`);
+  }
+  return by;
+};
 const heldOf = (name) => {
   const out = [];
   /* BOTH LISTS, because both hold cards the same way now. This searched decks
@@ -6068,19 +6095,37 @@ const FlatSource = () => { const toks = flatTokens(openedCard()); return `
    Clicking a row is `openCard(name, key)`, which on this page IS pickPrinting:
    same name, new printing, same route. So the ordinary card renderers need no
    card-page special case to be clickable here. */
+/* THE HOLDINGS BAND IS GONE, FOLDED IN HERE. It was a second list of the same
+   cards under the same page — "your copies" — from back when the printings list
+   had no quantity column and could not answer the question. Qty is a column
+   everywhere now, so the band was the same answer given twice, and the two could
+   disagree.
+   What the band carried that a Qty column does not is WHERE the copy is, so the
+   row carries that: a printing you hold names its containers. And the rows are
+   DECORATED with your real quantities first, which is what made the band look
+   necessary — `printingsOf` hands back catalogue rows, and a catalogue row's qty
+   is 0 by construction, so the Qty column read "none" on a card sitting in your
+   binder. */
 const Candidates = () => {
   const here = printKey(openedCard());
+  const held = heldByPrint(P.card);
   const mark = (c) => {
     if (!P.matched) return `<button onclick="event.stopPropagation();setMatched(true);pickPrinting('${jsArg(printKey(c))}')"
       class="${BTN_SECONDARY} shrink-0">Match</button>`;
-    return `<span class="w-16 shrink-0 text-right text-xs font-medium ${
-      printKey(c) === here ? 'text-emerald-400' : 'text-neutral-800'}">${printKey(c) === here ? 'showing' : ''}</span>`;
+    const h = held.get(printKey(c));
+    return `<span class="flex shrink-0 items-baseline gap-2">
+      ${h ? `<span class="truncate text-[10px] text-neutral-400" title="${jsArg(h.at.join(', '))}">${h.at.join(', ')}</span>` : ''}
+      <span class="w-16 shrink-0 text-right text-xs font-medium ${
+        printKey(c) === here ? 'text-emerald-400' : 'text-neutral-800'}">${printKey(c) === here ? 'showing' : ''}</span></span>`;
   };
   // taller for the two that draw cards: 26rem of card is a row and a half,
   // where it is a dozen rows
   const tall = P.prints === 'grid' || P.prints === 'align';
+  // your quantity, on the catalogue row, before anything draws it
+  const rows = printingsOf(P.card).map(c => (held.has(printKey(c))
+    ? { ...c, qty: held.get(printKey(c)).qty } : c));
   return `<div data-scroll="printings" class="${tall ? 'max-h-[44rem]' : 'max-h-[26rem]'} overflow-y-auto">${
-    BandList(printingsOf(P.card), P.prints, mark, c => printKey(c) === here)}</div>`;
+    BandList(rows, P.prints, mark, c => printKey(c) === here)}</div>`;
 };
 
 /* MELD, and the honest thing to say about it. The other two anatomy relations
@@ -6108,11 +6153,11 @@ const MeldBand = () => {
 };
 
 /* THE SAME THREE DISPLAYS AS THE LIST, DRAWN BY THE SAME RENDERERS. A printing
-   is a card and a holding is a card, so the thing to draw is a card — `TitleRow`,
-   `KeyRow` and `Card` already draw one three ways, and writing a fourth here is
-   how the card page comes to disagree with the list about what a card looks
-   like. What each band adds is the one fact the list has no column for: which
-   printing is showing, and where the copy lives.
+   is a card, so the thing to draw is a card — `TitleRow`, `KeyRow` and `Card`
+   already draw one three ways, and writing a fourth here is how the card page
+   comes to disagree with the list about what a card looks like. What the band
+   adds is what the list has no column for: which printing is showing, and where
+   your copies of it are.
    `content-visibility` because this is the one list with no paging: a basic land
    is 864 printings, and in grid that is 864 mock cards in a 26rem scroller. The
    browser skips the ones it is not showing; the rows are cheap enough to leave
@@ -6137,12 +6182,41 @@ const BandSwitch = (k, extra = []) => `<span class="flex items-center gap-1.5">$
    card and breaks its siblings is the hardcoded alignment this is here to
    avoid. A class already declared unalignable says so and shows the printed
    card once, because there are no longer two things to compare. */
+/* THE NUMBERS, BECAUSE THIS IS THE DEBUG VIEW. It showed two pictures and a
+   class name, which tells you THAT a card is wrong and nothing about why — and
+   "why" here is always one of a handful of facts that are already computed and
+   were simply not on screen. Every one of these decides something:
+     verdict   drawn, or pulled, and which rule made that call
+     geometry  overlaid or windowed, the art aspect the frame assumed, and the
+               black edge — the three numbers a misalignment is usually in
+     source    the exact URL each half is pulling, so a wrong picture can be
+               told from a wrongly-placed one
+     natural   the crop's real pixel size, read off the image once it loads.
+               This is the fact nothing else in the app can know: the shape is
+               NOT in the catalogue, Scryfall returns 626x457, 312x752, 684x722
+               and more, and it is the usual reason a frame looks stretched. */
+const alignFacts = (c) => {
+  const over = OVERLAID.has(c.treat || 'framed') || LANDSCAPE.has(c.layout) && c.layout !== 'split';
+  return [
+    ['verdict', unaligned(c) ? 'pulled &mdash; class declared unalignable'
+      : !framable(c) ? 'pulled &mdash; no cost, type or rules for a frame to hold'
+      : 'drawn'],
+    ['layout', `${c.layout || 'normal'} &middot; ${c.treat || 'framed'}`],
+    ['geometry', `${over ? 'overlaid' : 'windowed'} &middot; art ${
+      LANDSCAPE.has(c.layout) ? '7/1.8' : over ? 'full card' : '5/3.52'} &middot; edge ${
+      c.treat === 'borderless' ? '0' : '3.5%'}${aftermath(c) ? ' &middot; aftermath (upright)' : ''}`],
+    ['sided', `${twoFaced(c) ? `${c.faces.length} faces` : '1 face'}${SIDED.has(c.layout) ? ' &middot; turns over' : ''}${
+      PAIRED.has(c.layout) ? ' &middot; both on one side' : ''}`],
+    ['crop', artUrl(c, 0, 'art_crop')],
+    ['card', artUrl(c, 0, cardQ(c))],
+  ];
+};
 const AlignList = (cs, right, on = () => false) => `
   <div class="grid gap-3 p-1" style="grid-template-columns:repeat(${Math.min(P.cols.grid || 3, 3)},minmax(0,1fr))">
     ${cs.map((c) => {
       const off = unaligned(c) || !framable(c);
       return `<div class="rounded-lg border ${on(c) ? 'border-emerald-600' : 'border-neutral-800'} bg-neutral-950/60 p-2"
-        style="content-visibility:auto;contain-intrinsic-size:auto 18rem">
+        style="content-visibility:auto;contain-intrinsic-size:auto 26rem">
         <div class="mb-1.5 flex items-baseline gap-2 text-[10px]">
           <span class="shrink-0 font-mono uppercase text-neutral-300">${c.set} ${c.num}</span>
           <span class="min-w-0 flex-1 truncate font-mono ${off ? 'text-amber-400/90' : 'text-neutral-600'}"
@@ -6150,13 +6224,24 @@ const AlignList = (cs, right, on = () => false) => `
           ${right(c)}
         </div>
         ${off
-          ? `${ScanImage(c, 0, 'large')}
-             <p class="mt-1 text-[10px] text-amber-400/70">printed card &mdash; ${
-               unaligned(c) ? 'this class is declared unalignable' : 'nothing here for a frame to hold'}</p>`
+          ? ScanImage(c, 0, 'large')
           : `<div class="flex min-w-0 gap-2">
               <div class="min-w-0 flex-1">${MockCard(c)}</div>
               <div class="min-w-0 flex-1">${ScanImage(c, 0, 'large')}</div></div>
-             <p class="mt-1 text-[10px] text-neutral-600">drawn &middot; printed</p>`}
+             <p class="mt-1 text-center text-[10px] text-neutral-600">drawn &middot; printed</p>`}
+        <dl class="mt-1.5 grid gap-x-2 border-t border-neutral-900 pt-1.5 font-mono text-[10px] [grid-template-columns:4.5rem_1fr]">
+          ${alignFacts(c).map(([k, v]) => `
+            <dt class="text-neutral-600">${k}</dt>
+            <dd class="min-w-0 truncate ${k === 'verdict' && off ? 'text-amber-400/90' : 'text-neutral-400'}"
+              title="${jsArg(String(v).replace(/&[a-z]+;/g, ' '))}">${v}</dd>`).join('')}
+          <dt class="text-neutral-600">natural</dt>
+          ${/* Read off the loaded image, because the crop's shape is the one fact
+                the catalogue does not carry and cannot be derived. `onload` fires
+                per image; it writes into its own sibling and clears itself. */''}
+          <dd class="text-neutral-400"><img src="${artUrl(c, 0, 'art_crop')}" alt="" class="hidden"
+            onload="this.parentNode.textContent=this.naturalWidth+'&times;'+this.naturalHeight+' ('+(this.naturalWidth/this.naturalHeight).toFixed(2)+')'"
+            onerror="this.parentNode.textContent='no crop'">&mdash;</dd>
+        </dl>
       </div>`;
     }).join('')}</div>`;
 
@@ -6181,19 +6266,6 @@ const BandList = (cs, view, right, on = () => false) => {
         </div>`).join('')}</div>`;
 };
 
-const Holdings = () => {
-  const held = heldOf(P.card);
-  if (!held.length) return `
-    <div class="${PANEL} px-3 py-4 text-sm text-neutral-500">
-      No copies recorded. <span class="text-neutral-600">Binders and decks are both searched &mdash; a copy
-      is wherever you filed it. Nothing is collected until an import or a kept draft says so.</span></div>`;
-  // the rows carry the place, so the renderers get the card and nothing else
-  const where = new Map(held.map(([kind, name, c]) => [c, `<span class="flex shrink-0 items-baseline gap-1.5">
-    <span class="text-[10px] uppercase tracking-wide text-neutral-600">${kind}</span>
-    <span class="text-neutral-300">${name}</span></span>`]));
-  return `${BandList([...where.keys()], P.hold, c => where.get(c))}
-    <p class="px-3 py-2 text-[11px] text-neutral-600">Holdings are the irreplaceable half &mdash; they survive a re-import, the catalogue does not.</p>`;
-};
 
 /* Where the old /preview page lands. It existed because nothing in the app ever
    drew the frame next to the real card, so there was no way to see whether the
@@ -6259,7 +6331,6 @@ PAGES.card = () => Frame(P.tab, {
             ? 'click one to show it' : 'what the line could mean, and the identity key is what tells them apart'}`,
           right: BandSwitch('prints', [['align', '&#8660;',
             'Every printing drawn beside its own high-quality pull &mdash; for deciding whether a CLASS of card can be drawn at all']]) })}
-        ${Band('holdings', Holdings(), { note: 'your copies, wherever they live', right: BandSwitch('hold') })}
       </div>
     </div>`,
 });
