@@ -214,3 +214,30 @@
 /* The button is the affordance, so it must be visible against art of any
    brightness — hence its own dark disc rather than a bare glyph. */
 .anat-flip:hover { background: rgb(0 0 0 / 0.85); }
+
+/* THE FRAME IS MOTTLED, AND BY A MEASURED AMOUNT. A printed Magic frame is not
+   a flat fill: it is a fibrous, marbled surface, and the drawn card was flat
+   colour on every plate. Sampled off the frame rail of six printings per colour
+   and DETRENDED row by row — so the frame's own top-to-bottom bevel is not
+   counted as texture — the noise runs sd 29 to 53 in luminance, median 42 of
+   255, i.e. about +/-16%.
+
+   Not all of that is the card. A 672px JPEG carries its own grain and the print
+   its own dither, both of which read as noise to a sampler and as dirt on
+   screen. So the tile is drawn at a fraction of the measured figure and the
+   fraction is ONE KNOB: `opacity` on the rect below. Raise it toward 1 to reach
+   the measured 16%.
+
+   ponytail: a background LAYER, not a pseudo-element — backgrounds always paint
+   under content, so there is no stacking order to get wrong on six different
+   frame shapes, and it composites with whatever background-color the plate
+   already carries. That is also why every plate sets `background-color` and not
+   the `background` shorthand, which would reset this image.
+   soft-light rather than overlay: overlay is a no-op on the near-black Swamp
+   frame (#1f201c) and blows out the cream white one, where soft-light moves
+   both by about the same amount. */
+.mottle {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='m'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23m)' opacity='0.42'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+  background-blend-mode: soft-light;
+}

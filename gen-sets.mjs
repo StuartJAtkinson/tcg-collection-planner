@@ -1,4 +1,4 @@
-// Regenerates draft/sets.js from api.scryfall.com/sets — the same endpoint
+// Regenerates draft/sets.js from api.scryfall.com/sets - the same endpoint
 // src/import/sets.ts already uses. Run: node gen-sets.mjs
 //
 // ponytail: generated once and committed, not fetched at runtime. The draft is a
@@ -11,18 +11,18 @@ import { createGunzip } from 'node:zlib';
    MTGJSON's `set.booster`, reverse-engineered by the community from opened packs
    (Wizards publishes no collation). 198 of 868 sets have it. Rather than parse
    1.4 GB, anchor on the fact that `data` is keyed by set code and a set object's
-   first key is alphabetically "baseSetSize" — "booster" sorts straight after it. */
+   first key is alphabetically "baseSetSize" - "booster" sorts straight after it. */
 /* The same pass also picks up the pack ART, which is a different fact in the same
    file: `sealedProduct` lists the physical products, and a `booster_pack` one
-   carries `contents.pack[].code` — the SAME string as the collation variant above,
-   so the join is exact rather than by name — next to a pile of vendor ids. MTGJSON
+   carries `contents.pack[].code` - the SAME string as the collation variant above,
+   so the join is exact rather than by name - next to a pile of vendor ids. MTGJSON
    hosts no images; TCGplayer's CDN serves one per product id. 486 pack products
    over 190 sets, 421 with that id. Keys are alphabetical within a product, so
    category → contents → identifiers → setCode is one window, ~2000 chars wide;
    the tail carries that much between chunks and the Map drops the re-reads. */
 /* The third fact in the same pass is the COLLATION itself. `set.booster` is an
-   object of named configurations — "draft", "play", "collector", "set", "arena",
-   "prerelease", one per physical product — and each carries `boosters[]` (the
+   object of named configurations - "draft", "play", "collector", "set", "arena",
+   "prerelease", one per physical product - and each carries `boosters[]` (the
    weighted pack recipes) and `sheets` (`{cards:{uuid: weight}, totalWeight}`).
    That is enough to compute, for any card, the expected copies per pack:
 
@@ -38,7 +38,7 @@ import { createGunzip } from 'node:zlib';
    ponytail: which booster a set is DRAFTED with is read here, not guessed from
    the release date. Play Boosters are usually dated to Outlaws of Thunder
    Junction (2024-04-19), but MTGJSON has MKM (2024-02-09) shipping "play" and
-   no "draft" at all — the date rule got that set wrong. The file knows. */
+   no "draft" at all - the date rule got that set wrong. The file knows. */
 const scanBraces = (s, st) => {   // advance st over s; return index past the close, or -1
   for (let i = 0; i < s.length; i++) {
     const ch = s[i];
@@ -57,7 +57,7 @@ const scanBraces = (s, st) => {   // advance st over s; return index past the cl
 
 /* One drafted config -> [name, distinct cards, packs per copy of the rarest card].
    Three names, in order: `play` (2024 on), `draft` (the decade before it), and
-   `default` — an unnamed config that is what the sets predating the vocabulary
+   `default` - an unnamed config that is what the sets predating the vocabulary
    carry, Ice Age and Fallen Empires and Fourth Edition among them. Reading only
    play/draft dropped 21 sets that plainly print a booster. Configs deliberately
    NOT drafted: `jumpstart` (a themed 20-card deck, not a pack you pick from),
@@ -140,8 +140,8 @@ async function scanPrintings() {
 const [BOOSTERS, ART, COLLATION] = await scanPrintings();
 
 /* PACK_ART PROMISES AN ID WHOSE PHOTO TCGPLAYER SERVES, and MTGJSON only
-   promises an id. Three of them — Alara Reborn's booster, Worldwake's, and the
-   M11 six-card — are listed with a `tcgplayerProductId` that 403s at every size
+   promises an id. Three of them - Alara Reborn's booster, Worldwake's, and the
+   M11 six-card - are listed with a `tcgplayerProductId` that 403s at every size
    on the only host that still resolves; the old `product-images` host does not
    answer at all. So the products are real and the photographs are not, and an
    id emitted for them is a broken image in the online path and a guaranteed
@@ -149,7 +149,7 @@ const [BOOSTERS, ART, COLLATION] = await scanPrintings();
 
    Checked rather than listed. A hardcoded skip of those three is a list that
    rots in both directions: it goes stale when TCGplayer adds a photo, and it
-   silently misses the fourth one that goes dark next year — and, being in a
+   silently misses the fourth one that goes dark next year - and, being in a
    GENERATED file's generator, "just delete the line from sets.js" un-deletes
    itself the next time this runs, which is what the issue said would happen.
 
@@ -162,14 +162,14 @@ async function haveArt(ids) {
   try { known = JSON.parse(readFileSync(AVAIL, 'utf8')); } catch { /* first run */ }
   const ask = ids.filter((id) => known[id] === undefined);
   if (!ask.length) return known;
-  process.stdout.write(`pack art — checking ${ask.length} id${ask.length === 1 ? '' : 's'} `);
+  process.stdout.write(`pack art - checking ${ask.length} id${ask.length === 1 ? '' : 's'} `);
   let errors = 0;
   // 8 at a time: enough not to take a minute per hundred, few enough that a CDN
   // doing us a favour is not being hammered for it
   for (let i = 0; i < ask.length; i += 8) {
     await Promise.all(ask.slice(i, i + 8).map(async (id) => {
       try {
-        /* GET one byte, NOT a HEAD. This CDN does not answer HEAD at all — it
+        /* GET one byte, NOT a HEAD. This CDN does not answer HEAD at all - it
            accepts the connection and never replies, so the first version of
            this sat there until it gave up and scored all 391 ids as having no
            photograph. `Range: bytes=0-0` comes back 206 with a single byte,
@@ -187,7 +187,7 @@ async function haveArt(ids) {
     process.stdout.write('.');
   }
   process.stdout.write('\n');
-  if (errors) console.log(`pack art — ${errors} id${errors === 1 ? '' : 's'
+  if (errors) console.log(`pack art - ${errors} id${errors === 1 ? '' : 's'
     } could not be reached and were left undecided; re-run to settle them`);
   writeFileSync(AVAIL, `${JSON.stringify(known)}\n`);
   return known;
@@ -199,11 +199,11 @@ async function haveArt(ids) {
   /* THE SANITY GUARD, and it is here because the HEAD version tripped it: a
      broken probe looks exactly like every product losing its photograph on the
      same day, and the difference is that one of those is possible. Rather than
-     quietly emit an empty PACK_ART — which passes every test in this file and
-     removes the wrapper from every pack in the app — refuse the whole result
+     quietly emit an empty PACK_ART - which passes every test in this file and
+     removes the wrapper from every pack in the app - refuse the whole result
      when it is implausible and keep what was already known to work. */
   if (dead.length > all.length / 4) {
-    console.error(`pack art — ${dead.length} of ${all.length} ids reported no photograph.`);
+    console.error(`pack art - ${dead.length} of ${all.length} ids reported no photograph.`);
     console.error('  That is the probe failing, not TCGplayer. Keeping every id; delete');
     console.error(`  ${AVAIL} and re-run once the cause is found.`);
   } else if (dead.length) {
@@ -211,7 +211,7 @@ async function haveArt(ids) {
       for (const [kind, id] of Object.entries(kinds)) if (known[id] === 0) delete kinds[kind];
     // a set whose only product had no photograph is not a set with pack art
     for (const [set, kinds] of [...ART]) if (!Object.keys(kinds).length) ART.delete(set);
-    console.log(`pack art — ${dead.length} product${dead.length === 1 ? ' has' : 's have'
+    console.log(`pack art - ${dead.length} product${dead.length === 1 ? ' has' : 's have'
       } no photograph and ${dead.length === 1 ? 'was' : 'were'} dropped`);
   }
 }
@@ -258,7 +258,7 @@ const q = (v) => `'${v.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
    is not: sub-sets share their parent's (tmkm, pmkm and amkm are all `mkm`) and
    some have their own (Secret Lair is `star`, The List is `planeswalker`). 666 of
    986 differ, over only 336 distinct icons, so deriving the URL from the code
-   404s on two thirds of the rows. Stored only when it differs — the rest fall
+   404s on two thirds of the rows. Stored only when it differs - the rest fall
    back to the code and cost nothing. */
 const iconSlug = (s) => (s.icon_svg_uri || '').replace(/^.*\/sets\//, '').replace(/\.svg.*$/, '');
 
@@ -266,7 +266,7 @@ const iconSlug = (s) => (s.icon_svg_uri || '').replace(/^.*\/sets\//, '').replac
    one. There was: `hash(s.code)` turned the set code into a plausible-looking
    ownership figure, 20,197 cards over 502 sets, which drew every Collected bar
    in the Printings table and the "19% collected" in its header. It was the same
-   class of thing as the four mock binders — a number that reads as your
+   class of thing as the four mock binders - a number that reads as your
    collection and is arithmetic on a string. How much of a set you have is not a
    fact about the set at all; it is a count of your holdings, so index.html
    counts them. */
@@ -278,7 +278,7 @@ const rows = ordered.map((s) => {
 });
 const cards = paper.reduce((t, s) => t + s.card_count, 0);
 
-// Set codes are not all identifiers — 10E, 2X2, 30A start with a digit, and
+// Set codes are not all identifiers - 10E, 2X2, 30A start with a digit, and
 // `{10E:…}` is a syntax error, not a key. Same for hyphenated variants.
 const key = (k) => /^[A-Za-z][A-Za-z0-9]*$/.test(k) ? k : q(k);
 const artRows = [...ART.keys()].sort().map((set) =>
@@ -288,9 +288,9 @@ const drafted = [...COLLATION].filter(([, v]) => v).sort(([a], [b]) => a.localeC
 const collRows = drafted.map(([set, [kind, n, rarest]]) =>
   `  ${key(set)}:[${q(kind)},${n},${rarest}],`);
 
-writeFileSync('sets.js', `// GENERATED by gen-sets.mjs — do not hand-edit.
+writeFileSync('sets.js', `// GENERATED by gen-sets.mjs - do not hand-edit.
 // Every paper Magic set from api.scryfall.com/sets, ordered newest block first
-// with sub-sets under their parent — the order the Printings table renders in.
+// with sub-sets under their parent - the order the Printings table renders in.
 // [name, code, released, cards, is-sub-set, set_type, has-booster, icon]
 // icon is Scryfall's set-symbol slug, '' when it is just the lowercased code
 // has-booster is MTGJSON's set.booster, which is the only thing that says whether
@@ -309,21 +309,21 @@ ${artRows.join('\n')}
 };
 
 // The collation itself, from MTGJSON's set.booster: set code -> [kind, cards, rarest].
-//   kind   which booster the set is DRAFTED with — "play" or "draft", read from the
+//   kind   which booster the set is DRAFTED with - "play" or "draft", read from the
 //          file rather than guessed from the release date (MKM shipped Play Boosters
 //          on 2024-02-09, two months before the date rule expects them).
 //   cards  distinct cards on that booster's sheets. Counts showcase/borderless
 //          printings separately, as the sheets do, so it can exceed a set's
-//          Scryfall card_count — it is a count of printings, not a percentage.
+//          Scryfall card_count - it is a count of printings, not a percentage.
 //   rarest packs you would open, on average, for one copy of its least common card.
 const BOOSTER = {
 ${collRows.join('\n')}
 };
 `);
 const kinds = drafted.reduce((a, [, v]) => ((a[v[0]] = (a[v[0]] || 0) + 1), a), {});
-console.log(`sets.js — ${drafted.length} drafted sets (${
+console.log(`sets.js - ${drafted.length} drafted sets (${
   Object.entries(kinds).map(([k, n]) => `${n} ${k}`).join(', ')})`);
-console.log(`sets.js — ${ordered.length} sets · ${cards.toLocaleString('en-GB')} cards · ${
+console.log(`sets.js - ${ordered.length} sets · ${cards.toLocaleString('en-GB')} cards · ${
   ordered.filter((s) => BOOSTERS.has(s.code.toUpperCase())).length} with booster collation · ${
   ART.size} sets with pack art (${[...ART.values()].reduce((n, o) => n + Object.keys(o).length, 0)} packs) · ${
   (statSync('sets.js').size / 1024).toFixed(1)} KB`);

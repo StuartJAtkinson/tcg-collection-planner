@@ -13,11 +13,11 @@ const page = readFileSync('index.html', 'utf8');   // the markup too: <body> car
 const src = `${['sets.js', 'trim.js', 'anatomy.js'].map(f => readFileSync(f, 'utf8')).join('\n')}
 ${page.match(/<script>([\s\S]*)<\/script>/)[1]}`;
 const js = src
-  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, canBeLocal, missingLocal, srcKeys, srcQualities, srcBytes, onDisk, Table, DisplayChip, GroupHead, CARD_VIEWS, UNALIGNED, unaligned, anatomyKey, AlignList, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, VIEWS, FORMATS, CARD_TYPES, RARITIES, FINISHES, RARITY_NAME, FINISH, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, plateOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, heldOf, heldByPrint, setBand, BandList, framable, printingsOf, alignFacts, finishesOf, printingsOf, pickPrinting, printKey, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, UNRESOLVED, IMPORT_GROUPS, filtered, ownedIn, holdingsChanged, CANON, COLS, flatLine, P, TABS, LISTS, GAMES, CFG, render, grouping,'
+  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, canBeLocal, missingLocal, srcKeys, srcQualities, srcBytes, onDisk, Table, DisplayChip, GroupHead, CARD_VIEWS, UNALIGNED, unaligned, anatomyKey, setFact, AlignList, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, VIEWS, FORMATS, CARD_TYPES, RARITIES, FINISHES, RARITY_NAME, FINISH, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, plateOf, scopedCards, LANGS, langFilter, langName, setLang, contrast, relLum, SURFACE, FRAME, lum, surfaceKey, mix, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, roles, roleOf, roleCount, ROLE_MIN, fieldLabel, zoneWeight, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, heldOf, heldByPrint, setBand, BandList, framable, printingsOf, alignFacts, finishesOf, printingsOf, pickPrinting, printKey, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, addSortTo, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, UNRESOLVED, IMPORT_GROUPS, filtered, ownedIn, holdingsChanged, CANON, COLS, flatLine, P, TABS, LISTS, GAMES, CFG, render, grouping,'
   + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen,'
   + ' setDebug: v => { DEBUG = v; } };';
 
-/* The collation is generated data, like sets.js — read from disk, not fetched.
+/* The collation is generated data, like sets.js - read from disk, not fetched.
    boosters/index.json says which booster kinds each set actually has a sheet
    for, which is what packsFor() reads instead of assuming every play-era set
    also prints a Collector Booster. */
@@ -26,13 +26,13 @@ let painted = '';
 const ctx = vm.createContext({
   // querySelector answers null: render() carries the draw grid's sideways
   // scroll across the innerHTML that destroys it, and in a harness with no
-  // layout there is no scroll to carry — "no such element" is the truth here.
+  // layout there is no scroll to carry - "no such element" is the truth here.
   document: { getElementById: () => ({ set innerHTML(v) { painted = v; } }),
               querySelector: () => null, set title(v) {} },
   /* A real Map behind a localStorage shape, because persistence is now a
      decision worth testing rather than a browser detail: the page saves what you
      chose and what you made, and "does it come back" is not answerable against a
-     stub that swallows writes. reload is a no-op here — nothing to reload into. */
+     stub that swallows writes. reload is a no-op here - nothing to reload into. */
   localStorage: (globalThis.__store = (() => { const m = new Map(); return {
     getItem: k => (m.has(k) ? m.get(k) : null),
     setItem: (k, v) => m.set(k, String(v)),
@@ -46,14 +46,14 @@ t.loadPackIndex(packIndex);
    catalogue that covers every printing they name. Both come off disk: a pack is
    now dealt from the real collation, so a draw with no catalogue behind it has
    nothing to resolve "MKM:143" to and comes up empty. Seeding from the sheets'
-   own keys is the point — it is exactly the join the page has to make. */
+   own keys is the point - it is exactly the join the page has to make. */
 const seedCollation = (code) => {
   const kinds = JSON.parse(readFileSync(`boosters/${code}.json`, 'utf8')).kinds;
   t.loadBoosters(code, kinds);
   const keys = new Set();
   for (const cfg of Object.values(kinds))
     for (const sh of Object.values(cfg.sheets)) for (const k of Object.keys(sh.cards)) keys.add(k);
-  const o = [['Alpha Card', '{G}', 'Creature — Elf', 'One.', '1/1', 'G', 1],
+  const o = [['Alpha Card', '{G}', 'Creature - Elf', 'One.', '1/1', 'G', 1],
              ['Beta Card', '{U}', 'Instant', 'Two.', '', 'U', 1],
              ['Gamma Card', '{R}', 'Sorcery', 'Three.', '', 'R', 2],
              ['Delta Card', '{W}', 'Enchantment', 'Four.', '', 'W', 3]];
@@ -70,7 +70,7 @@ const header2 = h => h.slice(h.indexOf('</header>'), h.includes('<main') ? h.ind
 /* AN EMPTY LIST SAYS WHAT IT IS WAITING FOR, and this is checked BEFORE the
    fixtures go in, because a fresh app is the first thing anyone sees. It used to
    be impossible to reach: the app shipped four binders and four decks, so the
-   empty state had no way to render and did not exist — the tab drew a blank page
+   empty state had no way to render and did not exist - the tab drew a blank page
    under a bar reading "All binders". */
 for (const [tab, wants] of [['binders', 'No binders yet'], ['decks', 'No decks yet']]) {
   t.pickGame('mtg'); ctx.location.hash = '#/' + tab; t.render();
@@ -82,7 +82,7 @@ for (const [tab, wants] of [['binders', 'No binders yet'], ['decks', 'No decks y
 }
 t.P.game = null;
 /* THE APP SHIPS WITH NOTHING COLLECTED, so the fixtures live here. They used to
-   be four binders and four decks declared in index.html — invented furniture
+   be four binders and four decks declared in index.html - invented furniture
    that read as a collection while holding nothing, and which a real import would
    have landed beside indistinguishably. A fixture belongs to the test that
    depends on it, which is the right way round: these exist because the binder
@@ -90,8 +90,8 @@ t.P.game = null;
    about what you own.
    Index 4 is the membership, the shape a kept draft has always used; index 2 on
    a binder is its page shape. Cards are attached per suite, because most of
-   these assertions are about the SHELL — the selector, the subheader, the sort
-   bar — and a container with no cards renders all of it. */
+   these assertions are about the SHELL - the selector, the subheader, the sort
+   bar - and a container with no cards renders all of it. */
 t.LISTS.binders.push(
   ['Alara block', 'sorted colour &rsaquo; rarity', [3, 3]],
   ['Unsorted', 'everything not in another binder', [3, 3]],
@@ -106,12 +106,12 @@ t.LISTS.decks.push(
 );
 
 // browse tabs open with the selector filling the window, so most assertions
-// need a selection made first — that's what puts filter/sort/view on screen
+// need a selection made first - that's what puts filter/sort/view on screen
 const DEFAULT_PICK = { printings: 'Foundations (FDN)', binders: 'Alara block', decks: 'Mono-Red Burn' };
-// the bar stages, Apply commits — tests take the same route a click would
+// the bar stages, Apply commits - tests take the same route a click would
 const setSort = list => { t.P.sortDraft = list.map(x => ({ ...x })); t.applySort(); };
-/* A binder is not filtered. It was MADE by a filter — a set binder, or a fixed
-   combination chosen once — so narrowing it afterwards asks a question it has
+/* A binder is not filtered. It was MADE by a filter - a set binder, or a fixed
+   combination chosen once - so narrowing it afterwards asks a question it has
    already answered; Search and Printings are where you go looking. */
 const FILTERED = r => !r.replace('#/', '').startsWith('binders');
 const go = route => {
@@ -122,19 +122,19 @@ const go = route => {
 };
 
 // --- you must pick a game before anything else exists ------------------
-assert.strictEqual(t.P.game, null, 'a game is preselected — it must be chosen');
+assert.strictEqual(t.P.game, null, 'a game is preselected - it must be chosen');
 for (const r of ['search', 'decks', 'binders', 'printings', 'io', 'config']) {
   ctx.location.hash = '#/' + r; t.render();
   assert.ok(painted.includes('Pick a game'), `${r} did not fall back to the main`);
   // the main wears the same header, so "Card Collector" doesn't jump when you
-  // pick — but with no game there are no tabs and no mark
+  // pick - but with no game there are no tabs and no mark
   assert.ok(painted.includes('>Card Collector</span>'), 'the main lost the wordmark');
   assert.ok(!painted.includes('>Search</a>'), 'the main shows tabs before a game is chosen');
-  // (the banners below show both marks — it's the header that must be bare)
+  // (the banners below show both marks - it's the header that must be bare)
   assert.ok(!header(painted).includes('ms-watermark-planeswalker'),
     'the header shows a game mark before one is picked');
 }
-/* A fresh session applies nothing on your behalf — EXCEPT the filing, which is
+/* A fresh session applies nothing on your behalf - EXCEPT the filing, which is
    now deliberate and everywhere rather than the binder's alone. The rest of the
    rule is unchanged and still asserted below: no display, no filter, no pick. */
 const filed = 'kinda,coloura,rarityd,BREAK,releasea,seta,numbera';
@@ -149,13 +149,13 @@ t.pickGame('pokemon');
 assert.strictEqual(t.P.game, 'pokemon', 'picking a game did not set it');
 assert.strictEqual(t.P.sort.map(x => x.f + (x.d || '')).join(), filed, 'a new game inherited the old sort');
 assert.strictEqual(t.P.view, null, 'a new game inherited the old display');
-// the app enters at whatever tab is furthest left — reorder NAV and the
+// the app enters at whatever tab is furthest left - reorder NAV and the
 // landing page follows, rather than a second hardcoded route drifting out of sync
 assert.strictEqual(ctx.location.hash, `#/${t.NAV[0][0]}`, 'picking a game did not land on the leftmost tab');
 assert.strictEqual(t.NAV[0][0], 'printings', 'the leftmost tab is no longer Printings');
 t.pickGame('mtg');
 
-// every route resolves to its own page — a missing one falls back and still looks fine
+// every route resolves to its own page - a missing one falls back and still looks fine
 for (const r of t.ORDER) assert.ok(t.PAGES[r], `route "${r}" has no PAGES entry`);
 
 for (const r of t.ORDER.filter(r => r !== 'home')) {
@@ -164,9 +164,9 @@ for (const r of t.ORDER.filter(r => r !== 'home')) {
   const h = header(painted);
 
   assert.ok(painted.trimStart().startsWith('<header'), `${r}: does not open with <header>`);
-  // the game logo is top-LEFT and the cog is top-RIGHT — the logo is also the
+  // the game logo is top-LEFT and the cog is top-RIGHT - the logo is also the
   // way back to the main, which is the only place the game can change
-  // wordmark first, then the game mark, then the tabs — the wordmark holds the
+  // wordmark first, then the game mark, then the tabs - the wordmark holds the
   // same x-position on every screen including the main, so nothing jumps
   assert.ok(h.indexOf('>Card Collector</span>') < h.indexOf('ms-watermark-planeswalker'),
     `${r}: the game mark is not to the right of the wordmark`);
@@ -178,24 +178,24 @@ for (const r of t.ORDER.filter(r => r !== 'home')) {
   for (let i = 1; i < tabOrder.length; i++)
     assert.ok(tabOrder[i - 1] < tabOrder[i], `${r}: tab order is wrong around "${TABS_ORDER[i]}"`);
   assert.ok(!h.includes('Import/Export'), `${r}: the Import tab still says Import/Export`);
-  // Import is a rare one-off, so it sits with the cog on the right — after the
+  // Import is a rare one-off, so it sits with the cog on the right - after the
   // stats block, not among the browse tabs
   assert.ok(h.lastIndexOf('href="#/io"') > h.lastIndexOf('>Search<'),
     `${r}: Import is still among the browse tabs`);
   assert.ok(h.lastIndexOf('href="#/config"') > h.lastIndexOf('href="#/io"'),
     `${r}: the cog is not right of Import`);
-  // Kit is a design reference, not a user page — it lives in Config
+  // Kit is a design reference, not a user page - it lives in Config
   assert.ok(!h.includes('href="#/kit"'), `${r}: Kit is back in the top nav`);
   assert.ok(h.includes('>Card Collector</span>'), `${r}: wordmark missing`);
   assert.ok(!/Advisor|Collections/.test(h), `${r}: dropped section reappeared in the nav`);
-  // tabs are on every page now — the selector under the header carries the
+  // tabs are on every page now - the selector under the header carries the
   // selection instead, so nothing has to hide to make room
   if (r !== 'home') {
     assert.ok(h.includes('>Search</a>'), `${r}: Search is missing from the nav`);
     assert.ok(h.lastIndexOf('>Search</a>') > h.lastIndexOf('>Import/Export'),
       `${r}: Search is not the last tab`);
   }
-  // the game is fixed while navigating — only the main can change it
+  // the game is fixed while navigating - only the main can change it
   assert.ok(!painted.includes('pickGame('), `${r}: offers a game switcher away from the main`);
   // no <h1> restating the active nav tab
   for (const [, lbl] of t.NAV) {
@@ -222,7 +222,7 @@ for (const r of ['search', 'printings', 'binders', 'decks'])
 for (const [route, first] of [['printings', 'Foundations (FDN)'], ['binders', 'Alara block'], ['decks', 'Mono-Red Burn']]) {
   ctx.location.hash = '#/' + route; t.render();
   // OPEN: the selector fills the window and takes the scrollbar. There is no
-  // page beneath — filter/sort/view only exist once you've stopped choosing.
+  // page beneath - filter/sort/view only exist once you've stopped choosing.
   assert.ok(t.picked() === null, `${route}: something is preselected`);
   assert.ok(painted.includes(`selectItem('${first}')`), `${route}: selector does not list ${first}`);
   assert.ok(!painted.includes('<main'), `${route}: the page renders behind an open selector`);
@@ -244,7 +244,7 @@ for (const [route, first] of [['printings', 'Foundations (FDN)'], ['binders', 'A
   // both show a count, and disagree about it.
   assert.ok(!/\d+ cards/.test(header2(painted)), `${route}: the bar repeats a count the stats already show`);
   // grouping is decided once at import; everything after happens on the thing
-  // itself — which is only true if the controls are actually here
+  // itself - which is only true if the controls are actually here
   if (t.TABS[route].keyed) {
     for (const c of ['Add cards', 'Arrange', 'Remove'])
       assert.ok(header2(painted).includes(c), `${route}: no "${c}" control on the thing itself`);
@@ -252,7 +252,7 @@ for (const [route, first] of [['printings', 'Foundations (FDN)'], ['binders', 'A
     assert.ok(!header2(painted).includes('Add cards'), `${route}: a set is not editable`);
   }
   assert.ok(!painted.includes('>export</span>'), `${route}: the old export band is still below`);
-  // sort / view are on this page too — that's the whole point — and filter is
+  // sort / view are on this page too - that's the whole point - and filter is
   // there for everything a binder is not
   for (const band of FILTERED(route) ? ['filter', 'sort', 'view'] : ['sort', 'view'])
     assert.ok(painted.includes(`>${band}</span>`), `${route}: no ${band} band`);
@@ -268,10 +268,10 @@ for (const [route, first] of [['printings', 'Foundations (FDN)'], ['binders', 'A
   assert.ok(painted.includes(`selectItem('${first}')`), `${route}: reopened selector has no list`);
   t.clearItem();
 }
-// Search is the one tab with nothing to select — but it keeps the bar, so
+// Search is the one tab with nothing to select - but it keeps the bar, so
 // Export sits in the same place on every page
 ctx.location.hash = '#/search'; t.render();
-assert.ok(!painted.includes('selectItem('), 'Search should have no selector — it is all cards');
+assert.ok(!painted.includes('selectItem('), 'Search should have no selector - it is all cards');
 assert.ok(header2(painted).includes('>Export</span>'), 'search: Export is not in the subheader');
 assert.ok(!/&#9662;|&#9652;/.test(header2(painted)), 'search: the bar offers to expand, but has nothing to list');
 for (const band of ['filter', 'sort', 'view'])
@@ -289,7 +289,14 @@ assert.strictEqual(t.selectorOpen(), true, 'coming back to a tab did not reopen 
 go('#/search');
 assert.ok(painted.includes('No display chosen'), 'no empty state for an unpicked display');
 // display switches live; order stages and lands on Apply, like the filter
-assert.ok(painted.indexOf('>Display<') < painted.indexOf('>Order<'), 'the display is not first on the sort bar');
+/* DISPLAY, THEN GROUP ORDER, THEN SORT ORDER - in reading order, because that
+   is the order the decisions compose in: what a card looks like, what makes a
+   page, what arranges the cards on it. The break used to be a draggable chip in
+   the middle of one "Order" row, so which side a field was on was something you
+   discovered by moving it. */
+assert.ok(painted.indexOf('>Display<') < painted.indexOf('>Group order<'), 'the display is not first on the sort bar');
+assert.ok(painted.indexOf('>Group order<') < painted.indexOf('>Sort order<'), 'sort order is not after group order');
+assert.ok(!/>&#8801; Break</.test(painted), 'the break is still drawn as a chip you can drag');
 // Details is Compact plus columns, so it must actually draw more of them
 t.setView('compact'); t.render();
 const lean = (painted.match(/shrink-0/g) || []).length;
@@ -301,12 +308,24 @@ assert.ok((painted.match(/shrink-0/g) || []).length > lean, 'Details draws no mo
 for (const v of ['details', 'deck']) {
   t.setView(v); t.render();
   const rows = (painted.match(/onclick="openCard\(/g) || []).length;
-  const wide = (painted.match(/title="Mana value"/g) || []).length;
-  assert.ok(wide === (v === 'details' ? rows : 0),
-    `${v}: ${wide} of ${rows} rows drew the detail columns — the layout is not uniform`);
+  // a details-only column, by its declared label: the row and the header both
+  // come off DETAIL_COLS now, so any of them identifies the wide layout. The
+  // header is the one extra - drawn once for the list rather than per row.
+  const wide = (painted.match(/title="Artist"/g) || []).length;
+  assert.ok(wide === (v === 'details' ? rows + 1 : 0),
+    `${v}: ${wide} of ${rows} rows drew the detail columns - the layout is not uniform`);
 }
+/* EIGHTEEN UNLABELLED COLUMNS is a table you decode rather than read, and at row
+   200 a header at row 0 has scrolled away. So: labelled once for the list, and
+   pinned to the top of the scrolling pane. */
+t.setView('details'); t.render();
+const labelled = (painted.match(/>Qty</g) || []).length;
+assert.ok(labelled === 1, `the details header is drawn ${labelled} times - it belongs to the list, not the row`);
+const upto = painted.slice(0, painted.indexOf('title="Qty">Qty<'));
+assert.ok(upto.slice(upto.lastIndexOf('<div ')).includes('sticky top-0'),
+  'the details column header does not stick to the top of the pane');
 t.setView(null); t.render();
-// the row layouts fill the pane — a fixed max-width left half the window empty
+// the row layouts fill the pane - a fixed max-width left half the window empty
 for (const v of ['compact', 'details']) {
   t.setView(v); t.render();
   const rows = painted.slice(painted.indexOf('>view<'));
@@ -338,18 +357,20 @@ t.P.view = 'grid';
 
 // --- binder: sort, and neither filter nor display ----------------------
 /* Reversed twice, so the reasoning is worth keeping. Originally "a binder is a
-   list, not a query" — no filter. On 2026-08-07 that read as broken rather than
+   list, not a query" - no filter. On 2026-08-07 that read as broken rather than
    principled and binders filtered like everything else. Reversed again on
-   2026-08-12 with the argument that settles it: a binder was MADE by a filter —
-   a set binder, or a fixed combination chosen once — so filtering it afterwards
+   2026-08-12 with the argument that settles it: a binder was MADE by a filter -
+   a set binder, or a fixed combination chosen once - so filtering it afterwards
    asks a question it has already answered. Searching a collection is what
    Search and Printings are for. Sort stays: how you arrange a binder you own is
    a live question in a way what is in it is not. */
 go('#/binders');
 assert.ok(!painted.includes('>Type</span>'), 'a binder is offering to filter itself');
 assert.ok(!painted.includes('>filter</span>'), 'the binder still has a filter band');
-assert.ok(painted.includes('Break'), 'binder scope lost the sort row');
-/* A binder has one layout and it is the binder — drawing a binder as a compact
+// the sort row is still there - named by its zones now that the break is not a chip
+assert.ok(painted.includes('>Group order<') && painted.includes('>Sort order<'),
+  'binder scope lost the sort row');
+/* A binder has one layout and it is the binder - drawing a binder as a compact
    list was offering to draw it as something it is not. So it is the one tab with
    a default, and the chooser goes with it: one button that cannot be turned off
    is not a choice, it is a label. */
@@ -372,8 +393,13 @@ go('#/decks'); t.setView('grid'); t.render();
 assert.ok(/CON 71<\/span> &middot; <span[^>]*>en</.test(painted),
   'grid tile does not show set/language/number');
 t.setView('details'); t.render();
-for (const part of ['CON', 'en', '71', 'nonfoil', '×'])
+for (const part of ['CON', 'en', '71', 'nonfoil'])
   assert.ok(painted.includes(part), `details row is missing "${part}" from the identity key`);
+/* Qty is TWO numbers, not one: copies of this exact printing | copies of the
+   card in any printing. One number made eight printings of a card you own one
+   of read as eight cards you own none of. */
+assert.ok(/>2<\/span>\s*<span class="px-0\.5[^"]*">\|<\/span>\s*<span[^>]*>2</.test(painted),
+  'details does not show copies-here against copies-in-all-printings');
 // Compact is the card's title line: name, mana cost, and the count because a
 // binder holds copies. It is deliberately NOT the identity key.
 t.setView('compact'); t.render();
@@ -400,7 +426,7 @@ assert.ok(t.TitleRow({ n: 'Knight of the Reliquary', cost: ['3', 'G', 'W'] }).in
   'a name too long for its column has nothing to truncate it');
 
 /* QTY IS A COLUMN ON EVERY SCOPE. It used to be drawn on Binders and Decks
-   alone — so the same printing said ×4 in a deck and nothing at all in Search,
+   alone - so the same printing said ×4 in a deck and nothing at all in Search,
    and the card page needed a Holdings band to answer a question the list
    refused to. Zero reads "none", not ×0: the difference between owning none and
    owning four is the whole point of the column, and ×0 down a search result
@@ -421,7 +447,7 @@ go('#/decks'); t.setView('grid'); t.render();
 const codes = t.SETS.map(r => r[1]);
 assert.strictEqual(new Set(codes).size, codes.length,
   `duplicate set codes: ${codes.filter((c, i) => codes.indexOf(c) !== i).slice(0, 5)}`);
-assert.ok(t.SETS.length > 900, `only ${t.SETS.length} sets — this is not all of them`);
+assert.ok(t.SETS.length > 900, `only ${t.SETS.length} sets - this is not all of them`);
 assert.strictEqual(t.SETS[0][4], 0, 'the list opens on a sub-set with no parent above it');
 for (const [i, r] of t.SETS.entries()) {
   assert.ok(/^\d{4}-\d\d-\d\d$/.test(r[2]), `${r[1]} has no release date`);
@@ -429,7 +455,7 @@ for (const [i, r] of t.SETS.entries()) {
     `${r[1]} breaks the newest-block-first order`);
 }
 /* OWNERSHIP IS COUNTED, NOT STORED. sets.js carried an `owned` column that was
-   `hash(code)` — 20,197 cards over 502 of the 986 sets — so a collection holding
+   `hash(code)` - 20,197 cards over 502 of the 986 sets - so a collection holding
    nothing reported "19% collected" in the header and drew a Collected bar on
    half the table. Same class of thing as the four mock binders: a number that
    reads as your collection and is arithmetic on a string. The column is gone,
@@ -457,7 +483,7 @@ assert.ok(header(painted).includes('0% collected'), 'a collection holding nothin
   assert.strictEqual(t.ownedIn(s0[1]), 0, 'removing a holding does not un-count it');
 }
 
-// every year between the oldest and newest set is represented — the gutter is
+// every year between the oldest and newest set is represented - the gutter is
 // the only thing dividing 900+ rows, so a gap in it is a hole in the list
 const years = new Set(t.SETS.map(r => +r[2].slice(0, 4)));
 for (let y = Math.min(...years) + 1; y < Math.max(...years); y++)
@@ -485,7 +511,7 @@ for (const [cell] of gutters) {
     'the gutter label is either in flow (it will stretch the rows) or not centred on the point it is placed at');
 }
 /* The pack column: one cell per block, sized by the picture. A block with art
-   must be TALL enough to show it — that is what the gap is for, and without it
+   must be TALL enough to show it - that is what the gap is for, and without it
    the image stretches the real rows instead. Height and not a row count, because
    the gap is now one row sized to the shortfall rather than N whole ones: a
    block of one set gets a single 186px row where it used to get six. Lazy,
@@ -507,7 +533,7 @@ for (const [cell] of packs) {
 }
 // the balance rides on the trim's own reference, so it can't be dialled out to
 // nothing without saying so
-assert.ok(t.PACK_SAT > 1, 'the pack saturation is a no-op — say so or remove it');
+assert.ok(t.PACK_SAT > 1, 'the pack saturation is a no-op - say so or remove it');
 /* LOCAL AND ONLINE ARE THE SAME PICTURE BECAUSE THEY ARE THE SAME CODE.
    gen-packs.mjs used to carry a hand-kept copy of the algorithm with three
    assertions here holding the two in step; both now read trim.js, so there is
@@ -522,8 +548,8 @@ assert.ok(t.PACK_SAT > 1, 'the pack saturation is a no-op — say so or remove i
     'serve.py will 404 trim.js, so the page loads with no trim at all');
 
   /* ONCE MEANS ONCE, and the manifest is the mechanism. Skipping on "a file of
-     that name exists" answers a different question — it says a picture was made,
-     not that it was made by the recipe now in force — so a changed constant left
+     that name exists" answers a different question - it says a picture was made,
+     not that it was made by the recipe now in force - so a changed constant left
      stale PNGs on disk with nothing to notice. The fingerprint has to cover the
      CODE as well as the numbers, or a rewritten flood fill is called the same
      recipe, and that is the likelier edit of the two. */
@@ -539,7 +565,7 @@ assert.ok(t.PACK_SAT > 1, 'the pack saturation is a no-op — say so or remove i
      the second is here because the first version of the probe broke it: the
      question must be asked with a request this CDN answers (it accepts a HEAD
      and never replies, which scored all 391 ids as missing), and an
-     implausible answer must be refused rather than emitted — an empty PACK_ART
+     implausible answer must be refused rather than emitted - an empty PACK_ART
      passes every other test in this file and removes the wrapper from every
      pack in the app. */
   const gs = readFileSync('gen-sets.mjs', 'utf8');
@@ -552,7 +578,7 @@ assert.ok(t.PACK_SAT > 1, 'the pack saturation is a no-op — say so or remove i
 
   // ...and the emitted map has to still describe real packs
   const packs = Object.values(t.PACK_ART).reduce((n, o) => n + Object.keys(o).length, 0);
-  assert.ok(packs > 300, `PACK_ART is down to ${packs} packs — the availability probe has misfired`);
+  assert.ok(packs > 300, `PACK_ART is down to ${packs} packs - the availability probe has misfired`);
   for (const dead of [31840, 244377, 34469])
     assert.ok(!JSON.stringify(t.PACK_ART).includes(String(dead)),
       `PACK_ART still carries ${dead}, which has no photograph at any size`);
@@ -564,7 +590,7 @@ assert.ok(t.PACK_SAT > 1, 'the pack saturation is a no-op — say so or remove i
       /\b(TRIM_TOL|PACK_SAT|WHITE|MAX_GAIN|LEVELS)\s*=\s*([\d.]+)/g)].map(m => [m[1], +m[2]]));
     assert.strictEqual(Object.keys(now).length, 5, 'trim.js no longer states all five constants');
     assert.deepStrictEqual(man.constants, now,
-      'packs/ was built with different constants from the ones in force — re-run gen-packs.mjs');
+      'packs/ was built with different constants from the ones in force - re-run gen-packs.mjs');
     const onDisk = readdirSync('packs').filter(f => f.endsWith('.png'));
     const unrecorded = onDisk.filter(f => !man.files[f]);
     assert.strictEqual(unrecorded.length, 0,
@@ -572,7 +598,7 @@ assert.ok(t.PACK_SAT > 1, 'the pack saturation is a no-op — say so or remove i
   }
 }
 /* The render side of "once": a local PNG was already trimmed on the way in, so
-   trimming it again would level and saturate it a second time — the same fault
+   trimming it again would level and saturate it a second time - the same fault
    as no trim at all, in the other direction. Local carries no onload. */
 {
   const gp = readFileSync('index.html', 'utf8');
@@ -583,7 +609,7 @@ assert.ok(t.PACK_SAT > 1, 'the pack saturation is a no-op — say so or remove i
 /* THE GAP IS ONE ROW SIZED TO THE SHORTFALL, and the arithmetic is asserted
    rather than the row count, because the row count is exactly what stopped
    meaning anything: padding every short block out to seven 33px rows cost 549
-   blank rows and took the table from 986 to 1535. Walked in document order —
+   blank rows and took the table from 986 to 1535. Walked in document order -
    every block with art is measured at 33px a real row plus whatever its gap row
    declares, and must come to at least the picture's 186 + 33. */
 {
@@ -600,7 +626,7 @@ assert.ok(t.PACK_SAT > 1, 'the pack saturation is a no-op — say so or remove i
     const rows = trs.slice(i, i + n);
     assert.ok(rows.reduce((h, r) => h + tall(r), 0) >= 186 + 33,
       `a block with pack art is ${rows.reduce((h, r) => h + tall(r), 0)}px tall, too short to show its picture`);
-    // at most ONE gap per block — the whole point of sizing it in pixels
+    // at most ONE gap per block - the whole point of sizing it in pixels
     const g = rows.filter(r => HEIGHT.test(r)).length;
     assert.ok(g <= 1, `a block padded itself with ${g} gap rows instead of one sized to the shortfall`);
     gaps += g;
@@ -608,7 +634,7 @@ assert.ok(t.PACK_SAT > 1, 'the pack saturation is a no-op — say so or remove i
   assert.ok(blocks > 150, 'the pack column has lost most of its art');
   assert.ok(gaps > 0, 'nothing is padded at all, so a one-set block stretches its rows to fit the picture');
   // the saving is the issue: one per short block, not one per 33px of shortfall
-  assert.ok(gaps < blocks * 2, `${gaps} gap rows over ${blocks} blocks — the gap is per-row again`);
+  assert.ok(gaps < blocks * 2, `${gaps} gap rows over ${blocks} blocks - the gap is per-row again`);
 }
 // and they are blank: a gap row is padding, not a row you can click
 for (const m of painted.matchAll(/<tr>(?:(?!<\/tr>)[\s\S])*colspan="5"[\s\S]*?<\/tr>/g))
@@ -625,7 +651,7 @@ assert.strictEqual(mid(0, 200, 5000), 180, 'the label is allowed to leave its bl
 assert.strictEqual(mid(5000, 200, 0), 20, 'the label is allowed to leave its block at the bottom');
 assert.strictEqual(t.gutterMid(0, 20, 40, 5000, 5800), 10, 'a block shorter than its label is not just centred');
 
-// every set is a link to its own page — a set you can only filter by is a set
+// every set is a link to its own page - a set you can only filter by is a set
 // you can't get into, which is why blocks came out of the rail
 for (const [name, code] of t.SETS)
   assert.ok(painted.includes(`selectItem('${t.jsArg(`${name} (${code})`)}')`),
@@ -636,7 +662,7 @@ assert.ok(t.SETS.some(r => r[0].includes("'")) && t.SETS.some(r => r[0].includes
   'the apostrophe / ampersand set names are no longer in the list');
 assert.ok(painted.includes('\\&#39;') && painted.includes('&amp;amp;'),
   'a set name with an apostrophe or an ampersand is not escaped for its handler');
-// the dates label the rows, they don't filter them — a set is the only thing
+// the dates label the rows, they don't filter them - a set is the only thing
 // on this page you can click, and it always goes to that set's page
 assert.ok(!/setNode|onclick="[^"]*"[^>]*rowspan|rowspan="\d+"[^>]*onclick/.test(painted),
   'a date cell is clickable');
@@ -644,14 +670,14 @@ const table = painted.slice(painted.indexOf('<table'), painted.indexOf('</table>
 assert.deepStrictEqual([...new Set([...table.matchAll(/onclick="([a-zA-Z]+)\(/g)].map(m => m[1]))].sort(),
   ['draftPack', 'draftSet', 'selectItem'], 'the set table has a handler that is neither a set click nor a draft');
 /* The booster picture is the Draft button, so it must name the set the same way
-   the chip does — and it must stop the click there, or the row underneath
+   the chip does - and it must stop the click there, or the row underneath
    answers the same press by navigating somewhere else. */
 for (const m of table.matchAll(/draftPack\(event,'([^']*)'\)/g))
   assert.ok(t.packsFor(m[1].replace(/\\&#39;/g, "'").replace(/&amp;/g, '&'))?.length,
     `the booster picture drafts "${m[1]}", which has no collation`);
 assert.ok(t.draftPack.toString().includes('stopPropagation'),
   'clicking the booster also fires the row underneath');
-/* The row and the Draft button both name the set the SAME way — the table's
+/* The row and the Draft button both name the set the SAME way - the table's
    disambiguated form. Passing the bare name is the bug that hid the Boosters
    button for every set picked from this table. */
 const draftable = t.SETS.find(r => t.packsFor(`${r[0]} (${r[1]})`)?.length);
@@ -668,7 +694,7 @@ assert.ok(table.includes('no pack data'), 'the list never explains a set it cann
    boosters was a band over this page precisely so it could not lose your row;
    it is a route again because a band leaves every control beneath it live and
    clickable through the gap. Both halves are pinned here: it navigates, and the
-   selection you were on is still the selection when you get there — and still
+   selection you were on is still the selection when you get there - and still
    there when you come back. */
 const wasPicked = t.picked();
 t.draftSet(`${draftable[0]} (${draftable[1]})`);
@@ -691,9 +717,9 @@ assert.ok(painted.includes('selectItem('), '#/draw typed cold painted an empty s
 ctx.location.hash = '#/printings'; t.render();
 t.clearItem();
 
-// year and month span exactly the rows they cover — the whole point of the
+// year and month span exactly the rows they cover - the whole point of the
 // gutter is that "this year covers these rows" is structural, not eyeballed
-// vertical-rl or it isn't a gutter label — the booster cell that spans the same
+// vertical-rl or it isn't a gutter label - the booster cell that spans the same
 // rows also carries spans, and counting those made 282 months out of 277
 const spans = [...painted.matchAll(/rowspan="(\d+)"[\s\S]{0,400}?<span [^>]*vertical-rl[^>]*>([^<]+)</g)].map(m => [+m[1], m[2]]);
 assert.ok(spans.length, 'the year/month gutter renders no spanning cells');
@@ -712,9 +738,9 @@ for (const width of [4, 7]) {
   const runs = [];
   for (const k of keys) (runs.at(-1)?.[0] === k ? runs.at(-1) : runs[runs.push([k, 0]) - 1])[1]++;
   assert.strictEqual(new Set(runs.map(r => r[0])).size, runs.length,
-    `a ${width === 4 ? 'year' : 'month'} is split into two runs — its rowspan would overlap the next`);
-  /* The counts themselves are no longer SETS.length — the pack column pads a
-     short block with gap rows — so the invariant is checked against what was
+    `a ${width === 4 ? 'year' : 'month'} is split into two runs - its rowspan would overlap the next`);
+  /* The counts themselves are no longer SETS.length - the pack column pads a
+     short block with gap rows - so the invariant is checked against what was
      actually printed rather than recomputed here: every spanning column covers
      every row exactly once, and a year covers exactly its own months. */
   const got = spans.filter(([, l]) => /^\d{4}$/.test(l) === (width === 4)).map(x => x[0]);
@@ -725,7 +751,7 @@ for (const width of [4, 7]) {
   runs.forEach(([, n], i) => assert.ok(got[i] >= n,
     `a ${width === 4 ? 'year' : 'month'} cell spans fewer rows than it has sets`));
 }
-// the pack column spans the same rows, cut a different way — by block, not month
+// the pack column spans the same rows, cut a different way - by block, not month
 assert.strictEqual(
   [...painted.matchAll(/<td rowspan="(\d+)" class="border-y border-r[^"]*">/g)].reduce((n, m) => n + +m[1], 0),
   printedRows, 'the pack cells do not account for every row');
@@ -734,26 +760,38 @@ assert.strictEqual(
 // A mock that only ever draws a mono-green creature proves nothing, so the
 // fixtures carry one of every type and every frame case the layout must survive.
 t.pickGame('mtg'); go('#/search'); t.setView('grid'); t.render();
-const mtgCards = t.CARDS();
+/* THE WHOLE POOL, NOT THE PAGE. `CARDS()` is what a view may DRAW, and it now
+   arrives narrowed to the default language - which is the point of that filter
+   and would quietly hide the foreign fixture from every assertion below. What
+   this block is about is whether the fixtures cover every shape the frame has
+   to survive, which is a question about the pool. */
+const mtgCards = t.scopedCards();
 for (const kind of ['Creature', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Planeswalker', 'Land', 'Battle'])
   assert.ok(mtgCards.some(c => c.type.includes(kind)), `no ${kind} in the mtg fixtures`);
 for (const tier of [1, 2, 3, 4]) assert.ok(mtgCards.some(c => c.rar === tier), `no rarity tier ${tier}`);
-assert.ok(mtgCards.some(c => c.col.length > 1), 'nothing multicolour — the gold frame is never drawn');
+assert.ok(mtgCards.some(c => c.col.length > 1), 'nothing multicolour - the gold frame is never drawn');
 assert.ok(mtgCards.some(c => c.col === ''), 'nothing colourless');
 assert.ok(mtgCards.some(c => c.pt) && mtgCards.some(c => c.loy), 'no power/toughness or no loyalty');
 assert.ok(mtgCards.some(c => (c.cost || []).includes('X')), 'no X cost');
 assert.ok(mtgCards.some(c => (c.cost || []).some(x => x.includes('/'))), 'no hybrid or phyrexian pip');
-assert.ok(mtgCards.some(c => !c.cost.length), 'no card without a cost — the land case');
+assert.ok(mtgCards.some(c => !c.cost.length), 'no card without a cost - the land case');
 assert.ok(mtgCards.some(c => c.lang !== 'en') && mtgCards.some(c => c.foil), 'no foreign printing or no foil');
-assert.ok(mtgCards.some(c => c.flav), 'no flavour text — the rule above it is never drawn');
+assert.ok(mtgCards.some(c => c.flav), 'no flavour text - the rule above it is never drawn');
 // the frame is the five plates, whatever the card is
 for (const c of mtgCards) {
   const one = t.MockCard(c);
   assert.ok(one.includes(c.n) && one.includes(c.type), `${c.n}: name or type line missing`);
-  assert.ok(/aspect-\[5\/3\.52\]/.test(one), `${c.n}: no art window`);
+  /* THE WINDOW TAKES THE CROP'S SHAPE. This pinned `aspect-[5/3.52]`, which was
+     a number picked before the crop's ratio was known -- the crop is 1.37 and
+     the box was 1.42, so every ordinary card lost a sliver off its illustration.
+     The window is `h-auto` on the image now and the clamp is what is asserted,
+     because the clamp is the risk: a 312x752 Saga crop reaching an ordinary
+     frame would be 2.4x the card's width tall. */
+  assert.ok(/min-h-\[36%\] max-h-\[58%\]/.test(one), `${c.n}: no art window`);
+  assert.ok(/class="block h-auto w-full"/.test(one), `${c.n}: the art window does not take the crop's own shape`);
   assert.ok(one.includes(`${c.set} ${c.num}`), `${c.n}: no collector line`);
   assert.ok(!one.includes('undefined'), `${c.n}: leaked undefined into the frame`);
-  /* every token draws something rather than vanishing — its glyph where the font
+  /* every token draws something rather than vanishing - its glyph where the font
      has one (colours, digits, tap), the marks of its halves where it is a split
      symbol, and only otherwise its own text in the fallback disc */
   for (const tok of c.cost || []) {
@@ -832,11 +870,11 @@ for (const c of mtgCards) {
     assert.ok(t.GAMES.mtg.sort.includes('release'), 'Release is not on the sort bar');
   }
   /* A label that is really the whole card, or really the whole type line, makes
-     one group per card — which in a binder is one PAGE per card. */
+     one group per card - which in a binder is one PAGE per card. */
   assert.strictEqual(t.GROUP_LABEL.price({ usd: 42.10 }), '£20–100',
     'the price label is banding the card object instead of its price');
   assert.strictEqual(t.GROUP_LABEL.price({ usd: 0.25 }), 'under £1', 'cheap cards are not banded');
-  for (const dash of ['&mdash;', '—'])   // mocks carry the entity, the catalogue a real dash
+  for (const dash of ['&mdash;', '-'])   // mocks carry the entity, the catalogue a real dash
     assert.strictEqual(t.GROUP_LABEL.type({ type: `Basic Land ${dash} Forest` }), 'Basic Land',
       `the type label does not split on "${dash}"`);
   // no break, no grouping
@@ -878,46 +916,94 @@ assert.ok(painted.includes('onchange="setCols(this.value)"'), 'the Columns stepp
 assert.ok(/type="number"[^>]*onchange="setCols/.test(painted.replace(/\s+/g, ' ')),
   'Columns is not a number input, so it has no arrows and no manual entry');
 assert.ok(!painted.includes('type="range"'), 'a range slider is still being drawn');
-/* Two rows: what you CHOOSE on the first — Display, Order, Apply/Clear — and
+/* Two rows: what you CHOOSE on the first - Display, Order, Apply/Clear - and
    the numbers that size the layout underneath. The numbers change width as you
    edit them ("9/page &middot; 2 spreads" -> "12/page &middot; 3 spreads"), so
    inline they shove the Order chips sideways while you are aiming at one.
-   Ordered by index, not a bounded regex — the markup between them changes. */
+   Ordered by index, not a bounded regex - the markup between them changes. */
 {
   // scoped to the sort band: the filter panel has an Apply of its own, earlier
   const band = painted.slice(painted.indexOf('>sort<'));
   const at = (s) => band.indexOf(s);
-  assert.ok(at('>Display<') >= 0 && at('>Order<') > at('>Display<'),
-    'Order does not follow the display choice');
-  assert.ok(at('>Order<') < at('>Apply<'), 'Apply is not at the end of the first row');
+  assert.ok(at('>Display<') >= 0 && at('>Group order<') > at('>Display<'),
+    'Group order does not follow the display choice');
+  assert.ok(at('>Group order<') < at('>Sort order<'), 'Sort order is not after Group order');
+  assert.ok(at('>Sort order<') < at('>Apply<'), 'Apply is not at the end of the first row');
   assert.ok(at('>Apply<') < at('>Columns<'), 'the sizing numbers are not on the row beneath');
   assert.ok(/flex flex-col gap-2[\s\S]{0,400}>Display</.test(band),
     'the sort band is not two stacked rows');
-  assert.ok(/min-w-0 flex-1 flex-wrap[\s\S]{0,300}>Order</.test(band),
-    'Order is not the part that takes the remaining width');
+  /* THE THREE TERMS SHARE THE ROW BY WHAT THEY DRAW. `flex-1` on each gave the
+     zone holding two chips as much bar as the one holding ten, so there was a
+     lane of empty bar between the last group chip and the Sort order label.
+     The weight is characters - the label plus each chip's - so the split comes
+     off the content rather than off a number someone picked. */
+  const weights = [...band.matchAll(/style="flex:(\d+) 1 0%"/g)].map(m => +m[1]);
+  assert.strictEqual(weights.length, 3,
+    `${weights.length} of the 3 sort-bar terms are sized by what they hold`);
+  assert.ok(weights[1] > weights[0],
+    'the zone with the most chips is not the widest, so the row is not sized by its content');
 }
-/* The sizing numbers follow the LAYOUT, not the tab. Printings draws the binder
-   too, and a card-size percentage is no more use there than it is on Binders —
-   the binder sizes itself from Pages/Columns/Rows either way. */
-go('#/printings'); t.setView('binder'); t.render();
+/* ONE FIELD, ONE ZONE. Every category field used to be offered in Group order
+   AND in Sort order, so Language sat on the bar twice and the two chips read as
+   two different fields. */
+{
+  const band = painted.slice(painted.indexOf('>sort<'));
+  for (const f of t.GAMES.mtg.sort) {
+    const n = (band.match(new RegExp(`>${t.fieldLabel(f)}</span>`, 'gi')) || []).length;
+    assert.ok(n <= 1, `${f} is offered in ${n} places on the sort bar`);
+  }
+}
+/* THE BINDER LAYOUT BELONGS TO BINDERS, and it used to be offered on Printings
+   as well - where it drew a SET as pages of pockets. That looks like a binder
+   and is not one: a binder is a container you own, with a page shape of its
+   own; a set is every card Wizards printed. Offering it there invited the
+   catalogue to be read as a collection, which is the confusion this app spent
+   the week deleting. Neither binder nor deck has ever been on Search, and this
+   pins that too - a query has no pages and no sections to fill. */
+go('#/printings'); t.render();
+for (const v of ['binder', 'deck'])
+  assert.ok(!painted.includes(`setView('${v}')`), `printings still offers the ${v} layout`);
+go('#/search'); t.render();
+for (const v of ['binder', 'deck'])
+  assert.ok(!painted.includes(`setView('${v}')`), `search still offers the ${v} layout`);
+/* The sizing numbers follow the LAYOUT, not the tab: a card-size percentage is
+   no use to a binder, which sizes itself from Pages/Columns/Rows. */
+go('#/binders'); t.render();
+assert.strictEqual(t.P.view, 'binder', 'binders did not default to its one layout');
 assert.ok(!painted.includes('onchange="setCols(this.value)"'),
-  'the binder on printings offers a card-column count as well as its page shape');
+  'the binder offers a card-column count as well as its page shape');
 for (const label of ['Pages', 'Columns', 'Rows'])
-  assert.ok(painted.includes(`>${label}</span>`), `the binder on printings does not offer ${label}`);
-// with no binder picked to own the shape, the tab default takes the edit
+  assert.ok(painted.includes(`>${label}</span>`), `the binder does not offer ${label}`);
+/* WHO OWNS THE PAGE SHAPE, which is two answers and they must not cross. With
+   nothing picked the edit goes to the tab default; with a binder picked it goes
+   to that binder, because a real binder is bought as 3x3 or 4x3 and the shape
+   is a property of the object rather than a display preference.
+   `dimsOwner` reads P.pick.binders whatever tab you are on, so a leftover pick
+   would have sent the first edit to a binder - cleared rather than assumed. */
+t.clearItem(); t.render();
 t.setBinderDim(0, 5); t.render();
 assert.strictEqual(t.P.dims[0], 5, 'editing the page shape off a binder did not reach the default');
-assert.ok(painted.includes('repeat(5,minmax(0,1fr))'), 'printings did not relay the binder out');
 t.P.dims = [3, 3];
-// switch the layout back and the count returns
-t.setView('grid'); t.render();
+{
+  // ...and the layout only draws once a binder is picked, because until then the
+  // tab is its selector: the list of binders, not the inside of one
+  const b0 = t.LISTS.binders[0], was = [...b0[2]];
+  t.selectItem(b0[0]); t.render();
+  assert.ok(painted.includes(`repeat(${was[0]},minmax(0,1fr))`), 'a picked binder did not lay its own pages out');
+  t.setBinderDim(0, 5); t.render();
+  assert.strictEqual(b0[2][0], 5, "editing a picked binder's shape went to the tab default instead");
+  assert.strictEqual(t.P.dims[0], 3, 'editing a picked binder also moved the tab default');
+  assert.ok(painted.includes('repeat(5,minmax(0,1fr))'), 'the binder did not relay its new page shape out');
+  b0[2] = was; t.clearItem(); t.render();
+}
+// a tab that HAS the card layouts gives the column count back
+go('#/search'); t.setView('grid'); t.render();
 assert.ok(painted.includes('onchange="setCols(this.value)"') && !painted.includes('>Pages</span>'),
   'leaving the binder layout did not give the column count back');
-go('#/search'); t.setView('grid'); t.render();
 
 /* THE NUMBER YOU TYPE IS THE NUMBER OF COLUMNS. Zoom set a minimum track width
    and let auto-fill decide the count, so this asserted a px track and "bigger
-   than the last one" — which is as close to "how many across" as a percentage
+   than the last one" - which is as close to "how many across" as a percentage
    can get. Now it is the count itself, and auto-fill is gone. */
 const colsAt = (n) => { t.setCols(n); t.render(); return painted.match(/repeat\((\d+),minmax\(0,1fr\)\)/)[1]; };
 assert.strictEqual(colsAt(3), '3', 'the grid does not lay out the number of columns asked for');
@@ -942,7 +1028,7 @@ assert.ok(!painted.includes('onchange="setCols(this.value)"'),
 go('#/binders'); t.setView('binder'); t.render();
 /* The binder has no Zoom: a percentage is the wrong question for it. Pages,
    Columns and Rows say what is open and how it is pocketed, and the card size
-   is whatever fits — which is also why the layout can no longer outgrow the
+   is whatever fits - which is also why the layout can no longer outgrow the
    pane the way a px card size multiplied out by four pages did. */
 for (const label of ['Pages', 'Columns', 'Rows'])
   assert.ok(painted.includes(`>${label}</span>`), `the binder does not offer ${label}`);
@@ -976,7 +1062,7 @@ for (const [name, , dims] of t.LISTS.binders) {
   const inner = [...painted.matchAll(/gap-3" data-spread\s*style="grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/g)];
   assert.strictEqual(inner.length, Math.ceil(((painted.match(/>Page \d+</g) || []).length + 1) / 2),
     `${name}: the spread count does not follow from the pages plus the cover`);
-  /* OFFSCREEN SPREADS SKIP LAYOUT, and the first one does not — it is the only
+  /* OFFSCREEN SPREADS SKIP LAYOUT, and the first one does not - it is the only
      spread guaranteed to be on screen, so it is the only one whose height can be
      measured, and `--spread-h` is what the rest stand in at. Exempting it is
      load-bearing in both directions: skip it too and there is nothing to
@@ -984,7 +1070,7 @@ for (const [name, , dims] of t.LISTS.binders) {
      against 17.9ms with this. */
   const cv = [...painted.matchAll(/content-visibility:auto;contain-intrinsic-height:auto var\(--spread-h,0px\);/g)];
   assert.strictEqual(cv.length, inner.length - 1,
-    `${name}: ${cv.length} of ${inner.length} spreads skip layout — the first must not, the rest must`);
+    `${name}: ${cv.length} of ${inner.length} spreads skip layout - the first must not, the rest must`);
   assert.ok(inner.length < 2 || painted.indexOf('content-visibility') > inner[1].index - 200,
     `${name}: the first spread skips layout, so there is no real height to measure`);
   // the pockets share the page the same way
@@ -1004,7 +1090,7 @@ for (const [name, , dims] of t.LISTS.binders) {
     `${name}: ${pockets} pockets drawn is not whole pages of ${cols * rows}`);
   /* A group longer than a page carries on over the next one. Drawing one page
      per group dropped every card past the page size, and with no break at all
-     it drew a single page of the whole list — which read as "nine per group"
+     it drew a single page of the whole list - which read as "nine per group"
      only because nine was the page size. */
   assert.ok(pockets >= t.CARDS().length,
     `${name}: ${pockets} pockets for ${t.CARDS().length} cards, so the binder is dropping some`);
@@ -1031,7 +1117,7 @@ t.P.dims = [3, 3];
 /* THE FILING IS EVERY TAB'S NOW, not the binder's private arrangement seeded on
    arrival and taken back on the way out. That special case existed only because
    everywhere else started empty; with one default there is nothing for it to do,
-   and the bookkeeping it needed — "did they touch it" — is gone with it. A sort
+   and the bookkeeping it needed - "did they touch it" - is gone with it. A sort
    you set yourself still travels, which is what that bookkeeping was protecting. */
 setSort(t.DEFAULT_SORT());
 for (const tab of ['#/search', '#/binders', '#/printings']) {
@@ -1046,25 +1132,25 @@ assert.strictEqual(t.grouping().map(x => x.f).join(), 'kind,colour,rarity',
    term: the type line says a Token Creature is a creature and a Snow Artifact
    Land is an artifact, and neither is a card you would file with them. The misc
    types veto first, so an Artifact Land is a land and an Artifact Creature is a
-   creature — which is the order a player reads them in too. */
+   creature - which is the order a player reads them in too. */
 {
   const kind = type => t.mainType({ type });
-  assert.strictEqual(kind('Creature — Elf Druid'), 'Creature', 'a creature is not a creature');
-  assert.strictEqual(kind('Legendary Creature — Human'), 'Creature', 'a supertype hid the main type');
-  assert.strictEqual(kind('Artifact Creature — Golem'), 'Creature', 'an artifact creature filed as an artifact');
-  assert.strictEqual(kind('Enchantment Creature — Nymph'), 'Creature', 'an enchantment creature filed as an enchantment');
-  assert.strictEqual(kind('Legendary Planeswalker — Jace'), 'Planeswalker', 'Plane ate Planeswalker');
+  assert.strictEqual(kind('Creature - Elf Druid'), 'Creature', 'a creature is not a creature');
+  assert.strictEqual(kind('Legendary Creature - Human'), 'Creature', 'a supertype hid the main type');
+  assert.strictEqual(kind('Artifact Creature - Golem'), 'Creature', 'an artifact creature filed as an artifact');
+  assert.strictEqual(kind('Enchantment Creature - Nymph'), 'Creature', 'an enchantment creature filed as an enchantment');
+  assert.strictEqual(kind('Legendary Planeswalker - Jace'), 'Planeswalker', 'Plane ate Planeswalker');
   for (const [type, want] of [['Instant', 'Instant'], ['Sorcery', 'Sorcery'],
-    ['Enchantment — Aura', 'Enchantment'], ['Artifact — Equipment', 'Artifact']])
+    ['Enchantment - Aura', 'Enchantment'], ['Artifact - Equipment', 'Artifact']])
     assert.strictEqual(kind(type), want, `${type} did not file as ${want}`);
   // ...and everything Stuart named as not-main, however it is dressed
-  for (const type of ['Basic Land — Forest', 'Artifact Land', 'Snow Land — Mountain',
-    'Token Creature — Spirit', 'Battle — Siege', 'Emblem', 'Scheme', 'Plane — Dominaria',
+  for (const type of ['Basic Land - Forest', 'Artifact Land', 'Snow Land - Mountain',
+    'Token Creature - Spirit', 'Battle - Siege', 'Emblem', 'Scheme', 'Plane - Dominaria',
     'Phenomenon', 'Vanguard', 'Conspiracy', 'Dungeon', 'Card', 'Hero'])
     assert.strictEqual(kind(type), 'Other', `"${type}" is being filed as a main type`);
   // the sort key is the position in that order, so Other lands last whatever it is
   assert.strictEqual(t.SORT_KEY.kind({ type: 'Creature' }), 0, 'creatures do not sort first');
-  assert.strictEqual(t.SORT_KEY.kind({ type: 'Basic Land — Forest' }), t.MAIN_ORDER.length - 1,
+  assert.strictEqual(t.SORT_KEY.kind({ type: 'Basic Land - Forest' }), t.MAIN_ORDER.length - 1,
     'Other does not sort last');
   assert.strictEqual(t.GROUP_LABEL.kind({ type: 'Instant' }), 'Instant', 'the group header lost its name');
   // and the mocks carry &mdash; rather than a real dash, which used to leave the
@@ -1073,7 +1159,7 @@ assert.strictEqual(t.grouping().map(x => x.f).join(), 'kind,colour,rarity',
   /* Both of these came out of running the classifier over the catalogue rather
      than out of reasoning about it: Portal printed creatures as "Summon Wolf"
      and 12 printings keep that wording, and the type line is not reliably
-     capitalised — one card says "instant" and one says "pLAnE". */
+     capitalised - one card says "instant" and one says "pLAnE". */
   assert.strictEqual(kind('Summon Wolf'), 'Creature', 'a Portal creature is filed as misc');
   assert.strictEqual(kind('instant'), 'Instant', 'a lowercase type line is filed as misc');
   assert.strictEqual(kind('pLAnE'), 'Other', 'case folding let a plane through as a main type');
@@ -1089,11 +1175,11 @@ setSort([]);
 /* --- the three things a card face has to get right ------------------- */
 // 1. the set symbol, inked by rarity, where the placeholder disc used to be
 const mkmCard = { n: 'Delney, Streetwise Lookout', set: 'MKM', num: '378', lang: 'en',
-  col: 'W', cost: ['2', 'W'], type: 'Legendary Creature — Human Scout', rar: 4, pt: '2/2', text: 'Flying' };
+  col: 'W', cost: ['2', 'W'], type: 'Legendary Creature - Human Scout', rar: 4, pt: '2/2', text: 'Flying' };
 const marked = t.MockCard(mkmCard);
 assert.ok(marked.includes('svgs.scryfall.io/sets/mkm.svg'), 'the set symbol is not drawn');
 assert.ok(/mask:url\('https:\/\/svgs\.scryfall\.io[^']+'\) center\/contain/.test(marked),
-  'the symbol is an image, so rarity cannot tint it — it has to be a mask');
+  'the symbol is an image, so rarity cannot tint it - it has to be a mask');
 assert.ok(marked.includes(t.RARITY_DOT[4]), 'the set symbol is not inked with the rarity colour');
 // a sub-set borrows its parent's icon, which is why the slug is stored at all
 const tokens = t.SETS.find(r => r[1] === 'TMKM');
@@ -1128,7 +1214,7 @@ assert.ok(parseFloat(t.textFit(140).match(/[\d.]+/)[0]) >= 1,
 assert.ok(parseFloat(t.textFit(1489).match(/[\d.]+/)[0]) <= 0.55,
   'the longest card in the catalogue does not bottom out at the smallest step');
 /* Each step is the measured overflow point for that size in the grid, so a
-   threshold that drifts past it puts text outside its box — which is how the
+   threshold that drifts past it puts text outside its box - which is how the
    first pass at "a few sizes larger" broke 120 of 240 cards. */
 for (const [size, overflowsAt] of [[1.09, 144], [1, 207], [0.91, 274], [0.82, 372]]) {
   const px = n => parseFloat(t.textFit(n).match(/[\d.]+/)[0]);
@@ -1137,7 +1223,7 @@ for (const [size, overflowsAt] of [[1.09, 144], [1, 207], [0.91, 274], [0.82, 37
 }
 /* A NEWLINE COSTS SPACE ITS CHARACTERS DO NOT, and the ladder was measured
    against paragraphs. A forced break leaves the tail of the previous line empty,
-   so text of many short lines is taller than the same characters flowing — which
+   so text of many short lines is taller than the same characters flowing - which
    is why 4 of 279 banded cards overflowed on 164-240 characters while sixty
    ordinary cards with more than 200 overflowed none. `fitLen` charges half a
    line per break, and it is the same ladder underneath: no new step, no new size. */
@@ -1169,20 +1255,43 @@ for (const [size, overflowsAt] of [[1.09, 144], [1, 207], [0.91, 274], [0.82, 37
   assert.strictEqual((face.match(/text-\[[\d.]+px\]/g) || []).join(), '',
     'a fixed px font size is back on the card face, so it will not follow zoom');
   /* A COMPACT ROW IS THE CARD'S TITLE PLATE, so it sizes in em off the row's own
-     font size — em has something to resolve against anywhere. What it must not
+     font size - em has something to resolve against anywhere. What it must not
      pick up is cqw, which needs the container query the list has not got. */
   const row = t.TitleRow({ n: 'Noble Hierarch', cost: ['1', 'G'], set: 'CON', col: 'G' });
   assert.ok(!/cqw/.test(row), 'the list row went container-relative with no container to measure');
   assert.ok(/text-\[[\d.]+em\]/.test(row), 'the row does not size off its own text');
   /* ...and it is the SAME plate, not one that matches today: both come from
      plateOf, so a change to the mix reaches the card and the list together. */
-  const green = { n: 'Llanowar Elves', cost: ['G'], col: 'G', type: 'Creature — Elf' };
-  assert.ok(t.TitleRow(green).includes(t.plateOf(green)), 'the row does not use the card plate');
-  assert.ok(t.MockCard(green).includes(t.plateOf(green)), 'the card no longer uses its own plate');
+  const green = { n: 'Llanowar Elves', cost: ['G'], col: 'G', type: 'Creature - Elf' };
+  assert.ok(t.TitleRow(green).includes(t.plateOf(green).title), 'the row does not use the card plate');
+  assert.ok(t.MockCard(green).includes(t.plateOf(green).title), 'the card no longer uses its own plate');
   assert.ok(t.TitleRow(green).includes(t.frameOf(green)), 'the row is not wrapped in the frame colour');
-  // a multicolour card is gold in the list exactly as it is on the card
-  assert.strictEqual(t.frameOf({ col: 'GW' }), '#cfa036', 'multicolour lost its gold');
-  assert.ok(t.TitleRow({ n: 'X', col: 'GW' }).includes('#cfa036'), 'a gold card is not gold in the list');
+  // a multicolour card is gold in the list exactly as it is on the card, and the
+  // gold is SURFACE.M rather than a hex typed twice - measured off six printings
+  assert.strictEqual(t.frameOf({ col: 'GW' }), t.SURFACE.M[0], 'multicolour lost its gold');
+  assert.ok(t.TitleRow({ n: 'X', col: 'GW' }).includes(t.SURFACE.M[0]), 'a gold card is not gold in the list');
+  /* THE THREE SURFACES ARE THREE, and the two the print makes PALE are pale.
+     Every plate used to be `color-mix(45%, #000)` - the frame darkened by more
+     than half - so the title bar came out darker than the printed one and the
+     rules box came out light-on-dark, which no printed Magic card is. Measured
+     off the scans: a Swamp-frame card is #1f201c on the rail and #eae9ed in its
+     text box, so the box is asserted LIGHTER than the rail on every colour,
+     black included. */
+  for (const [k, [rail, type, box]] of Object.entries(t.SURFACE)) {
+    assert.ok(t.lum(box) > t.lum(rail), `${k}: the text box is not lighter than the frame rail`);
+    assert.ok(t.lum(box) > 0.7, `${k}: the text box is not a pale tint`);
+    assert.ok(t.lum(type) > t.lum(rail), `${k}: the type bar is not lighter than the frame rail`);
+  }
+  // ...and the title bar is the frame itself, separated by an edge rather than by tone
+  const swamp = { n: 'Duress', col: 'B' };
+  assert.ok(t.plateOf(swamp).title.includes(t.FRAME.B), 'the title bar is no longer the frame colour');
+  assert.ok(/box-shadow:inset/.test(t.plateOf(swamp).title), 'the title bar lost the edge that separates it');
+  assert.ok(t.plateOf(swamp).box.includes(t.SURFACE.B[2]), 'the rules box is not the measured text-box tint');
+  /* A TRANSFORM'S BACK GETS ITS OWN TINTS. The bg override always carried the
+     back's frame colour; the tints would have kept the front's, so a red front
+     with a blue back drew a blue rail over a red text box. */
+  assert.ok(t.plateOf({ col: 'R' }, t.FRAME.U, 'U').box.includes(t.SURFACE.U[2]),
+    'the back face keeps the front face\'s text box');
 }
 
 // 3. rules text renders its symbols
@@ -1193,8 +1302,8 @@ assert.ok(tapped.includes(t.glyphOf('G')) && tapped.includes(t.glyphOf('2')),
   'a colour or a number in rules text lost its glyph');
 /* A SPLIT PIP IS DRAWN, NOT SPELLED. This asserted the opposite until the font
    was read properly: it has no single codepoint for {U/P}, and it composes one
-   from the glyphs it does have. Phyrexian is the half that needs no split —
-   {U/P} is one Φ on a blue disc — so the test is that the disc is blue, the mark
+   from the glyphs it does have. Phyrexian is the half that needs no split -
+   {U/P} is one Φ on a blue disc - so the test is that the disc is blue, the mark
    is Φ, and the characters "U/P" appear nowhere. */
 assert.ok(!tapped.includes('>U/P<'), 'a split symbol is still being spelled out instead of drawn');
 assert.ok(tapped.includes(`background:${t.MTG.U};color:${t.INK.U}`), 'Phyrexian blue lost its own disc');
@@ -1228,7 +1337,7 @@ assert.ok(tapped.includes(t.glyphOf('P')), 'the Phyrexian mark is not rendered')
   assert.deepStrictEqual(halves(t.pipOf('C/W')), [t.glyphOf('C'), t.glyphOf('W')], 'a colourless hybrid lost a mark');
   // the fallback still exists for anything genuinely unknown
   assert.ok(t.pipOf('QQ').includes('>QQ<'), 'an unknown symbol no longer falls back to its text');
-  /* A TWOBRID PIP IS WORTH TWO. Flame Javelin is {2/R}{2/R}{2/R} — a six-mana
+  /* A TWOBRID PIP IS WORTH TWO. Flame Javelin is {2/R}{2/R}{2/R} - a six-mana
      card the range filter was placing at three. The other split families are
      worth one each, and X is worth none. */
   const mv = cost => t.manaValue({ cost });
@@ -1244,14 +1353,14 @@ assert.ok(!t.symbolise('<img src=x onerror=alert(1)>').includes('<img'), 'rules 
 assert.ok(t.symbolise('a &mdash; b').includes('&mdash;'), 'escaping broke the entities the mocks use');
 
 // A NAME IS THE WHOLE MINIMUM. /resolve draws this frame from a scanned line
-// before any printing is known, so every other slot has to degrade on its own —
+// before any printing is known, so every other slot has to degrade on its own -
 // and degrade to nothing, not to a default. "Common" invented from a missing
 // rarity is worse than a blank, because it reads as a fact.
 const bare = t.MockCard({ n: 'Lighming Bolt' });
 assert.ok(bare.includes('Lighming Bolt'), 'the frame lost the one field it must have');
 for (const leak of ['undefined', 'NaN', 'null'])
   assert.ok(!bare.includes(leak), `a name-only card leaked "${leak}" into the frame`);
-assert.ok(/aspect-\[5\/3\.52\]/.test(bare) && bare.includes('no printing'),
+assert.ok(/min-h-\[36%\] max-h-\[58%\]/.test(bare) && bare.includes('no printing'),
   'a name-only card is missing the art window or claims a printing');
 for (const invented of ['Common', 'Nonfoil', 'Mythic'])
   assert.ok(!bare.includes(invented), `a name-only card invented "${invented}"`);
@@ -1261,7 +1370,7 @@ for (const [k, v] of bareFacts)
   assert.ok(k === 'Legality' || !v, `a name-only card claims to know "${k}" (${v})`);
 // pokemon exercises the other half of the frame: HP, attacks, retreat, no cost
 t.pickGame('pokemon');
-const pkmCards = t.CARDS();
+const pkmCards = t.scopedCards();
 for (const kind of ['Basic', 'Stage 1', 'Stage 2', 'V ', 'ex ', 'Trainer', 'Energy'])
   assert.ok(pkmCards.some(c => c.type.includes(kind)), `no ${kind.trim()} in the pokemon fixtures`);
 assert.ok(pkmCards.some(c => c.hp) && pkmCards.some(c => !c.hp), 'every pokemon fixture has HP, or none does');
@@ -1272,22 +1381,27 @@ t.pickGame('mtg'); go('#/kit');
 assert.ok(painted.includes('aspect-[5/7]') && painted.includes(mtgCards[0].n),
   'the control kit does not draw the card frame the rest of the app uses');
 
-// The name has to be readable on every frame, which a hardcoded "dark frames"
-// list does not deliver: the plates are 45% of the frame over black, so blue,
-// red and green plates are dark whatever the list says. Pin the two things that
-// are actually true — the ink is the better of the two, and never below the
-// large-text floor — rather than a threshold that happens to hold today.
-const chan = v => { const s = v / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; };
-const rel = ([r, g, b]) => 0.2126 * chan(r) + 0.7152 * chan(g) + 0.0722 * chan(b);
-const rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
-const ratio = (a, b) => { const [x, y] = [rel(a), rel(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+/* The name has to be readable on every frame, which a hardcoded "dark frames"
+   list does not deliver. Asserted over the REAL surfaces now - the four plates
+   `plateOf` hands out - rather than over the frame and a 45%-over-black mix,
+   which is the model that got deleted when the printed colours were measured.
+   Two invariants, neither of them a threshold that happens to hold today:
+     the ink is the BETTER of the two on that surface, and
+     it either clears the 4.5:1 body-text floor or carries an outline.
+   The second is why the outline exists: the measured green frame #5d7f5b is a
+   dead tie at 3.92 and 3.91, so on green NEITHER ink clears, and the collector
+   line printed on it is 0.73em. A list of colours to except would go stale the
+   next time the palette is measured; this does not. */
+const surfaces = c => Object.values(t.plateOf(c))
+  .map(s => [/background-color:(#[0-9a-f]{6})/.exec(s)[1], /;color:(#[0-9a-f]{6})/.exec(s)[1], /text-shadow/.test(s)]);
 for (const c of [...mtgCards, ...pkmCards]) {
-  const bg = rgb(t.frameOf(c));
-  for (const [surface, l] of [[bg, t.lum(t.frameOf(c))], [bg.map(v => v * 0.45), t.lum(t.frameOf(c)) * 0.45]]) {
-    const chosen = rgb(t.ink(l)), other = rgb(t.ink(l) === '#1a1a1a' ? '#f0f0f0' : '#1a1a1a');
-    assert.ok(ratio(chosen, surface) >= ratio(other, surface),
-      `${c.n}: the other ink reads better on ${t.frameOf(c)} — the luminance test is backwards`);
-    assert.ok(ratio(chosen, surface) >= 4, `${c.n}: ${ratio(chosen, surface).toFixed(2)}:1 on ${t.frameOf(c)}`);
+  for (const [bg, chosen, outlined] of surfaces(c)) {
+    const other = chosen === '#1a1a1a' ? '#f0f0f0' : '#1a1a1a';
+    assert.ok(t.contrast(chosen, bg) >= t.contrast(other, bg),
+      `${c.n}: the other ink reads better on ${bg} - the luminance test is backwards`);
+    assert.ok(t.contrast(chosen, bg) >= 4.5 || outlined,
+      `${c.n}: ${t.contrast(chosen, bg).toFixed(2)}:1 on ${bg} and no outline to carry it`);
+    assert.ok(t.contrast(chosen, bg) >= 3, `${c.n}: ${t.contrast(chosen, bg).toFixed(2)}:1 on ${bg} is below the large-text floor`);
   }
 }
 t.pickGame('mtg'); go('#/search'); t.setView(null); t.render();
@@ -1304,7 +1418,7 @@ for (const r of ['printings', 'binders', 'decks']) {
   assert.strictEqual(t.picked(), null, `${r}: clicking the active tab kept the selection`);
   assert.ok(t.selectorOpen(), `${r}: clicking the active tab left the selector shut`);
 }
-// from a card page, a tab click gets you back cleared — same as Back
+// from a card page, a tab click gets you back cleared - same as Back
 go('#/printings');
 t.openCard('Noble Hierarch'); t.setMatched(true);
 assert.strictEqual(ctx.location.hash, '#/card', 'the card page did not open');
@@ -1327,7 +1441,7 @@ t.openCard('Noble Hierarch');
 assert.strictEqual(ctx.location.hash, '#/card', 'opening a card did not navigate');
 /* OPENING A CARD FROM THE CATALOGUE IS NOT AN IMPORT. This asserted the opposite
    and the opposite was the bug: clicking a real printing in a real list landed on
-   "unmatched — everything unknown until this line is matched", which is the
+   "unmatched - everything unknown until this line is matched", which is the
    import story told about a card nobody imported. The story still holds for a
    flat line and every assertion about it below still runs; it is reached by the
    Unmatch button now rather than by looking at a card. */
@@ -1335,7 +1449,7 @@ assert.strictEqual(t.P.matched, true, 'a card opened from the catalogue arrives 
 assert.ok(painted.includes('>matched<'), 'the card page does not say it is matched');
 t.setMatched(false);
 assert.ok(painted.includes('>unmatched<'), 'the card page does not say it is unmatched');
-// the source line is shown verbatim and every parsed token with it — built from
+// the source line is shown verbatim and every parsed token with it - built from
 // the card that was opened, so a foil prints the *F* and a nonfoil doesn't
 assert.ok(painted.includes('2 Noble Hierarch (CON) 71 [en]'), 'the source line is not shown');
 for (const tok of ['qty', 'set', 'number', 'language'])
@@ -1348,7 +1462,7 @@ assert.strictEqual((painted.match(/&mdash;<\/span>/g) || []).length >= labels.le
   'an unmatched card claims to know something');
 assert.ok(painted.includes('>candidates<'), 'unmatched shows printings rather than candidates');
 assert.ok(painted.includes('>Match</button>'), 'there is no way to match the line');
-// unmatched draws the SAME frame, fed the one field a card must have — and the
+// unmatched draws the SAME frame, fed the one field a card must have - and the
 // photo is not on offer, because there is no printing to photograph yet
 assert.ok(painted.includes('aspect-[5/7]'), 'the unmatched card page draws a different shape');
 assert.ok(/setFace\('photo'\)[^>]*disabled/.test(painted), 'photo is offered before a printing is known');
@@ -1379,7 +1493,7 @@ assert.ok(painted.includes('printed-card image') && !painted.includes('art_crop'
   'the photo face does not replace the frame');
 t.setFace('frame');
 assert.ok(painted.includes('art_crop'), 'the frame face did not come back');
-// the fields are the game's, not the page's — the registry claim again
+// the fields are the game's, not the page's - the registry claim again
 t.pickGame('pokemon'); t.openCard('Pikachu'); t.setMatched(true);
 for (const l of ['HP', 'Stage', 'Retreat cost', 'Illustrator'])
   assert.ok(painted.includes(`>${l}</span>`), `the pokemon card page is missing "${l}"`);
@@ -1387,7 +1501,7 @@ assert.ok(!painted.includes('>Toughness</span>'), 'the pokemon card page leaked 
 /* THE HOLDINGS BAND IS FOLDED INTO THE PRINTINGS LIST. It was a second list of
    the same cards under the same page, from when the printings list had no
    quantity column and could not say what you owned. Qty is a column everywhere
-   now, so the band was one answer given twice — and two lists of the same cards
+   now, so the band was one answer given twice - and two lists of the same cards
    on one page is how they come to disagree. What it carried that a column does
    not is WHERE, so a held printing names its containers on its own row. */
 t.setMatched(false);
@@ -1484,7 +1598,7 @@ for (const [len, label, cols] of t.BUCKETS) {
     `${label}: ${counted ? 'has room for a count and drops it' : 'shows a count it has no room for'}`);
   assert.ok(!fits || counted, `${label}: shows a name but not the count`);
   // whichever half is dropped, the hover still carries both
-  assert.ok(/hintCombo\('[^']+ — \d+ cards'\)/.test(first), `${label}: dropped a label with no hover`);
+  assert.ok(/hintCombo\('[^']+ - \d+ cards'\)/.test(first), `${label}: dropped a label with no hover`);
 }
 // the rule, not the outcome: widen the column and the name comes back
 assert.strictEqual([[1, 5], [1, 4]].every(a => t.namesFit(...a))
@@ -1498,7 +1612,7 @@ assert.ok(!t.countsFit(5, 2) && !t.countsFit(6, 1), 'a count is drawn where noth
 // Chrome. If the model drifts from that, its constants have gone stale.
 assert.strictEqual(t.nameRoom(2, 3), 26, 'the width model no longer matches what the browser lays out');
 
-// name, then the marks, then the count — the marks are what the two flanking
+// name, then the marks, then the count - the marks are what the two flanking
 // flex-1 columns centre, so neither of them may be shrink-fitted
 const named = combo().slice(combo().indexOf('>All<'), combo().indexOf('>Dual<'));
 const one = named.slice(named.indexOf('<button'), named.indexOf('</button>'));
@@ -1512,8 +1626,8 @@ const buckets = [...combo().matchAll(/tracking-wide text-neutral-600">(All|Quad|
 assert.strictEqual(buckets.join(' '), 'All Quad Tri Dual Mono', 'the combo buckets are not widest-first');
 // every button says what it is and how many, on the chip and on hover
 // the hint is written with textContent, so it carries a real em dash, not an entity
-assert.ok(!/hintCombo\('\s*—/.test(combo()), 'a hover hint has no name');
-assert.strictEqual([...combo().matchAll(/onmouseenter="hintCombo\('[^']+ — \d+ cards'\)"/g)].length,
+assert.ok(!/hintCombo\('\s*-/.test(combo()), 'a hover hint has no name');
+assert.strictEqual([...combo().matchAll(/onmouseenter="hintCombo\('[^']+ - \d+ cards'\)"/g)].length,
   6 + 32, 'not every colour and combination names itself on hover');
 
 // --- every scope that filters keeps the whole anatomy -------------------
@@ -1528,7 +1642,7 @@ for (const r of ['#/decks', '#/printings', '#/search']) {
 }
 
 // --- the anatomy comes from the game, not from the page ----------------
-// this is the whole "ready for another TCG" claim — assert it, don't trust it
+// this is the whole "ready for another TCG" claim - assert it, don't trust it
 for (const [k, g] of Object.entries(t.GAMES)) {
   t.pickGame(k);
   setSort([{ f: 'colour', d: 'a' }, { f: 'rarity', d: 'd' }, { f: 'BREAK' }, { f: 'name', d: 'a' }]);
@@ -1538,16 +1652,20 @@ for (const [k, g] of Object.entries(t.GAMES)) {
   for (const [, label] of g.anatomy)
     if (label) assert.ok(painted.includes(`>${label}<`), `${k}: anatomy missing "${label}"`);
   // the order is the order you narrow in: what a card is legal for, what it
-  // costs, then what it is — the rest is book-keeping and collapses away
+  // costs, then what it is - the rest is book-keeping and collapses away
   const drawn = g.anatomy.map(x => x[0] === 'combos' ? 'Colour' : x[1]);
   const at = l => painted.indexOf(`>${l}<`);
   for (let i = 1; i < drawn.length; i++)
     assert.ok(at(drawn[i - 1]) < at(drawn[i]),
       `${k}: "${drawn[i]}" is not drawn after "${drawn[i - 1]}"`);
-  if (k === 'mtg') assert.strictEqual(drawn.slice(0, 7).join(' > '),
-    'Legality > Colour > Mana value > Type > Subtype > Keywords > Rarity',
+  /* LANGUAGE IS FIRST, and it is the only group that arrives already set. It
+     is at the top because it is the one you open to WIDEN rather than to
+     narrow, which is the opposite of every group under it, and because a
+     narrowing that arrives applied has to be the first thing you see. */
+  if (k === 'mtg') assert.strictEqual(drawn.slice(0, 8).join(' > '),
+    'Language > Legality > Colour > Mana value > Type > Subtype > Keywords > Rarity',
     'the main filter order changed');
-  // rarely-browsed groups collapse into "Other" — FilterSidebar's own order
+  // rarely-browsed groups collapse into "Other" - FilterSidebar's own order
   const rare = g.anatomy.filter(x => (x[3] || {}).other);
   assert.ok(rare.length, `${k}: nothing is filed under Other`);
   assert.ok(painted.includes('>Other</summary>'), `${k}: no collapsible Other group`);
@@ -1555,14 +1673,23 @@ for (const [k, g] of Object.entries(t.GAMES)) {
   for (const [, label] of rare)
     assert.ok(painted.indexOf(`>${label}<`) > otherAt, `${k}: "${label}" should be under Other`);
   for (const f of g.sort) {
-    // the labels the chips actually carry, where `capitalize` is not enough
-    const lbl = { hp: 'HP', cmc: 'CMC', kind: 'Main type' }[f] || f;
+    // the label the chip actually carries, read off the app's own table rather
+    // than a copy of it here: `capitalize` is not enough for an acronym, and
+    // the short forms (Lang, #) are the same ones the details header uses
+    const lbl = t.fieldLabel(f);
     assert.ok(painted.includes(`>${lbl}</button>`) || painted.includes(`>${lbl}</span>`),
       `${k}: sort field "${f}" is not offered`);
   }
   assert.ok(!painted.includes('>Hp<'), `${k}: "capitalize" mangled an acronym`);
-  // language is rarely narrowed, so it lives under Other for both games
-  assert.ok(rare.some(x => x[1] === 'Language'), `${k}: Language is not filed under Other`);
+  /* LANGUAGE CAME OUT OF "OTHER", where it was filed as rarely narrowed. That
+     was true of a catalogue that could not answer the question: `default-cards`
+     is one row per printing and 104,713 of 107,347 are English, so the group
+     had six chips and five of them read as curiosities. Against the language
+     index it is 63,990 printings in more than one language and eleven codes
+     over twenty thousand printings each - a group that is always in force,
+     which cannot be behind a fold. */
+  assert.ok(!rare.some(x => x[1] === 'Language'), `${k}: Language is back under Other, where it cannot be seen to be applied`);
+  assert.ok(painted.indexOf('>Language<') < otherAt, `${k}: Language is drawn after the Other fold`);
   // filters fill the sidebar: every chip group is a grid, never ragged wrapping
   const grids = g.anatomy.filter(x => x[0] === 'chips').length;
   assert.strictEqual((painted.match(/grid gap-1\.5 grid-cols-/g) || []).length, grids,
@@ -1593,7 +1720,7 @@ for (const r of ['#/printings', '#/binders', '#/decks', '#/search']) {
   // <header> and <main>, not something indented inside the page
   const sub = header2(painted);
   assert.ok(sub.includes('border-b border-neutral-800'), `${r}: subheader is not a full-width bar`);
-  // it has to stay one line tall — name + numbers + Export + Clear wrapped once
+  // it has to stay one line tall - name + numbers + Export + Clear wrapped once
   assert.ok(sub.includes('flex-nowrap'), `${r}: subheader is allowed to wrap onto two lines`);
   assert.ok(painted.indexOf('<main') > painted.indexOf('</header>'), `${r}: no scrolling pane after the bars`);
   // exactly one scrollbar, and it belongs to <main>
@@ -1606,13 +1733,13 @@ for (const r of ['#/printings', '#/binders', '#/decks', '#/search']) {
   }
   assert.ok(at('sort') < at('view'), `${r}: sort is not before view`);
 }
-// the scope no longer lives in the sidebar at all — the subheader replaced it
+// the scope no longer lives in the sidebar at all - the subheader replaced it
 go('#/search');
 assert.strictEqual((painted.slice(painted.indexOf('<main')).match(/>scope</gi) || []).length, 0,
-  'the sidebar still has a scope band — the subheader replaced it');
+  'the sidebar still has a scope band - the subheader replaced it');
 
 // --- the page's headline number lives in the top bar, not above the body -
-// match the Stats container itself, not its words — "cards in Magic" also shows
+// match the Stats container itself, not its words - "cards in Magic" also shows
 // up legitimately in the filter band's scope note
 const STATS_CLASS = 'ml-auto flex shrink-0 items-center gap-4';
 for (const k of Object.keys(t.P.pick)) t.P.pick[k] = null;   // earlier blocks left selections
@@ -1658,20 +1785,30 @@ assert.ok(painted.includes('href="#/kit"'), 'the control kit is not reachable fr
 go('#/printings');
 const sortBarNow = () => painted.slice(painted.indexOf('>sort<'), painted.indexOf('>view<'));
 const sortBar = sortBarNow();
-for (const v of ['grid', 'compact', 'details', 'binder'])
+for (const v of ['grid', 'compact', 'details'])
   assert.ok(sortBar.includes(`setView('${v}')`), `sort bar is missing the "${v}" display type`);
+// ...and the three card layouts are all Printings offers: the binder belongs to
+// Binders, where the container that owns a page shape actually is
+for (const v of ['binder', 'deck'])
+  assert.ok(!sortBar.includes(`setView('${v}')`), `the "${v}" layout is back on Printings`);
 // the order is a list you rearrange, not one you rebuild
-const order = () => sortBarNow().slice(sortBarNow().indexOf('>Order<'));
+const order = () => sortBarNow().slice(sortBarNow().indexOf('>Group order<'));
 assert.ok(!/border-dashed/.test(order()), 'an order chip is still dashed');
 // every chip is the same shape in or out of the order, so clicking one does
 // not shove the row sideways
-setSort([{ f: 'name', d: 'a' }, { f: 'BREAK' }, { f: 'set', d: 'd' }]);
+setSort([{ f: 'rarity', d: 'a' }, { f: 'BREAK' }, { f: 'set', d: 'd' }]);
 const slots = l => [...l.matchAll(/w-3 shrink-0 text-center/g)].length;
 assert.strictEqual(slots(order()) % 2, 0, 'an order chip is missing its rank or direction slot');
-// every field appears exactly once, staged or not, and each carries both slots
-assert.strictEqual(slots(order()), 2 * t.GAMES.mtg.sort.length,
-  'staged and unstaged chips are not the same shape');
-// one control, three states — the same vocabulary as the include/exclude chips
+/* Every field is offered ONCE, in the zone its role puts it in - category
+   fields make pages, continuous ones arrange them - and each chip carries both
+   slots so adding one does not shove the row sideways. */
+{
+  const staged = t.P.sortDraft.filter(x => x.f !== 'BREAK').length;
+  const free = t.GAMES.mtg.sort.filter(f => !t.P.sortDraft.some(x => x.f === f));
+  assert.strictEqual(slots(order()), 2 * (staged + free.length),
+    'staged and unstaged chips are not the same shape');
+}
+// one control, three states - the same vocabulary as the include/exclude chips
 setSort([]);
 t.addSort('name');
 assert.ok(/border-emerald-500[^"]*"[^>]*onclick="cycleSort\(0\)"|onclick="cycleSort\(0\)"[\s\S]{0,400}?/.test(order()),
@@ -1683,43 +1820,96 @@ assert.strictEqual(t.P.sortDraft[0].d, 'd', 'the second click did not reverse th
 assert.ok(/border-rose-500/.test(chipOf()), 'descending is not coloured like an exclude');
 t.cycleSort(0);
 assert.strictEqual(t.P.sortDraft.length, 0, 'the third click did not take the term out of the order');
-// colour is the only thing that changes — the chip must not resize as it cycles
+// colour is the only thing that changes - the chip must not resize as it cycles
 t.addSort('name');
 const wide = slots(order());
 t.cycleSort(0);
 assert.strictEqual(slots(order()), wide, 'reversing a term changed the chip shape');
-setSort([{ f: 'name', d: 'a' }, { f: 'BREAK' }, { f: 'set', d: 'd' }]);
+// the starting state has to be legal too: `name` is sort-only now, so it can no
+// longer sit left of the break even as a fixture
+setSort([{ f: 'BREAK' }, { f: 'name', d: 'a' }, { f: 'rarity', d: 'd' }]);
 
 // drag reorders in place rather than dropping the term and losing the rest
-assert.ok(/draggable="true"[^>]*ondragstart="dragSort\(0\)"/.test(order()), 'order chips are not draggable');
+// index 0 is the first STAGED term wherever it sits; with a zone empty the
+// first draggable may be any index, so the test is that staged chips drag at all
+assert.ok(/draggable="true"[^>]*ondragstart="dragSort\(\d+\)"/.test(order()), 'order chips are not draggable');
 t.dragSort(2); t.moveSort(0);
-assert.strictEqual(t.P.sortDraft.map(x => x.f).join(','), 'set,name,BREAK',
+assert.strictEqual(t.P.sortDraft.map(x => x.f).join(','), 'rarity,BREAK,name',
   'dragging a term did not move it');
+/* ...and a SORT-ONLY field cannot be dragged left of the break at all. This
+   case used to depend on how many cards happened to be in front of you: the
+   role was counted over the current scope, so `set` was a grouping inside a
+   small binder and not in Search, and this very fixture passed only because 18
+   mocks hold fewer than twenty sets. Refused rather than corrected - a drop
+   that would make 986 pages meant something else. */
+setSort([{ f: 'rarity', d: 'a' }, { f: 'BREAK' }, { f: 'set', d: 'd' }]);
+t.dragSort(2); t.moveSort(0);
+assert.strictEqual(t.P.sortDraft.map(x => x.f).join(','), 'rarity,BREAK,set',
+  'a sort-only field was dragged left of the break, where it makes a page per value');
 assert.strictEqual(t.P.sortDraft.length, 3, 'dragging lost a term');
 t.dragSort(0); t.moveSort(0);
-assert.strictEqual(t.P.sortDraft.map(x => x.f).join(','), 'set,name,BREAK', 'a no-op drag changed the order');
+assert.strictEqual(t.P.sortDraft.map(x => x.f).join(','), 'rarity,BREAK,set', 'a no-op drag changed the order');
 setSort([]);
 
 // display first, order second, and on one line
-assert.ok(sortBar.indexOf('>Display<') < sortBar.indexOf('>Order<'), 'the display is not first');
+assert.ok(sortBar.indexOf('>Display<') < sortBar.indexOf('>Group order<'), 'the display is not first');
+/* A ZONE ONLY OFFERS WHAT IT CAN TAKE, so an impossible arrangement is never on
+   the screen rather than refused after the fact: the group zone lists the
+   category fields and the sort zone lists the rest. EACH FIELD IN ONE ZONE
+   ONLY - a category field used to be offered in both, so Language appeared on
+   the bar twice and read as two fields. */
+{
+  // from a known empty order, so every field is on offer and the zones can be
+  // read for what they WILL take rather than what happens to be staged
+  setSort([{ f: 'BREAK' }]);
+  const bar = sortBarNow();
+  const gz = bar.slice(bar.indexOf('>Group order<'), bar.indexOf('>Sort order<'));
+  const sz = bar.slice(bar.indexOf('>Sort order<'));
+  assert.ok(gz.includes("addSortTo('rarity','group')"), 'a category field is not offered as a grouping');
+  for (const f of ['set', 'number', 'release', 'name'])
+    assert.ok(!gz.includes(`addSortTo('${f}','group')`), `"${f}" is offered as a page grouping`);
+  for (const f of ['set', 'number'])
+    assert.ok(sz.includes(`addSortTo('${f}','sort')`), `"${f}" cannot be added to the sort order`);
+  for (const f of ['rarity', 'language', 'colour'])
+    assert.ok(!sz.includes(`addSortTo('${f}','sort')`),
+      `"${f}" is offered in both zones, so the bar names it twice`);
+  // ...and clicking one lands it on the side its zone names
+  t.addSortTo('rarity', 'group'); t.addSortTo('set', 'sort');
+  assert.strictEqual(t.P.sortDraft.map(x => x.f).join(','), 'rarity,BREAK,set',
+    'a field did not land in the zone it was added from');
+  setSort([{ f: 'BREAK' }]);
+}
 assert.strictEqual([...sortBar.matchAll(/setView\('(\w+)'\)/g)].map(m => m[1]).join(','),
-  'compact,details,grid,binder', 'the display order changed');
-// a binder layout of a deck is not a thing, and neither is a deck layout of a set
+  'compact,details,grid', 'the display order changed');
+/* EACH CONTAINER LAYOUT BELONGS TO ITS OWN TAB AND NOWHERE ELSE. A binder
+   layout of a deck is not a thing, a deck layout of a set is not a thing, and
+   the binder layout of a SET was a thing until it was taken out: it drew the
+   catalogue as pages of pockets, which looks like your collection and is a list
+   of every card Wizards printed. */
 go('#/decks');
 const deckBar = painted.slice(painted.indexOf('>sort<'), painted.indexOf('>view<'));
 assert.ok(deckBar.includes("setView('deck')") && !deckBar.includes("setView('binder')"),
   'the decks tab offers binder, or withholds deck');
 go('#/printings');
 const printBar = painted.slice(painted.indexOf('>sort<'), painted.indexOf('>view<'));
-assert.ok(printBar.includes("setView('binder')") && !printBar.includes("setView('deck')"),
-  'printings offers deck, or withholds binder');
-// binders renders no chooser at all — its one layout is stated in the band note
+assert.ok(!printBar.includes("setView('binder')") && !printBar.includes("setView('deck')"),
+  'printings offers a container layout for a thing that is not a container');
+// and the three card layouts survive on both, which is what those tabs are for
+for (const v of ['compact', 'details', 'grid'])
+  assert.ok(printBar.includes(`setView('${v}')`) && deckBar.includes(`setView('${v}')`),
+    `the "${v}" layout went missing from printings or decks`);
+// binders renders no chooser at all - its one layout is stated in the band note
 go('#/binders');
 assert.ok(!/setView\('\w+'\)/.test(painted), 'the binders tab still renders a display button');
 assert.ok(/binder &mdash; the only layout here/.test(painted),
   'with no chooser, the binders view band does not say what it is drawing');
 go('#/printings');
-// one control, once — the results band must not re-offer it
+/* ONE CONTROL, ONCE - and it needs a display CHOSEN to be a fair test. With
+   none picked the results band deliberately offers the chips a second time as
+   its empty state ("No display chosen"), which is the one case where two is
+   right. Coming straight off the binders tab leaves P.view unset here, because
+   the tab guard drops a layout the new tab does not offer. */
+t.setView('grid'); t.render();
 assert.strictEqual(painted.match(/setView\('grid'\)/g).length, 1, 'display type is rendered twice');
 // what a break means lives on each layout's own tooltip, not a paragraph
 assert.ok(/title="break = a new row"[^>]*>\s*<span[^>]*>[^<]*<\/span>grid</.test(painted),
@@ -1730,15 +1920,25 @@ setSort([{ f: 'colour', d: 'a' }, { f: 'rarity', d: 'd' }, { f: 'BREAK' }, { f: 
 // join rather than deepStrictEqual: arrays from the vm realm have a different prototype
 assert.strictEqual(t.grouping().map(x => x.f).join(','), 'colour,rarity',
   'grouping is not the sort terms left of the break');
-for (const [view, marker] of [['grid', 'Green'], ['compact', 'Green'], ['details', 'Green'], ['binder', 'Page 1'], ['deck', 'cards']]) {
-  t.setView(view); go('#/printings');
+/* ...ON THE TAB THAT OFFERS EACH ONE. This ran all five against Printings,
+   which worked only while Printings offered the binder layout. The container
+   layouts are now on their own tabs, so the loop goes where they live - and a
+   container has to be PICKED first, because until then the tab is its selector
+   rather than the inside of one. */
+for (const [view, marker, route] of [
+  ['grid', 'Green', '#/printings'], ['compact', 'Green', '#/printings'], ['details', 'Green', '#/printings'],
+  ['binder', 'Page 1', '#/binders'], ['deck', 'cards', '#/decks']]) {
+  go(route);
+  if (route === '#/binders') t.selectItem(t.LISTS.binders[0][0]);
+  if (route === '#/decks') t.selectItem(t.LISTS.decks[0][0]);
+  t.setView(view); t.render();
   assert.ok(painted.includes(marker), `break not honoured in the ${view} layout (no "${marker}")`);
 }
-t.setView('grid');
+t.clearItem(); go('#/printings'); t.setView('grid'); t.render();
 
 // --- printings: indented, fixed order, no search over SETS -------------
 // the card filter is fine and intended; the rule is that the SET LIST has no
-// search and no sort — its order is fixed by block + release date
+// search and no sort - its order is fixed by block + release date
 ctx.location.hash = '#/printings'; t.render(); t.clearItem();   // open, so the list shows
 assert.ok(!painted.includes('<input'), 'the set list must not offer a search');
 assert.ok(!painted.includes('placeholder='), 'nothing may offer a free-text search');
@@ -1753,10 +1953,10 @@ t.clearItem();
 
 // --- import/export: one map, both directions ---------------------------
 go('#/io');
-// names as Archidekt's own importer spells them — see docs/import-formats.md
+// names as Archidekt's own importer spells them - see docs/import-formats.md
 for (const s of ['Moxfield', 'Deckbox', 'Dragonshield', 'ManaBox', 'Cardsphere', 'Delver Lens', 'Helvault', 'Archidekt', 'Collectr', 'Deckstats'])
   assert.ok(painted.includes(s), `import is missing the "${s}" source`);
-/* LANGUAGE HAS A COLUMN. This used to assert `NO COLUMN YET` was on the page —
+/* LANGUAGE HAS A COLUMN. This used to assert `NO COLUMN YET` was on the page -
    asserting the drift, not the behaviour. That string described the DELETED
    Postgres app's `cards` table, while the schema map two bands below on the same
    page listed `lang` as a column of `mtg_card_printings`, so the page
@@ -1770,14 +1970,14 @@ assert.ok(!painted.includes('NO COLUMN YET'), 'the import map still claims langu
   // ...and it is not merely storable: it is in the key and on the flat line
   assert.ok(t.printKey({ set: 'X', num: '1', lang: 'ja' }).endsWith('/ja'), 'the identity key drops language');
   assert.ok(t.flatLine({ n: 'A', set: 'X', num: '1', lang: 'ja' }).includes('[ja]'), 'the import line drops language');
-  // external ids identify nothing this app needs — set, number and language do
+  // external ids identify nothing this app needs - set, number and language do
   assert.ok(!t.CANON.some(r => /uid|uuid/i.test(r[0])), 'the column map still carries an external id');
 }
 assert.ok(painted.includes('Resolve ambiguous'), 'no ambiguous-row resolver');
 // the grouping step is a one-off, and says so
 assert.ok(/one-off/.test(painted), 'the grouping step is not marked as a one-off');
 /* THE GROUPS IN THE FILE YOU LOADED, and with no file there are none. This
-   listed Main 2410 rows, Mono-Red Burn 74, Trade box 312, (blank) 94 — an import
+   listed Main 2410 rows, Mono-Red Burn 74, Trade box 312, (blank) 94 - an import
    that had never run, with counts precise enough to read as one that had. */
 assert.strictEqual(t.IMPORT_GROUPS.length, 0, 'a fresh app has groups from a file nobody chose');
 assert.ok(painted.includes('Choose a file above'), 'the grouping step invents groups');
@@ -1785,14 +1985,22 @@ for (const g of ['Trade box', '2410 rows']) assert.ok(!painted.includes(g), `the
 // ...and once a file is read, each group is a row that can go to any of the three
 t.IMPORT_GROUPS.push(['Main', 2410, 'binder'], ['(blank)', 94, '']);
 ctx.location.hash = '#/io'; t.render();
-assert.ok(/Binder[\s\S]{0,400}Box[\s\S]{0,400}Deck/.test(painted), 'grouping column cannot designate binder/box/deck');
-assert.ok(painted.includes('&rarr; unsorted'), 'a group sent nowhere does not say where it lands');
+assert.ok(/>binder<[\s\S]{0,400}>box<[\s\S]{0,400}>deck</.test(painted), 'grouping column cannot designate binder/box/deck');
+// ...and the three are CONTROLS now, not captions: they were chips with no
+// handler under a Run button with no handler, describing a decision nothing took
+for (const k of ['binder', 'box', 'deck'])
+  assert.ok(painted.includes(`setGroupKind('Main','${k}')`), `the "${k}" choice does nothing`);
+/* "SKIPPED", NOT "UNSORTED" -- and the word had to change because Apply now
+   runs. Unsorted read as a place the cards would land; a group with no kind is
+   one applyImport writes nowhere, and saying so is the difference between a
+   default you accepted and cards you cannot find afterwards. */
+assert.ok(painted.includes('&rarr; skipped'), 'a group sent nowhere does not say where it lands');
 t.IMPORT_GROUPS.length = 0;
 
 // --- config: two columns, coherent groups, a source toggle that moves ---
 go('#/config');
 assert.ok(/xl:grid-cols-2/.test(painted), 'config is not two columns');
-// data on the left, behaviour on the right — assert the order, not just presence
+// data on the left, behaviour on the right - assert the order, not just presence
 const bandAt = n => painted.indexOf(`>${n}</span>`);
 const groups = ['sources', 'schema source map', 'cache', 'files',
                 'games', 'identity', 'refresh', 'import / export map', 'defaults', 'debug'];
@@ -1818,7 +2026,7 @@ for (const k of Object.keys(t.SOURCES)) {
 /* DEAREST FIRST, both down the source list and down each source's sizes: the
    top is the biggest thing you could put on this disk, the bottom the smallest
    thing to pull when a page asks for it. The declarations are in whatever order
-   they were written — Scryfall's five run 24 MB, 78, 392, 37, 5 — which reads
+   they were written - Scryfall's five run 24 MB, 78, 392, 37, 5 - which reads
    as no order at all. */
 for (const kind of ['images', 'data']) {
   const ks = t.srcKeys(kind);
@@ -1834,7 +2042,7 @@ for (const k of srcShown) {
 }
 /* The page is STATIC and downloads nothing, so the control that matters is the
    command, not a button. There used to be a "Download & cache now" button here
-   that did nothing at all — asserting it existed was asserting the lie. */
+   that did nothing at all - asserting it existed was asserting the lie. */
 for (const k of srcShown) {
   const s = t.SOURCES[k], cmd = s.cmd(t.CFG.src[k].q);
   assert.ok(cmd || s.why_local, `"${s.name}" offers no command and no reason it needs none`);
@@ -1849,8 +2057,8 @@ for (const k of srcShown) {
    An amber pip means "there is work waiting for you here"; saying so when there
    is none is the same fiction as a Collected bar over an empty collection. */
 assert.strictEqual(t.UNRESOLVED.length, 0, 'a fresh app has rows waiting to be resolved');
-/* THE CACHE COUNTS ARE COUNTED. They were typed — cards 108,412 against a
-   catalogue of 107,347 and sets 947 against 986 — close enough to read as
+/* THE CACHE COUNTS ARE COUNTED. They were typed - cards 108,412 against a
+   catalogue of 107,347 and sets 947 against 986 - close enough to read as
    measured and wrong, which is the worst of both. */
 assert.ok(painted.includes(t.ALL().length.toLocaleString('en-GB')), 'the cache row does not count the catalogue');
 assert.ok(painted.includes(t.SETS.length.toLocaleString('en-GB')), 'the cache row does not count the sets');
@@ -1858,7 +2066,7 @@ for (const stale of ['108,412', '947<', '311,905', '144,201'])
   assert.ok(!painted.includes(stale), `the typed cache count "${stale}" is back`);
 {
   // this file's own fixtures are containers, so the empty case is asserted with
-  // them set aside — the app itself ships with neither
+  // them set aside - the app itself ships with neither
   const [bs, ds] = [t.LISTS.binders.splice(0), t.LISTS.decks.splice(0)];
   ctx.location.hash = '#/config'; t.render();
   assert.ok(painted.includes('Nothing collected yet'), 'the files band invents files for an empty collection');
@@ -1887,7 +2095,7 @@ for (const m of Object.keys(t.OFFLINE_MODES))
    prose and had drifted have to come out of the arithmetic. 135 GB is what the
    fullest card art actually costs and it must be visible before it is chosen. */
 assert.ok(t.offlineBytes('full') > t.offlineBytes('drawn') * 5,
-  'the fullest-size offline total is not dramatically bigger — is srcBytes wired up?');
+  'the fullest-size offline total is not dramatically bigger - is srcBytes wired up?');
 assert.ok(/1[0-9]{2}\.[0-9] GB/.test(painted), 'the full-size offline cost is not stated on the page');
 // a source that cannot go local is named, not counted as an outstanding chore
 assert.ok(Object.keys(t.SOURCES).some(k => t.SOURCES[k].noLocalYet),
@@ -1904,10 +2112,10 @@ assert.strictEqual(t.CFG.src.sfart.at, 'online', 'back-to-defaults did not resto
 go('#/config');
 
 /* Every source reads the same way or the row is not doing its job: each one
-   names what it gives, offers BOTH sides, and prices both — a source that
+   names what it gives, offers BOTH sides, and prices both - a source that
    quietly drops the side it doesn't have is the drift this replaced. */
 const srcBand = painted.slice(bandAt('sources'), bandAt('schema source map'));
-assert.strictEqual(Object.keys(t.SOURCES).length, 8, 'the source list changed size — is the new one in Config?');
+assert.strictEqual(Object.keys(t.SOURCES).length, 8, 'the source list changed size - is the new one in Config?');
 for (const k of srcShown) {
   const s = t.SOURCES[k];
   const at = srcBand.indexOf(`>${s.name}<`);
@@ -1925,7 +2133,7 @@ for (const k of srcShown) {
     `"${s.name}" offers no quality choice`);
   /* Asked PER SIZE, not per source. It used to answer only for whichever size
      happened to be selected, so a directory holding 107k art crops read "not
-     fetched" the moment you clicked png — true of png, and it hid the one thing
+     fetched" the moment you clicked png - true of png, and it hid the one thing
      the row is for: which of these five have I actually got. */
   assert.strictEqual((row.match(/serve\.py answers this|on disk|&mdash;<\/span>/g) || []).length >= s.q.length,
     true, `"${s.name}" does not answer "is it here" for every size it offers`);
@@ -1969,14 +2177,14 @@ assert.ok(!painted.includes('/cards (live)'), 'live attribution stuck after swit
   assert.strictEqual(t.CFG.src.sfart.q, 'large', 'an image-size choice does not survive a reload');
   assert.strictEqual(t.LISTS.decks.length, decks.length, 'the deck list does not survive a reload');
   // joined, not deepStrictEqual: an array built inside the vm carries the vm's
-  // Array.prototype, and deepStrictEqual compares prototypes — it fails on two
+  // Array.prototype, and deepStrictEqual compares prototypes - it fails on two
   // identical arrays from different realms
   assert.strictEqual(t.LISTS.decks[0][4].map(c => c.n).join(','), 'A,B',
     'a kept draft comes back without the cards that were the point of keeping it');
 
   /* A SOURCE ADDED SINCE A SAVE KEEPS ITS DEFAULT, and one removed does not come
      back. Assigning the stored object wholesale would get both wrong, and the
-     failure is silent — a new source would arrive already configured to whatever
+     failure is silent - a new source would arrive already configured to whatever
      was in an old payload, or absent. */
   const stored = JSON.parse(globalThis.__store.getItem(t.STORE));
   delete stored.src.tcg;                      // as if tcg were added after this save
@@ -1998,7 +2206,7 @@ assert.ok(!painted.includes('/cards (live)'), 'live attribution stuck after swit
   t.setSrc('tcg', 'online'); t.setQuality('sfart', 'art_crop');
 
   // the store has to be visible and removable, or a kept draft you did not want
-  // has no cure short of devtools — nothing else on the page deletes a deck
+  // has no cure short of devtools - nothing else on the page deletes a deck
   go('#/config');
   assert.ok(painted.includes('saved on this device'), '#/config does not say what is being remembered');
   assert.ok(painted.includes('forgetState()'), 'there is no way to clear what was saved');
@@ -2021,7 +2229,7 @@ t.setQuality('tcg', '200w');
 /* THE ART WINDOW ALWAYS DRAWS THE CROP. The five Scryfall sizes are two
    different pictures: `art_crop` is the illustration alone, and the other four
    are the whole printed card. Letting the configured size reach the art window
-   put an entire card — frame, type line, rules text — inside the art window of
+   put an entire card - frame, type line, rules text - inside the art window of
    a drawn one, on every card on the page, at every setting but the default. It
    looked fine until someone changed the chip, and then it looked fine in the
    sense that a picture appeared. */
@@ -2046,7 +2254,7 @@ t.setQuality('tcg', '200w');
 }
 
 /* LANGUAGE IS READ, NOT ASSUMED. Every row used to carry a hardcoded 'en',
-   which is a literal wearing a field's clothes — it prints in the identity key
+   which is a literal wearing a field's clothes - it prints in the identity key
    beside the set and collector number, where it reads as a fact about the
    printing. `default_cards` is one printing per card *preferring* English, not
    a set of English printings: 2,634 of 107,347 are Foreign Black Border,
@@ -2057,8 +2265,16 @@ t.setQuality('tcg', '200w');
   const gc = readFileSync('gen-cards.mjs', 'utf8');
   assert.ok(/c\.lang === 'en' \? 0 : c\.lang/.test(gc),
     'gen-cards.mjs no longer carries the printing language');
-  assert.ok(/\[oracle, set, number, rarity, artId, usd, treatment, finishes, lang, artist, flavour, dfc\]/.test(gc),
+  assert.ok(/\[oracle, set, number, rarity, artId, usd, treatment, finishes, lang, artist, flavour, dfc, langMask\]/.test(gc),
     'the printing tuple comment and its contents disagree about language');
+  /* ...AND `lang` IS NOT `langMask`. The row's language is which language THIS
+     row was catalogued in; the mask is which languages the printing was
+     PRINTED in, and only the second can answer the pip column. Measured, the
+     two disagree about 63,990 printings - the catalogue has 651 Japanese rows
+     against 61,628 Japanese printings - so a page reading `lang` for
+     availability would be wrong about most of the collection. */
+  assert.ok(/data\/lang-index\.json/.test(gc), 'gen-cards.mjs no longer folds in the language index');
+  assert.ok(/LANG_INDEX\?\.index\[/.test(gc), 'the language mask is not written per printing');
   // narrowed to materialise: the 18 mock rows carry `lang: 'en'` as data, which
   // is what a hand-written mock card is for and not the fault
   const mat = readFileSync('index.html', 'utf8').match(/const materialise = [\s\S]*?\n};/)[0];
@@ -2072,7 +2288,7 @@ t.setQuality('tcg', '200w');
 
 /* ARTIST AND FLAVOUR, both interned and both per PRINTING. MockCard has drawn
    `c.art` on the collector bar and `c.flav` under the rules box since it was
-   written, and the mock rows carry both — so the slots looked implemented and
+   written, and the mock rows carry both - so the slots looked implemented and
    were empty on all 107,347 real cards. The interesting half is flavour on a
    two-faced card: it is printed on the face it belongs to, faces are SHARED by
    reference across every printing of an oracle, and writing one printing's
@@ -2131,7 +2347,7 @@ t.setQuality('tcg', '200w');
 const declared = [...src.matchAll(/^(?:const|let|function)\s+([A-Za-z_$][\w$]*)/gm)].map(m => m[1]);
 for (const name of declared) {
   const uses = src.match(new RegExp(`\\b${name}\\b`, 'g')).length;
-  assert.ok(uses > 1, `"${name}" is declared and never used — delete it`);
+  assert.ok(uses > 1, `"${name}" is declared and never used - delete it`);
 }
 // inline onclick/onchange never run during render, so they rot silently
 // `this` and `event` are implicit globals inside an inline handler; the rest
@@ -2144,13 +2360,13 @@ for (const r of t.ORDER) {
   for (const m of painted.matchAll(/\bon(?:click|change|input|submit|load|error)="([^"]*)"/g)) handlers.add(m[1]);
 }
 for (const h of handlers) {
-  // blank out string literals first — "Eternities" inside 'Edge of Eternities (EOE)'
+  // blank out string literals first - "Eternities" inside 'Edge of Eternities (EOE)'
   // is not an identifier, and the lookbehind alone can't tell
   const code = h.replace(/'[^']*'|"[^"]*"/g, "''");
   for (const m of code.matchAll(/(?<![.\w$'"])([A-Za-z_$][\w$]*)\s*(?=[.(=[]|$)/g)) {
     const id = m[1];
     if (KEYWORDS.has(id)) continue;
-    // `id in ctx` misses const/let — they live in the realm's global lexical
+    // `id in ctx` misses const/let - they live in the realm's global lexical
     // scope, not on the global object. Ask the realm itself.
     assert.notStrictEqual(vm.runInContext(`typeof ${id}`, ctx), 'undefined',
       `handler "${h}" calls "${id}", which is not defined`);
@@ -2158,9 +2374,9 @@ for (const h of handlers) {
 }
 console.log(`  ${String(declared.length).padStart(3)} declarations, all used · ${handlers.size} inline handlers, all resolve`);
 
-/* WRITTEN DOWN ONCE. Each of these vocabularies existed twice — once as the
+/* WRITTEN DOWN ONCE. Each of these vocabularies existed twice - once as the
    constant the filter counts against, and again inside the anatomy spec with an
-   invented number beside it — and two of the four copies had already drifted:
+   invented number beside it - and two of the four copies had already drifted:
    the spec's Legality listed eight formats to FORMATS' nine and its Rarity four
    to RARITIES' five, so the sidebar offered a vocabulary the filter, the sort
    and the card page did not share. These assert the spec is DERIVED, by
@@ -2180,7 +2396,7 @@ console.log(`  ${String(declared.length).padStart(3)} declarations, all used · 
      that hold 100k printings between them. */
   for (const n of ['Legality', 'Type', 'Rarity', 'Finish'])
     assert.ok(specOf(n).every(x => x.length === 1), `the ${n} chips still carry a hardcoded count`);
-  // ...and an OPEN one is not written down at all — it comes from the data
+  // ...and an OPEN one is not written down at all - it comes from the data
   for (const n of ['Subtype', 'Keywords', 'Language', 'Artist'])
     assert.strictEqual(specOf(n).length, 0, `${n} is a hand-picked sample presented as a vocabulary`);
 }
@@ -2235,7 +2451,7 @@ console.log('config: 2 columns, 11 groups in order. 8 sources, each priced local
 
 // --- drawing boosters ---------------------------------------------------
 // A pack is a thing a SET prints, so the control exists on one set and nowhere
-// else — not on a binder, a deck, a search, or an unpicked set list.
+// else - not on a binder, a deck, a search, or an unpicked set list.
 t.pickGame('mtg'); go('#/printings'); t.clearItem();
 /* THE TRIGGER IS ON THE BAR, NOT HOVERING OVER THE PAGE. It used to be a fixed
    bottom-right button labelled "Boosters"; it is the bar's Draft button now,
@@ -2276,7 +2492,7 @@ const tokenSet = t.SETS.find(r => r[5] === 'token');
 assert.strictEqual(t.packsFor(tokenSet[0]), null, 'a token set offers a booster');
 
 /* The collation itself. Which booster a set is drafted with is read from
-   MTGJSON's set.booster, not inferred from the release date — the published
+   MTGJSON's set.booster, not inferred from the release date - the published
    Play Booster changeover is 2024-04-19 but MKM shipped `play` on 2024-02-09,
    which is precisely the case a date rule gets wrong. */
 const B = t.BOOSTER;
@@ -2291,7 +2507,7 @@ for (const [code, v] of Object.entries(B)) {
   assert.ok(Number.isInteger(rarest) && rarest >= 1, `BOOSTER.${code} rarest card is 1 in ${rarest}`);
 }
 const mkm = B.MKM, mh3 = B.MH3, lci = B.LCI;
-assert.ok(mkm && mkm[0] === 'play', 'MKM is not read as a Play Booster set — the date rule is back');
+assert.ok(mkm && mkm[0] === 'play', 'MKM is not read as a Play Booster set - the date rule is back');
 assert.ok(t.SETS.find(r => r[1] === 'MKM')[2] < '2024-04-19',
   'MKM no longer predates the published Play Booster changeover, so it stops testing this');
 assert.ok(mh3[0] === 'play' && lci[0] === 'draft', 'the play/draft split is wrong at MH3/LCI');
@@ -2309,7 +2525,7 @@ assert.strictEqual(t.packsFor('The Lost Caverns of Ixalan')[0], 'draft',
   'a pre-changeover set does not draw its Draft Booster first');
 /* Which OTHER boosters a set prints is read from the generated index, not
    assumed from the era: 49 of the 179 drafted sets have a Collector Booster and
-   they are not the play-era ones — Lost Caverns of Ixalan is a draft-era set
+   they are not the play-era ones - Lost Caverns of Ixalan is a draft-era set
    with one. The drafted kind always leads, because that is what a draft uses. */
 for (const [name, code] of [['Murders at Karlov Manor', 'MKM'], ['The Lost Caverns of Ixalan', 'LCI'],
                             ['Ice Age', 'ICE'], ['Modern Horizons 3', 'MH3']]) {
@@ -2324,16 +2540,24 @@ if (undraftable) assert.deepStrictEqual(t.packsFor(undraftable[0]).length, 0,
   'a set collated only into non-draft products still offers a draft');
 // the note that carries the numbers, since they get no column of their own
 /* The catalogue. check.mjs renders with no network, so what runs here is the
-   fallback path — which is exactly the property worth pinning: the page has to
+   fallback path - which is exactly the property worth pinning: the page has to
    work before 5 MB arrives, and gets no fetch at all in the harness. */
 assert.ok(t.CARDS().length && t.CARDS().length <= t.P.page,
   'the render slice is empty or ignores its own cap');
-assert.strictEqual(t.ALL().length, t.CARDS().length,
-  'the mock fallback is being capped, so the harness is not seeing every mock');
+/* NOT CAPPED, WHICH IS WHAT THIS ASSERTED -- and it said so by comparing
+   CARDS() to ALL(), which stopped being the same question when the default
+   language filter arrived. CARDS() is the drawable page: filtered, then sorted,
+   then sliced. So the cap is what is pinned, and the filter is pinned beside it
+   rather than through it. */
+assert.ok(t.CARDS().length < t.P.page, 'the mock fallback is being capped, so the harness is not seeing every mock');
+assert.strictEqual(t.CARDS().length, t.ALL().filter(c => (c.lang || 'en') === t.P.lang).length,
+  'the drawn page is not the default language, or it is dropping cards the filter keeps');
+assert.ok(t.ALL().length > t.CARDS().length,
+  'no foreign mock survives, so the default language filter is untestable here');
 assert.ok(t.openedCard()?.n, 'no card opens without a catalogue');
 // the shape the generator writes must be the shape MockCard reads
 const built = t.materialise({
-  o: [['Llanowar Elves', '{G}', 'Creature — Elf Druid', '{T}: Add {G}.', '1/1', 'G', 1]],
+  o: [['Llanowar Elves', '{G}', 'Creature - Elf Druid', '{T}: Add {G}.', '1/1', 'G', 1]],
   p: [[0, 'DMU', '168', 1, 'abc-1', 0.25]],
 });
 assert.strictEqual(built.length, 1, 'a printing did not materialise');
@@ -2353,12 +2577,12 @@ assert.deepStrictEqual([...t.costTokens('')], [], 'an empty cost is not empty');
 
 /* Picking a set has to show THAT set. Showing the first N of the catalogue is
    worse than showing mocks, because the cards are real and so read as the set's
-   own — which is exactly what shipped and had to be fixed. Seeded rather than
+   own - which is exactly what shipped and had to be fixed. Seeded rather than
    fetched: the harness has no network, and the mock fallback is a fixed sample
    that is deliberately never filtered, so only a real catalogue tests this. */
 const twoSets = t.SETS.filter(r => !r[4]).slice(0, 2);
 await t.loadCards({
-  o: [['Alpha Card', '{G}', 'Creature — Elf', 'One.', '1/1', 'G', 1],
+  o: [['Alpha Card', '{G}', 'Creature - Elf', 'One.', '1/1', 'G', 1],
       ['Beta Card', '{U}', 'Instant', 'Two.', '', 'U', 1]],
   p: [
     [0, twoSets[0][1], '1', 1, 'a-1', 0.1],
@@ -2382,14 +2606,14 @@ assert.ok(t.CARDS().every(c => !['a-1', 'a-2', 'b-1'].includes(c.art_id)),
 
 /* A CONTAINER HOLDS WHAT IS STORED ON IT, and a binder is a deck in this one
    respect. Every binder used to draw the same 18 mock cards, which was the
-   original complaint; the answer at the time was `BINDER_RULE` — a predicate per
+   original complaint; the answer at the time was `BINDER_RULE` - a predicate per
    binder over the catalogue (the Alara sets, twenty duals, twenty-five Commander
    staples, Unsorted as the remainder), explicitly a stand-in until holdings
    arrived. They have, so the rule is gone and membership is index 4, the shape a
    kept draft has always used. What this pins is that the two tabs read the SAME
    index: they were two answers to one question and only one of them was real. */
 await t.loadCards({
-  o: [['Noble Hierarch', '{G}', 'Creature — Human Druid', '', '0/1', 'G', 1],
+  o: [['Noble Hierarch', '{G}', 'Creature - Human Druid', '', '0/1', 'G', 1],
       ['Misty Rainforest', '', 'Land', '', '', '', 0],
       ['Sol Ring', '{1}', 'Artifact', '', '', '', 1],
       ['Some Other Card', '{R}', 'Instant', '', '', 'R', 1]],
@@ -2426,7 +2650,7 @@ await t.loadCards({
   // ...and a copy in a BINDER is a copy you own. heldOf searched decks alone,
   // which was right while a binder's contents were a predicate over the
   // catalogue and is not now that they are stored the same way.
-  // Sol Ring is in both fixtures — the staples binder and the burn deck — so it
+  // Sol Ring is in both fixtures - the staples binder and the burn deck - so it
   // is two holdings, which is the whole point of the band naming WHERE each is
   const sol = t.heldOf('Sol Ring');
   assert.strictEqual(sol.length, 2, 'a copy held in a binder is not reported as held');
@@ -2454,12 +2678,12 @@ go('#/printings'); t.selectItem(drawable[0]); t.render();
 assert.ok(/askDraw\([^)]*\)[^>]*>Draft</.test(painted), 'the bar does not carry the draft trigger');
 assert.ok(!painted.includes('booster 1 of'), 'clicking nothing already opened a pack');
 /* The question is step one of a PAGE of its own: it names the three things you
-   can be opening boosters for and how many each takes, and nothing else — no
+   can be opening boosters for and how many each takes, and nothing else - no
    filter rail, no nav, nothing behind it to click by mistake. The page you came
    from is restored on the way out rather than sat under it the whole time. */
 t.askDraw(drawable[0]);
 assert.ok(painted.includes('What are you opening them for?'), 'the trigger does not ask what for');
-assert.ok(!painted.includes('How many'), 'the pack count is still a question — it is a rule of the format');
+assert.ok(!painted.includes('How many'), 'the pack count is still a question - it is a rule of the format');
 assert.ok(!painted.includes('>filter</span>'), 'the set page is still live under the question');
 assert.ok(t.ORDER.includes('draw'), '#/draw is not a route');
 t.cancelDraw();
@@ -2509,7 +2733,7 @@ assert.ok(painted.includes('>filter</span>') && !painted.includes('booster 1 of'
   'closing the draw did not give the page back');
 
 t.askDraw(drawable[0]); t.setPackMode('complete'); t.nextPack();
-// the same seed is the same pack, every render — a pack that reshuffles under
+// the same seed is the same pack, every render - a pack that reshuffles under
 // the cursor is a slot machine, and render() fires on every click
 const first = t.drawn().map(c => c.n + c.slot).join('|');
 t.render(); t.render();
@@ -2523,7 +2747,7 @@ assert.ok(pack.length >= 14 && pack.length <= 15, `a play booster of ${pack.leng
 // the pack is the SET's, not the fixtures': a Star Trek booster full of Conflux
 // collector numbers is the one thing a booster cannot be
 const code = t.SETS.find(r => r[0] === t.P.draw.set)[1];
-/* Every card in the pack is a printing the SHEETS named — which is a stronger
+/* Every card in the pack is a printing the SHEETS named - which is a stronger
    claim than "from this set", and a different one: the List and Special Guest
    slots deal cards from other sets entirely. What must never happen is a card
    the collation did not put there, which is what the old tier table did on
@@ -2533,19 +2757,19 @@ for (const c of pack)
 assert.ok(pack.some(c => c.set === code), 'no card in the pack is from the set it was opened from');
 assert.ok(pack.every(c => c.num), 'a drawn card has no collector number');
 // nothing is face-up until you turn it over, and you turn over the one you
-// reached for — not whichever is next in line
+// reached for - not whichever is next in line
 assert.strictEqual((painted.match(/repeating-linear-gradient/g) || []).length, pack.length,
   'the pack does not start face down');
 t.revealAt(pack.length - 1);
 assert.strictEqual((painted.match(/repeating-linear-gradient/g) || []).length, pack.length - 1,
   'clicking a card turned over a different number of cards');
 assert.ok(painted.includes(pack[pack.length - 1].n), 'the card clicked is not the card revealed');
-/* TWO ROWS, running left to right — a booster you are opening rather than a
+/* TWO ROWS, running left to right - a booster you are opening rather than a
    list of cards. The rows are the height of the window and the columns hug the
    card, so a 14-card pack and a 15-card pack are the same size of card and the
    longer one simply reaches further right. Nothing counts the pack. */
 // scoped to the draw. Anchored on the shell's own hook rather than on whatever
-// layout classes it happens to wear this week — those have now changed three
+// layout classes it happens to wear this week - those have now changed three
 // times and taken this line with them each time.
 const win = () => painted.slice(painted.indexOf('data-draw'));
 assert.ok(win().includes('grid-rows-2') && win().includes('grid-flow-col'),
@@ -2561,7 +2785,7 @@ for (const slot of ['Rare / mythic', 'Wildcard', 'The List'])
 t.revealAt(0); t.nextPack();
 assert.ok(painted.includes('booster 2 of'), 'the draw did not move on to the next booster');
 /* ONE BUTTON, TWO JOBS, AND NEVER BOTH AT ONCE. While the cards are being dealt
-   the only useful verb is "stop waiting" — the capture reads Skip to End there,
+   the only useful verb is "stop waiting" - the capture reads Skip to End there,
    and only once they are down does it become Reveal All. Ours offered Reveal all
    throughout, including mid-fly, where pressing it fought the animation.
    `P.opening` could not carry this: it goes false the moment `flyGhosts` is
@@ -2611,7 +2835,7 @@ assert.ok(combined.slice(0, firstUp).every(c => c.rar > 2), 'the face-down cards
 /* ...and at the END of the GRID, which runs the other way on purpose. A pool
    reads as a list with the best at the top; a deal wants the opposite, so the
    card you were waiting for is the one still in the air when the rest is down.
-   Both orders are real and they are reverses of each other — pinned here
+   Both orders are real and they are reverses of each other - pinned here
    because reversing only one of them would have the sweep run backwards. */
 const shown = [...win().matchAll(/data-card-id="([^"]+)"/g)].map(m => m[1]);
 const byId = new Map(combined.map(c => [c.id, c]));
@@ -2633,16 +2857,16 @@ t.revealOne(shut.id);
 assert.ok(t.P.draw.shownAll.includes(shut.id), 'turning a card over in the combined view did nothing');
 assert.strictEqual(t.P.draw.shownAll.length, up.size + 1, 'turning one card over turned others too');
 // a pack is generated whole from its seed when it is drawn, so revealing cannot
-// change what is in it — the cards already turned over stay exactly as they were
+// change what is in it - the cards already turned over stay exactly as they were
 assert.ok(pack.every(c => combined.some(x => x.n === c.n && x.num === c.num)),
   'revealing everything changed what was already face up');
 /* THE SCROLL EASE IS IN TIME, NOT IN FRAMES. Both the deal and the reveal sweep
-   choose WHICH card to send off the clock — `(now - start) / DEAL_MS` — and both
+   choose WHICH card to send off the clock - `(now - start) / DEAL_MS` - and both
    used to move the scroll a fixed fraction per frame. Those units disagree the
    moment a frame is dropped: cards keep leaving on schedule while the scroll
    advances once per frame, so at 30fps it covers half the ground in the same
    second and the pool visibly trails the cards being dealt into it. Compounding
-   per millisecond makes a dropped frame free — two frames' worth of time in one
+   per millisecond makes a dropped frame free - two frames' worth of time in one
    frame moves two frames' worth of distance. */
 {
   const per = 1 / 60 * 1000;
@@ -2668,7 +2892,7 @@ assert.ok(!painted.includes('Booster by booster'), 'the combined view still offe
 assert.ok(!painted.includes('Next booster'), 'a Next booster button is still painted');
 /* And Keep is DEAD until the draw is finished. Half a sealed pool kept at booster
    three is six packs you never looked at, so the button offering it is offering a
-   mistake — it is disabled, and says how many are left. */
+   mistake - it is disabled, and says how many are left. */
 assert.ok(painted.includes('Keep as deck'), 'the draw offers no way to keep it');
 assert.ok(painted.includes('disabled'), 'Keep as deck is live before every card is seen');
 t.revealSequentialSync ? 0 : 0;
@@ -2713,7 +2937,7 @@ assert.ok(t.P.ask && !t.P.draw && t.P.ask.mode === null,
 assert.ok(painted.includes('What are you opening them for?'), 'Discard did not repaint the chooser');
 t.askDraw(`${drawable[0]} (${drawable[1]})`); t.setPackMode('complete'); t.nextPack();
 /* THE COLLATION ITSELF. The recipes and sheets are generated out of MTGJSON by
-   gen-boosters.mjs and read here off disk — the hand-written rarity-tier table
+   gen-boosters.mjs and read here off disk - the hand-written rarity-tier table
    that used to stand in index.html was a plausible imitation of a booster, and
    the difference is checkable: a pack adds up, every sheet a recipe names
    exists, and the weights reproduce the published rate. */
@@ -2761,7 +2985,7 @@ t.closeDraw();
 
 // --- art is hotlinked, and the frame survives without it -----------------
 // The art crop is somebody else's server: the catalogue holds an id, never a
-// file. A card with no id still draws — that's the resolver's whole case.
+// file. A card with no id still draws - that's the resolver's whole case.
 t.pickGame('mtg');
 for (const c of t.CARDS()) {
   assert.ok(c.art_id, `${c.n} has no art id`);
@@ -2781,7 +3005,7 @@ assert.ok(noArt.includes('no art loaded') && !noArt.includes('<img'),
   'a card with no art id tries to load one anyway');
 
 // --- card anatomy: every shape of card, and the frame that survives it -----
-/* The mock rows are all one shape — one face, art in a window — so they cannot
+/* The mock rows are all one shape - one face, art in a window - so they cannot
    exercise the half of the catalogue that isn't. This seeds the real thing:
    one printing per layout family and one per art treatment, in the payload
    shape gen-cards.mjs actually writes, and asserts the frame CHANGES for each.
@@ -2789,9 +3013,9 @@ assert.ok(noArt.includes('no art loaded') && !noArt.includes('<img'),
    assertion above this line. */
 t.pickGame('mtg');
 const anatOracle = (name, layout, faces) =>
-  [name, '{1}{G}', 'Creature — Elf', 'Rules text.', '1/1', 'G', 2, layout, '', faces || 0];
+  [name, '{1}{G}', 'Creature - Elf', 'Rules text.', '1/1', 'G', 2, layout, '', faces || 0];
 const twoFaces = (a, b) => [
-  [a, '{G}', 'Creature — Elf', 'Front rules.', '1/1', '', 'G'],
+  [a, '{G}', 'Creature - Elf', 'Front rules.', '1/1', '', 'G'],
   [b, '{U}', 'Instant', 'Back rules.', '', '', 'U'],
 ];
 const ANAT = {
@@ -2802,8 +3026,8 @@ const ANAT = {
     anatOracle('Hero // Quest', 'adventure', twoFaces('Hero', 'Quest')),
     anatOracle('Upright // Inverted', 'flip', twoFaces('Upright', 'Inverted')),
     anatOracle('A Plane', 'planar'),
-    ['A Saga', '{2}{W}', 'Enchantment — Saga', 'I, II — Do a thing.\nIII — Do another.', '', 'W', 3, 'saga', '', 0],
-    ['A Class', '{1}{U}', 'Enchantment — Class', 'Base ability.\n{2}{U}: Level 2\nSecond ability.', '', 'U', 2, 'class', '', 0],
+    ['A Saga', '{2}{W}', 'Enchantment - Saga', 'I, II - Do a thing.\nIII - Do another.', '', 'W', 3, 'saga', '', 0],
+    ['A Class', '{1}{U}', 'Enchantment - Class', 'Base ability.\n{2}{U}: Level 2\nSecond ability.', '', 'U', 2, 'class', '', 0],
     /* NOTHING FOR A FRAME TO HOLD. No cost, no type line ("Card" is Scryfall's
        placeholder for absence, not a type), and either no rules or one
        parenthetical. An art card and a Jumpstart theme divider, 3% of the real
@@ -2813,16 +3037,16 @@ const ANAT = {
     ['Theme', '', 'Card', '(Theme color: {G})', '', '', 0, 'front_card', '', 0],
     // ...and the near miss that must still get a frame: no cost either, but a
     // real type line, which is every token, land, emblem, plane and scheme
-    ['A Token', '', 'Token Creature — Bear', '', '2/2', 'G', 0, 'token', '', 0],
+    ['A Token', '', 'Token Creature - Bear', '', '2/2', 'G', 0, 'token', '', 0],
     /* Written the way the source writes one, capitals and all, because that is
        the whole fault: `LEVEL 1-4` is not `Level 1`, and the `0/6` under it is
        this band's power and toughness rather than a stray line of rules. */
-    ['A Leveler', '{1}{U}', 'Creature — Merfolk',
+    ['A Leveler', '{1}{U}', 'Creature - Merfolk',
       'Level up {2} ({2}: Put a level counter on this.)\nLEVEL 1-4\n0/6\nLEVEL 5+\n6/6\nIslandwalk',
       '0/1', 'U', 2, 'leveler', '', 0],
     /* An aftermath card is `layout: split` like the one above it, and the only
        thing that tells them apart is the keyword's reminder text opening the
-       back face — so the fixture writes it exactly as the source does. */
+       back face - so the fixture writes it exactly as the source does. */
     ['Now // Later', '{2}{W}', 'Sorcery', 'Do a thing.', '', 'W', 3, 'split', '',
       [['Now', '{2}{W}', 'Sorcery', 'Do a thing.', '', '', 'W'],
        ['Later', '{3}{W}', 'Sorcery',
@@ -2856,16 +3080,16 @@ const byName = Object.fromEntries(t.ALL().map(c => [`${c.n}|${c.treat}`, c]));
    numbers beside it and they look exactly as authoritative as the real ones.
    Artist used to be the exception and said so on the page; now that it is in
    the catalogue nothing is, so the apology is gone and this is what stands in
-   its place — a group added to the anatomy spec without a counter fails the
+   its place - a group added to the anatomy spec without a counter fails the
    build rather than shipping three invented names. */
 go('#/search');
 for (const [kind, label] of t.GAMES.mtg.anatomy)
   if (kind === 'chips') assert.ok(t.facetCounts()[label],
-    `"${label}" is drawn from hand-written numbers — facetCounts does not answer it`);
+    `"${label}" is drawn from hand-written numbers - facetCounts does not answer it`);
 
 /* A SAVED DECK IS A SNAPSHOT. A deck kept before a field existed has no such
    field, and the sidebar duly reported a Hobbit draft as containing nothing
-   Modern-legal — the same plausible-looking lie as the hardcoded counts. The
+   Modern-legal - the same plausible-looking lie as the hardcoded counts. The
    catalogue re-supplies the printing when it lands; the holding stays yours. */
 t.LISTS.decks.unshift(['Stale draft', 1, '1 distinct', 'test',
   [{ n: 'Old Name', set: 'AAA', num: '1', qty: 3, foil: 1 }]]);
@@ -2930,7 +3154,7 @@ for (const [name, html, n] of [['Leveler', lev, 2], ['Class', t.MockCard(byName[
 // the marker is normalised, so `LEVEL 1-4` and `Level 2` read the same way
 assert.ok(lev.includes('Level 1-4') && lev.includes('Level 5+'), 'a Leveler lost one of its bands');
 // ...and the band's own power/toughness is IN the oracle text, one line under
-// its marker — the issue assumed this needed a field in gen-cards.mjs
+// its marker - the issue assumed this needed a field in gen-cards.mjs
 assert.ok(/Level 1-4<\/span>\s*<span[^>]*>0\/6</.test(lev.replace(/\n\s*/g, '')),
   "a Leveler's band P/T is loose in the rules text instead of in its band");
 assert.ok(!/<p[^>]*>0\/6<\/p>/.test(lev), 'a band power/toughness is still drawn as a paragraph');
@@ -2944,14 +3168,14 @@ assert.ok(/<p[^>]*>Level up /.test(lev), '"Level up {2}" was mistaken for a band
    split` like any other and were drawn landscape as two halves side by side;
    the printed card is PORTRAIT with the second spell rotated ninety degrees
    below the first. Scryfall gives them no layout of their own, so the whole
-   thing hangs off the keyword's reminder text opening the back face — assert
+   thing hangs off the keyword's reminder text opening the back face - assert
    both directions, or the predicate silently claims every split or none. */
 const aft = t.MockCard(byName['Now // Later|framed']);
 const split = t.MockCard(byName['Left // Right|framed']);
 assert.ok(t.aftermath(byName['Now // Later|framed']), 'an aftermath card is not recognised as one');
 assert.ok(!t.aftermath(byName['Left // Right|framed']), 'an ordinary split is treated as aftermath');
 assert.ok(aft.includes('aspect-[5/7]') && !aft.includes('aspect-[7/5]'),
-  'an aftermath card is drawn landscape — it is read the right way up');
+  'an aftermath card is drawn landscape - it is read the right way up');
 assert.ok(split.includes('aspect-[7/5]'), 'an ordinary split stopped being landscape');
 // the second spell is turned, and clockwise: the printed card puts its title at
 // the right-hand edge, which is where rotate(90deg) sends the top
@@ -2966,7 +3190,7 @@ assert.ok(aft.indexOf('object-left') < aft.indexOf('object-right'),
   'the aftermath halves have their illustrations the wrong way round');
 
 /* THE TURN INDICATOR. A two-sided card prints a mark in the top-left of its
-   title bar saying which way it turns and into what — the one thing the corner
+   title bar saying which way it turns and into what - the one thing the corner
    flip button cannot say. `treatOf` dropped every DFC frame effect because it
    only looks for the four that change the ART, so 580 printings lost theirs.
    Read, not derived: only 110 of the 381 `sunmoondfc` printings say Daybound or
@@ -2999,7 +3223,7 @@ assert.ok(aft.indexOf('object-left') < aft.indexOf('object-right'),
   // the tooltip carries the source's own word, which is why the name is stored
   // rather than a flag for the one case the page draws specially
   assert.ok(sun.includes('sunmoon &mdash; turn the card over')
-    || sun.includes('sunmoon — turn the card over'), 'the mark does not name what it turns into');
+    || sun.includes('sunmoon - turn the card over'), 'the mark does not name what it turns into');
   assert.ok(plain.includes('transform'), 'an unnamed indicator does not say it is a transform');
 }
 
@@ -3007,7 +3231,7 @@ assert.ok(aft.indexOf('object-left') < aft.indexOf('object-right'),
    with no `card_faces` and `all_parts` naming the group, so without the group
    the result sits in the catalogue as an ordinary card with no link to either
    half and neither half knows what it becomes. Not derivable from the rules
-   text — checked, because aftermath was: a part names its partner but not the
+   text - checked, because aftermath was: a part names its partner but not the
    result, and the result says nothing about melding at all. */
 {
   const gc = readFileSync('gen-cards.mjs', 'utf8');
@@ -3016,7 +3240,7 @@ assert.ok(aft.indexOf('object-left') < aft.indexOf('object-right'),
     'gen-cards.mjs hands a meld group to every token printed alongside one');
   const id = (n) => `00000000-0000-4000-8000-0000000000${n}`;
   const group = ['Whole', 'Half A', 'Half B'];
-  const card = (n, meld) => ['{2}{W}', 'Creature — Angel', 'Text.', '2/2', 'W', 3, 'meld', '', 0, 0, meld];
+  const card = (n, meld) => ['{2}{W}', 'Creature - Angel', 'Text.', '2/2', 'W', 3, 'meld', '', 0, 0, meld];
   const MELD = {
     o: [['Half A', ...card('Half A', group)], ['Whole', ...card('Whole', group)],
         ['Ordinary', ...card('Ordinary', 0)]],
@@ -3044,20 +3268,20 @@ assert.ok(aft.indexOf('object-left') < aft.indexOf('object-right'),
   // an ordinary card gets no band at all
   t.openCard('Ordinary');
   assert.ok(!/Melds with|Melded from/.test(painted), 'a card outside a meld group drew a meld band');
-  // put the anatomy catalogue back — everything below this line still reads it
+  // put the anatomy catalogue back - everything below this line still reads it
   t.loadCards(ANAT);
 }
 
 /* TWO-COLUMN: a Saga and a Class are not stacked cards. The illustration is a
-   tall strip down one side — Scryfall crops them 312x752 rather than the 626x457
-   an ordinary card gets, which is the tell — with the track beside it and the
+   tall strip down one side - Scryfall crops them 312x752 rather than the 626x457
+   an ordinary card gets, which is the tell - with the track beside it and the
    type line ACROSS THE BOTTOM. Drawn stacked they are legible and the wrong
    shape, which is exactly the failure a render-only test cannot see, so it is
    asserted structurally: the art column exists, and the type line follows it. */
 const klass = t.MockCard(byName['A Class|framed']);
 for (const [name, html] of [['Saga', saga], ['Class', klass]]) {
   assert.ok(html.includes('w-[42%]'), `a ${name} is not drawn as a two-column card`);
-  assert.ok(html.indexOf('w-[42%]') < html.indexOf(`Enchantment — ${name}`),
+  assert.ok(html.indexOf('w-[42%]') < html.indexOf(`Enchantment - ${name}`),
     `a ${name} puts its type line above the art instead of across the bottom`);
   assert.ok(!html.includes('aspect-[5/3.52]'), `a ${name} kept the stacked card's art band`);
 }
@@ -3072,28 +3296,28 @@ assert.strictEqual(artFirst(klass, 'Base ability'), 'art-first', 'a Class has it
 /* SHRINK TO FIT, NOT SHRINK ON PRINCIPLE. `room` tells textFit how much box
    this plate has relative to an ordinary card's, and the first set of values
    was picked by eye against the STACKED frames, then never revisited when the
-   frames were rebuilt underneath them — so a Saga, whose track column is half
+   frames were rebuilt underneath them - so a Saga, whose track column is half
    again the standard rules box, was still being set two steps smaller than the
    ordinary cards beside it. This is that complaint as an assertion: given the
    same text, a frame with MORE room may not choose a smaller type size.
-   (The clip rate itself cannot be asserted here — it needs layout, and this
+   (The clip rate itself cannot be asserted here - it needs layout, and this
    harness has a stubbed DOM with none. It is measured in the browser: 14 of 411
    samples, all of them either on the standard room-1 path or under 13px.) */
 const smallestEm = h => Math.min(...[...h.matchAll(/text-\[([\d.]+)em\]/g)].map(m => +m[1]));
 const LONG = 'Whenever a creature you control deals combat damage to a player, exile the top card of that player library face down. You may look at it for as long as it remains exiled.';
 const asNormal = t.MockCard({ n: 'X', type: 'Creature', text: LONG, cost: [], layout: 'normal', treat: 'framed' });
-const asSaga = t.MockCard({ n: 'X', type: 'Enchantment — Saga', text: LONG, cost: [], layout: 'saga', treat: 'framed' });
+const asSaga = t.MockCard({ n: 'X', type: 'Enchantment - Saga', text: LONG, cost: [], layout: 'saga', treat: 'framed' });
 const asFullArt = t.MockCard({ n: 'X', type: 'Creature', text: LONG, cost: [], layout: 'normal', treat: 'fullart' });
 assert.ok(smallestEm(asSaga) >= smallestEm(asNormal),
   'a Saga is set smaller than an ordinary card with the same text, and its box is bigger');
 assert.ok(smallestEm(asFullArt) >= smallestEm(asNormal),
   'a full-art card is set smaller than an ordinary card with the same text, and its box is bigger');
 
-/* A Saga is not always `layout: saga` — 127 printings are one on the front of a
-   card whose layout says transform — so the frame is chosen off the TYPE LINE. */
+/* A Saga is not always `layout: saga` - 127 printings are one on the front of a
+   card whose layout says transform - so the frame is chosen off the TYPE LINE. */
 assert.ok(t.MockCard({ n: 'Front // Back', layout: 'transform', treat: 'framed',
-  faces: [{ n: 'Front', type: 'Enchantment — Saga', text: 'I — Go.', cost: [] },
-          { n: 'Back', type: 'Creature — Human', text: 'Hi.', cost: [] }] }).includes('w-[42%]'),
+  faces: [{ n: 'Front', type: 'Enchantment - Saga', text: 'I - Go.', cost: [] },
+          { n: 'Back', type: 'Creature - Human', text: 'Hi.', cost: [] }] }).includes('w-[42%]'),
   'a Saga printed under another layout does not get the Saga frame');
 
 // THE BREAKOUT ART: each treatment has to change something, or it is decoration
@@ -3103,7 +3327,7 @@ const treat = n => t.MockCard(byName[`Plain Card|${n}`]);
 const edge = h => h.match(/bg-black\/70 (\S+) shadow-lg/)[1];
 assert.strictEqual(edge(treat('borderless')), 'p-0', 'a borderless printing keeps its black edge');
 assert.strictEqual(edge(treat('framed')), 'p-[3.5%]', 'an ordinary printing lost its black edge');
-/* FULLART IS PULLED, NOT DRAWN — decided at #/card's Align display, which is
+/* FULLART IS PULLED, NOT DRAWN - decided at #/card's Align display, which is
    what that display is for. Drawn, a full-art card got opaque plates at fixed
    positions over the illustration; printed, it has a translucent title bar, an
    ornate border, a text panel of a different shape, and on a full-art land
@@ -3111,7 +3335,7 @@ assert.strictEqual(edge(treat('framed')), 'p-[3.5%]', 'an ordinary printing lost
    samples of `normal | fullart` and again down twelve printings of Laboratory
    Maniac: not one matched. 6,085 printings stop being invented. */
 assert.ok(t.UNALIGNED.has('fullart'), 'fullart is being drawn again rather than pulled');
-assert.ok(!treat('fullart').includes('color-mix'), 'a full-art printing still draws frame plates');
+assert.ok(!treat('fullart').includes('mottle'), 'a full-art printing still draws frame plates');
 assert.ok(/cards\.scryfall\.io\/(normal|large|png|small)\//.test(treat('fullart')),
   'a full-art printing draws neither a frame nor the printed card');
 /* A KEY IS A TREATMENT OR A FULL CLASS. `fullart` crosses fourteen layouts, and
@@ -3136,9 +3360,10 @@ assert.ok(!t.unaligned({ layout: 'normal', treat: 'framed' }), 'an ordinary card
    middles. Contain shows all of it whatever shape it is; the cover copy behind
    is blurred filler, and top-anchoring puts that filler under the type line
    instead of across the visible top of the card. */
-/* The two treatments still DRAWN with the art as the whole card. fullart left
-   this list when it was declared unalignable; extendedart is here on request. */
-for (const n of ['textless', 'extendedart']) {
+/* The ONE treatment still drawn with the art as the whole card. fullart left
+   this list when it was declared unalignable; extendedart left it when its type
+   line turned out to have nothing to sit against - see below. */
+for (const n of ['textless']) {
   const h = treat(n);
   assert.ok(h.includes('object-contain object-top'),
     `"${n}" scales the art to cover a card-shaped box, which crops a landscape illustration in half`);
@@ -3147,41 +3372,65 @@ for (const n of ['textless', 'extendedart']) {
   assert.strictEqual((h.match(/object-contain/g) || []).length, 1,
     `"${n}" contains the blurred backdrop too, so nothing fills the card`);
 }
-// ...and the art WINDOW keeps cover: 5/3.52 is within a few percent of the
-// common landscape crop, so covering it loses a sliver and contain would letterbox
+/* ...and the art WINDOW no longer scales its crop AT ALL, in either direction.
+   It used to cover a fixed `aspect-[5/3.52]` box - 1.42 against the crop's
+   1.37, so every ordinary card lost a sliver off the top and bottom of its
+   illustration to a number picked before the shape was known. `h-auto` is the
+   whole fix: the image is its own ratio and the plates below it move with it,
+   which is also why the type bar now sits where a printed one does. No
+   `object-*` on it, because there is nothing left to fit. */
 const framedArt = treat('framed');
-assert.ok(framedArt.includes('object-cover') && !framedArt.includes('object-contain'),
-  'the ordinary art window letterboxes its crop instead of filling');
+assert.ok(/class="block h-auto w-full"/.test(framedArt),
+  'the ordinary art window is scaling its crop instead of taking its shape');
+assert.ok(!framedArt.includes('object-cover') && !framedArt.includes('object-contain'),
+  'the ordinary art window still fits its crop to a box');
 assert.ok(!treat('textless').includes('Rules text.'), 'a textless printing draws a rules box');
-/* EXTENDED ART IS AN OVERLAID TREATMENT, not a window with wider margins. It
-   used to be drawn as the framed card with the art window pulled out to the
-   black edge — 4,208 printings of a treatment whose whole point is that the
-   illustration is not in a box. Now the art is the card and the plates float on
-   it, which is the same rule fullart and textless follow; what tells them apart
-   is that this one keeps its rules box. */
-assert.ok(!treat('extendedart').includes('-mx-['), 'extended art is still an art window with a negative margin');
+/* EXTENDED ART FLOWS, IT DOES NOT OVERLAY - and this assertion used to say the
+   opposite, which is worth keeping in view. It was drawn as an art window with
+   a negative margin, then moved to OVERLAID so the art became the whole card
+   with the plates floating on it. That is right for fullart and textless and
+   wrong here, and the tell is the TYPE LINE: an overlaid card has no base to
+   its art, so the type bar hung in the middle of open illustration with nothing
+   to sit against.
+   The printed article is an ordinary frame missing only its side rails: title
+   at the top, art beneath it, type at the base of the art, an opaque text box
+   under that. The crop says the same thing - an extended-art `art_crop` is 1.62
+   wide against an ordinary printing's 1.36-1.37, measured over six of each - so
+   the window taking the crop's own shape puts the type where the print does
+   without a number being picked for it. */
+{
+  const ea = treat('extendedart');
+  assert.ok(!ea.includes('object-contain object-top'), 'extended art is back to being drawn as a full-art card');
+  assert.ok(ea.includes('-mx-1.5'), "the extended art window does not run past the frame's side rails");
+  assert.ok(/class="block h-auto w-full"/.test(ea), "the extended art window is not taking the crop's own shape");
+  // the type line sits at the BASE of the art, which is the tuck an ordinary
+  // framed card uses - not the `mt-1` an overlaid one gets
+  assert.ok(ea.includes('-my-2.5'), 'the extended art type line no longer sits at the base of the art');
+  assert.ok(ea.indexOf('Plain Card') < ea.indexOf('-mx-1.5'), 'the title is not above the art');
+  assert.ok(ea.indexOf('-mx-1.5') < ea.indexOf('-my-2.5'), 'the type line is not below the art');
+}
 assert.ok(treat('extendedart').includes('Rules text.'),
-  'extended art dropped its rules box — it is fullart with text, not textless');
+  'extended art dropped its rules box - it is fullart with text, not textless');
 for (const n of ['fullart', 'borderless', 'textless', 'extendedart'])
   assert.notStrictEqual(treat(n), treat('framed'), `"${n}" renders identically to a framed card`);
 
 /* WHEN THERE IS NO FRAME TO DRAW, DRAW THE CARD. A frame holds a cost, a type
    line and a rules box; an art card, a theme divider and a punchcard have none
    of the three, and the frame drawn over them is a name above two-thirds of
-   empty box — which is what art series looked like, at 2,649 printings the
+   empty box - which is what art series looked like, at 2,649 printings the
    fifth most common class in the catalogue. The test is structural, on the
    face, so the layout Wizards prints next is covered without an edit: that is
    not hypothetical, `front_card` arrived after the rule was written. */
 assert.ok(t.framable(byName['Plain Card|framed']), 'an ordinary card is treated as unframable');
 assert.ok(t.framable(byName['A Token|framed']),
-  'a token has no mana cost and a real type line — a frame draws it fine');
+  'a token has no mana cost and a real type line - a frame draws it fine');
 assert.ok(t.framable(byName['A Saga|framed']) && t.framable(byName['A Plane|framed']),
   'a Saga or a Plane was mistaken for something with no frame');
 for (const k of ['Art // Art|borderless', 'Theme|framed'])
   assert.ok(!t.framable(byName[k]), `"${k}" has no cost, no type and no rules, yet claims a frame`);
 
 const printed = t.MockCard(byName['Art // Art|borderless']);
-assert.ok(!printed.includes('color-mix'), 'an unframable printing still draws frame plates');
+assert.ok(!printed.includes('mottle'), 'an unframable printing still draws frame plates');
 assert.ok(/cards\.scryfall\.io\/normal\//.test(printed) && !printed.includes('art_crop'),
   'an unframable printing asks for the art crop rather than the whole printed card');
 assert.strictEqual(edge(printed), 'p-0', 'the scan is padded as though the wrapper drew its border');
@@ -3212,8 +3461,8 @@ for (const a of classes) assert.ok(painted.includes(`>${a.layout}</span>`), `#/a
 assert.ok(painted.includes('no frame to draw'),
   '#/anatomy shows a scan in place of a frame and says nothing about why');
 
-/* gen-art.mjs reads SIDED and the frameable rule from anatomy.js — the same
-   file the page loads — so the two cannot disagree about which layouts have a
+/* gen-art.mjs reads SIDED and the frameable rule from anatomy.js - the same
+   file the page loads - so the two cannot disagree about which layouts have a
    back to fetch, or about which printings need the whole card rather than the
    crop. Both used to be copied in here and asserted equal. */
 const genArt = readFileSync('gen-art.mjs', 'utf8');
@@ -3245,7 +3494,7 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
 /* THE FILTER FILTERS. Every chip drew a real count and narrowed nothing: CARDS()
    sorted the scope and sliced it, chip() rendered a span with no handler, and
    Apply had no onclick at all. The counts became real before the click did,
-   which made it worse rather than better — a number you can trust on a control
+   which made it worse rather than better - a number you can trust on a control
    that does nothing.
 
    Asserted against answers written out here rather than asked of the app: the
@@ -3256,10 +3505,10 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
      existed does. Between them they are the whole keyword fix: the regex over
      the rules text said yes to both. */
   const FIX = { kws: ['', 'Flying|Trample'], o: [
-      ['Bear',   '{1}{G}', 'Creature — Bear',  'Text.', '2/2', 'G', 2, 'normal', '', 0, 0b000000100, 0, 1],
+      ['Bear',   '{1}{G}', 'Creature - Bear',  'Text.', '2/2', 'G', 2, 'normal', '', 0, 0b000000100, 0, 1],
       ['Bolt',   '{R}',    'Instant',          'Text.', '',    'R', 1, 'normal', '', 0, 0b000000100],
       ['Wrath',  '{2}{W}{W}', 'Sorcery',       'Text.', '',    'W', 4, 'normal', '', 0, 0],
-      ['Sliver', '{U}',    'Creature — Sliver', 'Creatures you control have flying.', '1/1', 'U', 1, 'normal', '', 0, 0b000000100],
+      ['Sliver', '{U}',    'Creature - Sliver', 'Creatures you control have flying.', '1/1', 'U', 1, 'normal', '', 0, 0b000000100],
   ], p: [
       [0, 'AAA', '1', 1, '00000000-0000-4000-8000-000000000041', 0, 0, 1],
       [1, 'AAA', '2', 3, '00000000-0000-4000-8000-000000000042', 0, 0, 1],
@@ -3328,7 +3577,7 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
   t.toggleChip('Keywords', 'Flying'); t.applyFilter();
   assert.strictEqual(only(), 'Bolt,Sliver,Wrath', 'excluding a keyword took out cards that never had one');
   /* And the vocabulary is the catalogue's, not four words hardcoded in the
-     anatomy spec — which is why Exalted, one of those four, is not in it. */
+     anatomy spec - which is why Exalted, one of those four, is not in it. */
   t.clearFilter();
   // stringified because the page's arrays are built in the vm's realm, where
   // deepStrictEqual's prototype check fails on values that are otherwise equal
@@ -3353,7 +3602,7 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
   t.clearFilter();
   assert.strictEqual(t.P.page, t.PAGE, 'clearing the filter did not put the paging back to the top');
   // a display first: with none chosen the page draws no cards, and the sentinel
-  // is deliberately absent there — see the assertion at the end of this block
+  // is deliberately absent there - see the assertion at the end of this block
   t.setView('compact');
   t.P.page = 2; go('#/search');
   assert.strictEqual(t.CARDS().length, 2, 'the page size is not what gets drawn');
@@ -3364,7 +3613,7 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
   /* ...and a page that draws NO cards has no end to reach. The sentinel used to
      render under "No display chosen", where it is on screen from the first frame
      with nothing above it: it came into view, paged, re-rendered, came into view
-     again, and had the whole filtered list drawn — 9,838 cards — before anyone
+     again, and had the whole filtered list drawn - 9,838 cards - before anyone
      touched the scroll wheel. */
   const view = t.P.view; t.P.view = null; t.P.page = 2; go('#/search');
   assert.ok(!painted.includes('data-more'),
@@ -3387,12 +3636,12 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
 /* --- the break is one element, and continuous fields cannot group -----
    Needs a scope with more than twenty of something: over the 18 mock rows every
    field has under twenty values, so every field is groupable and the rule this
-   asserts is invisible. That is the rule working — twenty sets is a grouping,
-   four hundred is a caption on every row — but it is not a test. */
+   asserts is invisible. That is the rule working - twenty sets is a grouping,
+   four hundred is a caption on every row - but it is not a test. */
 {
   const many = { o: [], p: [] };
   for (let i = 0; i < 25; i++) {
-    many.o.push([`Card ${i}`, '{G}', 'Creature — Elf', 'Text.', '1/1', 'G', 1, 'normal', '', 0, 0]);
+    many.o.push([`Card ${i}`, '{G}', 'Creature - Elf', 'Text.', '1/1', 'G', 1, 'normal', '', 0, 0]);
     many.p.push([i, `S${String(i).padStart(2, '0')}`, String(i + 1), 1,
       `00000000-0000-4000-8000-0000000000${String(i).padStart(2, '0')}`, 0, 0, 1]);
   }
@@ -3401,21 +3650,57 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
   assert.strictEqual(t.scopedCards().length, 25, 'the wide fixture did not load');
 
   // 25 sets and 25 numbers against one main type and one rarity
-  assert.strictEqual(t.groupable('set'), false, '25 sets is being offered as a grouping');
-  assert.strictEqual(t.groupable('number'), false, '25 collector numbers is being offered as a grouping');
+  /* THE ROLE IS DECLARED, NOT SAMPLED, so it is the same answer in a binder of
+     twelve and in a search of 107,347. It used to be counted over the first
+     2,000 rows of the current scope, which made the same chip movable in one
+     place and refused in another.
+     The line is not 20 either. Counted over the whole catalogue every field's
+     group label lands in one of two clusters with NOTHING between them: 1..94
+     (hp, rarity, price, kind, colour, mana, language, ... type at 94) and
+     411..37,115 (release date, release, set, artist, number, full name). The
+     4.4x gap is the boundary, and it is measured rather than chosen. */
+  assert.strictEqual(t.groupable('set'), false, '986 sets is being offered as a grouping');
+  assert.strictEqual(t.groupable('number'), false, '12,651 collector numbers is being offered as a grouping');
+  assert.strictEqual(t.groupable('release'), false, '460 releases is being offered as a grouping');
+  assert.strictEqual(t.groupable('name'), false, 'name is a grouping again - A-Z pages are captions, not a filing');
   assert.strictEqual(t.groupable('kind'), true, 'main type is not groupable');
   assert.strictEqual(t.groupable('rarity'), true, 'rarity is not groupable');
+  assert.strictEqual(t.groupable('type'), true, 'the type line at 94 is under the step and should group');
+  // an unknown field is sort, never category: a role nobody counted cannot
+  // become a page grouping by default
+  assert.strictEqual(t.groupable('nonesuch'), false, 'an uncounted field defaults to being a grouping');
+  /* THE SPLIT IS DERIVED, so what can be asserted here is the RULE, not a table.
+     The harness runs on mocks and a handful of rows cannot be clustered - every
+     field lands in one bucket, which would make collector number a grouping -
+     so below ROLE_MIN everything is `sort` and the assertions above are about
+     that safe direction. The derivation itself is exercised against a real
+     catalogue further down. */
+  /* THE COLD-START TABLE IS WHAT IS RUNNING HERE, and that is the case worth
+     pinning in a harness with no network: eighteen mock rows cannot be
+     clustered - every field lands under any boundary you pick, which would make
+     collector number a page grouping - so the roles the real catalogue last
+     produced stand in until it arrives. */
+  assert.ok(t.ALL().length < t.ROLE_MIN, 'the mock fallback is no longer the case under test here');
+  assert.strictEqual(t.roleCount('set'), null, 'the cold-start roles are claiming a measured count');
 
-  /* THE BREAK IS ALWAYS THERE. One is all the layout can use — `grouping()` is
-     everything left of the FIRST one — so it is a permanent element you drag
-     rather than something to add and remove. Clear leaves it. */
+  /* THE BREAK IS STILL ALWAYS THERE, AND IT IS NO LONGER ON SCREEN. One is all
+     the layout can use - `grouping()` is everything left of the FIRST one - so
+     it stays a permanent element of the array, and every layout and the export
+     read the split off it. What changed is that it is not DRAWN: the two sides
+     are two labelled zones, so the separator is the boundary between them
+     rather than a chip you drag into place and have to reason about. */
   t.clearSort();
   assert.strictEqual(t.P.sortDraft.map(x => x.f).join(), 'BREAK', 'Clear did not leave the break behind');
   go('#/search');
   assert.ok(!painted.includes('+ Break'), 'the Add Break button is still there');
-  assert.ok(!/&#8801; Break<\/button>[\s\S]{0,10}/.test(painted.replace(/onclick="removeSort\(\d+\)"/, 'REMOVABLE'))
-    || !painted.includes('REMOVABLE'), 'the break can still be clicked away');
-  assert.strictEqual((painted.match(/&#8801; Break/g) || []).length, 1, 'there is not exactly one break');
+  assert.ok(!painted.includes('&#8801; Break'), 'the break is drawn as a chip again');
+  assert.ok(!/dragSort\(\d+\)"[^>]*>[\s\S]{0,80}Break/.test(painted), 'the break is draggable again');
+  // one break in the array, always - the zones are a view of it, not a copy
+  assert.strictEqual(t.P.sortDraft.filter(x => x.f === 'BREAK').length, 1, 'there is not exactly one break');
+  t.addSortTo('rarity', 'group'); t.addSortTo('set', 'sort');
+  assert.strictEqual(t.P.sortDraft.filter(x => x.f === 'BREAK').length, 1,
+    'adding to the zones changed how many breaks there are');
+  t.clearSort();
 
   // a field lands on the side it can work on
   t.addSort('kind');
@@ -3424,7 +3709,7 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
   assert.strictEqual(t.P.sortDraft.map(x => x.f).join(), 'kind,BREAK,set',
     'a field with too many values to group landed on the grouping side');
 
-  // and it cannot be dragged across — refused, not corrected
+  // and it cannot be dragged across - refused, not corrected
   t.dragSort(2); t.moveSort(0);
   assert.strictEqual(t.P.sortDraft.map(x => x.f).join(), 'kind,BREAK,set',
     'a continuous field was dragged into the grouping');
@@ -3441,9 +3726,9 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
   t.clearSort();
 }
 
-/* EVERY PRINTING, OUT OF THE CATALOGUE. This band drew four invented rows —
+/* EVERY PRINTING, OUT OF THE CATALOGUE. This band drew four invented rows -
    the same set in another language, the opposite finish at a made-up multiple of
-   the price, and a hardcoded reprint — under a heading reading "every printing of
+   the price, and a hardcoded reprint - under a heading reading "every printing of
    this card". Seeded here rather than asserted against the mocks, because the
    fault was that four was a plausible-looking number: the fixture gives one name
    three real printings and another one, and the band must draw exactly those. */
@@ -3466,7 +3751,7 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
   for (const code of ['LEA', 'LEB', 'CMD'])
     assert.ok(painted.includes(`>${code}</span>`), `the printings band is missing ${code}`);
   assert.ok(!painted.includes('>232<'), 'another card\'s printing is listed under this one');
-  /* Each row is a way to show that printing — and it is the LIST's own renderer
+  /* Each row is a way to show that printing - and it is the LIST's own renderer
      doing it, not a table the card page drew for itself. `openCard(name, key)`
      on the page you are already on IS pickPrinting: same name, new printing,
      same route, so the ordinary row needs no card-page special case. */
@@ -3479,7 +3764,7 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
   assert.ok(painted.includes('>3 in the catalogue'), 'the printings band does not state its own count');
 
   /* A PRINTING'S FINISHES ARE NOT A HOLDING'S FOIL FLAG. `finishOf` answers "is
-     the copy in your binder foil", which is 0 on every catalogue row — so a
+     the copy in your binder foil", which is 0 on every catalogue row - so a
      foil-only printing read "Nonfoil", and 12,396 of them did. The printing's
      own finishes are the `fin` bitmask, and a printing can be more than one. */
   const nonfoil = { fin: 0b001 }, foil = { fin: 0b010 }, both = { fin: 0b011 }, etched = { fin: 0b100 };
@@ -3487,12 +3772,12 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
   assert.strictEqual(t.finishesOf(foil), 'Foil', 'a foil-only printing still reads Nonfoil');
   assert.strictEqual(t.finishesOf(both), 'Nonfoil &middot; Foil', 'a printing issued in both shows only one');
   assert.strictEqual(t.finishesOf(etched), 'Etched', 'etched is not read off the mask');
-  // ...and a card with no mask at all — the mocks — still answers from its flag
+  // ...and a card with no mask at all - the mocks - still answers from its flag
   assert.strictEqual(t.finishesOf({ foil: 1 }), 'Foil', 'a card with no mask lost its holding finish');
   assert.strictEqual(t.finishesOf({}), '', 'a card with neither invented a finish');
 
   /* LEGALITY IS READ, NOT RECITED. The card page printed one fixed string for
-     every Magic card — "Modern · Legacy · Vintage · Commander" — which is right
+     every Magic card - "Modern · Legacy · Vintage · Commander" - which is right
      for 11,405 of 107,347 and wrong for the other 89%. The bitmask has been
      there since the filter started counting it, so the page was contradicting
      the band above it. */
@@ -3505,16 +3790,19 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
      sidebar's Legality chips were a hand-typed copy of FORMATS that had lost
      one, so the filter counted nine formats and offered eight. Both read the
      one list now, and a suffix here would hide it going wrong again. */
-  assert.strictEqual(legalOf(0b111111111), t.GAMES.mtg.anatomy[0][2].map(x => x[0]).join(' &middot; '),
+  // found by LABEL, not by position: Language moved in front of it and an index
+  // read would have silently started asserting against a different group
+  const legalityChips = t.GAMES.mtg.anatomy.find(x => x[1] === 'Legality')[2];
+  assert.strictEqual(legalOf(0b111111111), legalityChips.map(x => x[0]).join(' &middot; '),
     'the Legality chips and the legality bitmask are not the same nine formats');
   /* 0 is NOT the same as absent, and this is the distinction the fallback turns
-     on: 9,222 catalogue cards are legal in nothing tracked — tokens, art series,
-     un-cards — while a mock row has no bitmask at all and keeps its fiction. */
+     on: 9,222 catalogue cards are legal in nothing tracked - tokens, art series,
+     un-cards - while a mock row has no bitmask at all and keeps its fiction. */
   assert.strictEqual(legalOf(0), '', 'a card legal in nothing claims a format');
   assert.strictEqual(t.factsOf({}).Legality, 'Modern &middot; Legacy &middot; Vintage &middot; Commander',
     'a card with no bitmask lost the mock fallback');
   /* RESTRICTED IS LEGAL, AT ONE COPY. The generator counted only `legal` of the
-     source's four states, so every restricted card — the Power Nine, Sol Ring —
+     source's four states, so every restricted card - the Power Nine, Sol Ring -
      read as legal in NOTHING. It rides in `legal` so the filter counts what you
      can actually play, and `rest` says which formats limit you to one. */
   const vintage = 1 << 4;
@@ -3545,7 +3833,8 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
      necessary: `printingsOf` hands back catalogue rows, so the Qty column read
      "none" on a card that was sitting in your binder. The rows are decorated
      with your real quantities before anything draws them. */
-  assert.ok(painted.includes('>none<'), 'an unowned printing does not read none');
+  assert.ok(painted.includes('title="Qty"><span class="text-neutral-700">&mdash;</span>'),
+    'an unowned printing does not read as owning none');
   const one = t.ALL().find(c => c.set === 'LEA' && c.n === 'Sol Ring');
   t.LISTS.decks.unshift(['Test deck', '', '', '', [{ ...one, qty: 2 }, { ...one, qty: 1 }]]);
   t.holdingsChanged();
@@ -3555,8 +3844,42 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
   assert.strictEqual(held[0][2].qty, 3, 'the copies are not added up');
   // ...and that reaches the row: the quantity, and where the copies are
   go('#/card');
-  assert.ok(painted.includes('\u00d73'), 'the printing does not carry the copies you own');
+  assert.ok(/>3<\/span>\s*<span class="px-0\.5[^"]*">\|<\/span>/.test(painted),
+    'the printing does not carry the copies you own');
   assert.ok(painted.includes('deck Test deck'), 'the printing does not say where the copies are');
+  /* WHERE IS A COLUMN, SO IT IS THE SAME WIDTH ON EVERY ROW. It was drawn only
+     on rows you hold and sized to whatever it said; the card cell beside it is
+     `flex-1`, so it took what was left and a held row shunted its own
+     type/rarity/qty/price out of line with the rows above it. */
+  /* +1 for the header's INVISIBLE copy of the marker: the column header sits
+     beside the same fixed width the rows reserve, or its labels sit a marker
+     wide of the columns they name. */
+  assert.strictEqual((painted.match(/w-28 shrink-0 truncate text-\[10px\]/g) || []).length,
+    t.printingsOf('Sol Ring').length + 1,
+    'the container column is not drawn on every printing, so the rows cannot line up');
+  /* AND DETAILS CARRIES WHAT DIFFERS BETWEEN PRINTINGS. Type, rarity and mana
+     value are facts about the ORACLE: down a list of printings of one card they
+     are one string repeated, so the row spent its width saying nothing while
+     which set, when, whose art and which CLASS were on no screen at all. */
+  {
+    const ps = t.printingsOf('Sol Ring');
+    const sets = new Set(ps.map(c => t.setFact(c, 0)).filter(Boolean));
+    assert.ok(sets.size > 1, 'the fixture cannot show a column that differs printing to printing');
+    for (const s of [...sets].slice(0, 3))
+      assert.ok(painted.includes(s), `details does not name the set (${s}), only its code`);
+    assert.ok(painted.includes(t.setFact(ps[0], 2)), 'details does not carry the released date');
+    /* THE CLASS IS TWO FACTS, SO IT IS TWO COLUMNS. It used to be one cell
+       reading "normal | framed" - a layout AND a treatment glued together,
+       which cannot be scanned down a column, and scanning a column is the only
+       reason a column exists. */
+    for (const part of t.anatomyKey(ps[0]).split(' | '))
+      assert.ok(painted.includes(`<span class="font-mono">${part}</span>`),
+        `details does not carry "${part}" as a column of its own`);
+    assert.ok(!painted.includes(t.anatomyKey(ps[0])), 'the class is glued back into one cell');
+    // the artist column by its label, not its value: this fixture has no
+    // artists dictionary, so asserting a name here would assert the fixture
+    assert.ok(painted.includes('title="Artist"'), 'details does not carry the artist');
+  }
   /* THE PRINTINGS BAND GETS THE LIST'S THREE DISPLAYS, drawn by the list's own
      renderers -- writing a fourth here is how the card page comes to disagree
      with the list about what a card looks like. */
@@ -3570,7 +3893,7 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
   t.setBand('prints', 'details');
   t.LISTS.decks.shift(); t.holdingsChanged();
 
-  /* ALIGN ART — every printing beside its own high-quality pull, so a
+  /* ALIGN ART - every printing beside its own high-quality pull, so a
      misalignment noticed on one card can be pinned to a printing and then to
      that printing's CLASS. Offered on the printings band alone: holdings are
      copies you own, and how well the frame draws them is not a question about
@@ -3601,10 +3924,12 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
     const drawn = t.printingsOf('Sol Ring').find(c => !t.unaligned(c) && t.framable(c));
     const key = t.anatomyKey(drawn);
     const before = t.MockCard(drawn);
-    assert.ok(before.includes('color-mix'), 'the sample card was not being drawn to begin with');
+    // `mottle` is the tell that a frame was DRAWN: every plate of a drawn card
+    // carries it and a printed scan carries nothing of ours
+    assert.ok(before.includes('mottle'), 'the sample card was not being drawn to begin with');
     t.UNALIGNED.add(key);
     const after = t.MockCard(drawn);
-    assert.ok(!after.includes('color-mix'), 'declaring a class unalignable did not stop it being drawn');
+    assert.ok(!after.includes('mottle'), 'declaring a class unalignable did not stop it being drawn');
     assert.ok(after.includes('cards.scryfall.io') || after.includes('art/sf/'),
       'an unalignable class draws neither a frame nor the printed card');
     t.UNALIGNED.delete(key);
@@ -3635,7 +3960,7 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
 
   /* THE IDENTITY KEY IS SET + NUMBER + LANGUAGE, and finish is not in it: it is
      an attribute of the printing, which is why one row can offer two. Asserted
-     over the fixture, and true of all 107,347 catalogue rows — 107,347 distinct
+     over the fixture, and true of all 107,347 catalogue rows - 107,347 distinct
      keys, no collisions. */
   const keys = t.ALL().map(t.printKey);
   assert.strictEqual(new Set(keys).size, keys.length, 'set/number/language is not unique');
