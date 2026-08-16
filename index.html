@@ -5828,6 +5828,7 @@ let IMPORT_NAME = '';     // the file you chose, so the page can say which one
 let IMPORT_MATCHED = [];  // [{ card, group }] - rows that resolved to one printing
 let IMPORT_MISSED = 0;    // rows that matched no printing at all
 let IMPORT_OTHER = 0;     // rows for a different game, skipped rather than missed
+let IMPORT_SKIPPED = 0;   // ambiguous rows YOU declined - a decision, not a failure
 
 /* CSV, AND IT HAS TO BE A REAL ONE. Collectr quotes any field containing a
    comma - card names do, constantly ("Sen Triplets, Alpha", every "X, the Y"
@@ -5991,7 +5992,8 @@ function resolveRow(v) {
 async function readImport(file) {
   if (!file) return;
   IMPORT_NAME = file.name;
-  IMPORT_GROUPS.length = 0; UNRESOLVED.length = 0; IMPORT_MATCHED = []; IMPORT_MISSED = 0; IMPORT_OTHER = 0;
+  IMPORT_GROUPS.length = 0; UNRESOLVED.length = 0; IMPORT_MATCHED = [];
+  IMPORT_MISSED = 0; IMPORT_OTHER = 0; IMPORT_SKIPPED = 0;
   const rows = parseCsv(await file.text());
   if (rows.length < 2) { IMPORT_ROWS = 0; render(); return; }
   const at = mapColumns(rows[0]);
@@ -6009,18 +6011,25 @@ async function readImport(file) {
     const { hits, lang } = resolveRow(v);
     const group = v['grouping / tags'] || '(no group)';
     if (!hits.length) { IMPORT_MISSED++; continue; }
+    // the FINISH is the holding's, not the printing's - one printing is issued
+    // in several and which one you own is the thing the row is telling you
+    const hold = { qty: Math.max(1, +v.quantity || 1),
+      foil: FOIL_WORD.test(v['finish / variant'] || '') ? 1 : 0, lang };
     if (hits.length > 1) {
-      UNRESOLVED.push({ line: { ...hits[0], n: v['card name'], qty: +v.quantity || 1 },
-        why: `${hits.length} printings match`,
-        candidates: hits.slice(0, 6).map(c => [c, Math.round(100 / hits.length)]), group });
+      /* THE HOLDING'S OWN FACTS RIDE ALONG, because picking a candidate now
+         writes a real holding: without them a foil Japanese copy came back from
+         the resolve step as a nonfoil English one, which is the rehydrate bug
+         again in a different place. `line` is what the row LOOKS like, `hold` is
+         what is yours. */
+      UNRESOLVED.push({ line: { ...hits[0], ...hold, n: v['card name'] },
+        why: `${hits.length} printings match`, hold, group,
+        // ponytail: the top 6 are drawn, not all of them - 154 rows x every hit
+        // is a few thousand card frames in one render. A row that cannot be
+        // settled from six stays in the list, exactly as it did before.
+        candidates: hits.slice(0, 6).map(c => [c, Math.round(100 / hits.length)]) });
       continue;
     }
-    IMPORT_MATCHED.push({ group, card: { ...hits[0],
-      qty: Math.max(1, +v.quantity || 1),
-      // the FINISH is the holding's, not the printing's - one printing is issued
-      // in several and which one you own is the thing the row is telling you
-      foil: FOIL_WORD.test(v['finish / variant'] || '') ? 1 : 0,
-      lang } });
+    IMPORT_MATCHED.push({ group, card: { ...hits[0], ...hold } });
     groups.set(group, (groups.get(group) || 0) + 1);
   }
   /* Every group starts as a BINDER. A default of nothing meant the common case
@@ -6028,6 +6037,28 @@ async function readImport(file) {
      did anything, and "binder" is what a portfolio, a folder and a box all are
      here. Change any of them before applying. */
   for (const [n, c] of [...groups].sort((a, b) => b[1] - a[1])) IMPORT_GROUPS.push([n, c, 'binder']);
+  render();
+}
+/* THE ONE THING YOU COULD DO WITH AN AMBIGUOUS ROW WAS LEAVE IT. The section
+   rendered 154 rows with ranked candidates, and its tiles and its Skip button
+   had no handlers - the same defect as the inert Run button, one screen down.
+   Both directions are a DECISION and both remove the row: picking writes the
+   holding you meant, Skip records that you declined. Skip is counted apart from
+   IMPORT_MISSED on purpose - "no printing matched" and "I chose not to file
+   this" are different outcomes and a single number would hide which. */
+function resolveUnresolved(i, ci) {
+  const u = UNRESOLVED[i];
+  if (!u) return;
+  UNRESOLVED.splice(i, 1);
+  if (ci < 0) IMPORT_SKIPPED++;
+  else {
+    IMPORT_MATCHED.push({ group: u.group, card: { ...u.candidates[ci][0], ...u.hold } });
+    /* The group may not be on the page yet: IMPORT_GROUPS is built from rows
+       that resolved, so a portfolio whose every row was ambiguous had no line
+       to send anywhere. Resolving the first one is what creates it. */
+    const g = IMPORT_GROUPS.find(x => x[0] === u.group);
+    if (g) g[1]++; else IMPORT_GROUPS.push([u.group, 1, 'binder']);
+  }
   render();
 }
 function setGroupKind(name, kind) {
@@ -6105,6 +6136,7 @@ PAGES.io = () => Frame('io', {
               &middot; ${num(IMPORT_ROWS)} rows &middot; <span class="text-emerald-400">${num(IMPORT_MATCHED.length)} matched</span>${
               UNRESOLVED.length ? ` &middot; <span class="text-amber-400">${UNRESOLVED.length} ambiguous</span>` : ''}${
               IMPORT_MISSED ? ` &middot; <span class="text-neutral-500">${num(IMPORT_MISSED)} unmatched</span>` : ''}${
+              IMPORT_SKIPPED ? ` &middot; <span class="text-neutral-500">${num(IMPORT_SKIPPED)} skipped</span>` : ''}${
               IMPORT_OTHER ? ` &middot; <span class="text-neutral-600">${num(IMPORT_OTHER)} not ${GAMES[P.game]?.label || 'this game'}</span>` : ''}</span>`}</div>
 
       ${SectionHeader('Column map', '<span class="text-xs text-neutral-500">verified &middot; docs/import-formats.md</span>')}
@@ -6156,16 +6188,19 @@ PAGES.io = () => Frame('io', {
              Nothing has been imported, so there is nothing to decide.</p>`
         : `${SectionHeader('Resolve ambiguous', `<span class="text-xs text-neutral-500">${
              UNRESOLVED.length} of ${num(IMPORT_ROWS)} rows didn&rsquo;t auto-match</span>`)}
-           ${UNRESOLVED.map(u => `
+           ${UNRESOLVED.map((u, i) => `
            <div class="mb-2 flex items-start gap-4 rounded-lg border border-neutral-800 bg-neutral-900 p-3">
              <div class="w-28 shrink-0">${MockCard(u.line)}
-               <div class="mt-1 text-[10px] text-amber-400">${u.why}</div></div>
+               <div class="mt-1 text-[10px] text-amber-400">${u.why}</div>
+               <div class="text-[10px] text-neutral-500">&rarr; ${u.group}</div></div>
              <div class="flex gap-3 overflow-x-auto">
-               ${u.candidates.map(([c, pc]) => `
-                 <div class="w-28 shrink-0 cursor-pointer rounded-lg border border-neutral-800 p-1 hover:border-emerald-600">
+               ${u.candidates.map(([c, pc], ci) => `
+                 <button onclick="resolveUnresolved(${i},${ci})" title="File this copy as ${jsArg(c.set)} ${jsArg(c.num)}"
+                   class="w-28 shrink-0 cursor-pointer rounded-lg border border-neutral-800 p-1 text-left hover:border-emerald-600">
                    ${MockCard(c)}
-                   <div class="mt-1 text-center text-[10px] text-neutral-500">${pc}%</div></div>`).join('')}
-               <div class="flex items-center"><button class="${BTN_SECONDARY}">Skip</button></div></div></div>`).join('')}`}`)}
+                   <div class="mt-1 text-center text-[10px] text-neutral-500">${c.set} ${c.num} &middot; ${pc}%</div></button>`).join('')}
+               <div class="flex items-center"><button onclick="resolveUnresolved(${i},-1)"
+                 class="${BTN_SECONDARY}">Skip</button></div></div></div>`).join('')}`}`)}
 
     ${/* Apply is live and it is the only thing that writes. Disabled with
            nothing read, because a button that does nothing is worse than one

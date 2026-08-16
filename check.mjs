@@ -13,7 +13,8 @@ const page = readFileSync('index.html', 'utf8');   // the markup too: <body> car
 const src = `${['sets.js', 'trim.js', 'anatomy.js'].map(f => readFileSync(f, 'utf8')).join('\n')}
 ${page.match(/<script>([\s\S]*)<\/script>/)[1]}`;
 const js = src
-  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, canBeLocal, missingLocal, srcKeys, srcQualities, srcBytes, onDisk, Table, DisplayChip, GroupHead, CARD_VIEWS, UNALIGNED, unaligned, anatomyKey, setFact, AlignList, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, VIEWS, FORMATS, CARD_TYPES, RARITIES, FINISHES, RARITY_NAME, FINISH, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, plateOf, scopedCards, LANGS, langFilter, langName, setLang, contrast, relLum, SURFACE, FRAME, lum, surfaceKey, mix, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, roles, roleOf, roleCount, ROLE_MIN, fieldLabel, zoneWeight, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, heldOf, heldByPrint, setBand, BandList, framable, printingsOf, alignFacts, finishesOf, printingsOf, pickPrinting, printKey, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, addSortTo, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, UNRESOLVED, IMPORT_GROUPS, filtered, ownedIn, holdingsChanged, CANON, COLS, flatLine, P, TABS, LISTS, GAMES, CFG, render, grouping, resolveRow,'
+  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, canBeLocal, missingLocal, srcKeys, srcQualities, srcBytes, onDisk, Table, DisplayChip, GroupHead, CARD_VIEWS, UNALIGNED, unaligned, anatomyKey, setFact, AlignList, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, VIEWS, FORMATS, CARD_TYPES, RARITIES, FINISHES, RARITY_NAME, FINISH, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, plateOf, scopedCards, LANGS, langFilter, langName, setLang, contrast, relLum, SURFACE, FRAME, lum, surfaceKey, mix, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, roles, roleOf, roleCount, ROLE_MIN, fieldLabel, zoneWeight, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, heldOf, heldByPrint, setBand, BandList, framable, printingsOf, alignFacts, finishesOf, printingsOf, pickPrinting, printKey, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, addSortTo, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, UNRESOLVED, IMPORT_GROUPS, filtered, ownedIn, holdingsChanged, CANON, COLS, flatLine, P, TABS, LISTS, GAMES, CFG, render, grouping, resolveRow, resolveUnresolved,'
+  + ' get IMPORT_MATCHED() { return IMPORT_MATCHED; }, get IMPORT_SKIPPED() { return IMPORT_SKIPPED; },'
   + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen,'
   + ' setDebug: v => { DEBUG = v; } };';
 
@@ -1995,6 +1996,55 @@ for (const k of ['binder', 'box', 'deck'])
    one applyImport writes nowhere, and saying so is the difference between a
    default you accepted and cards you cannot find afterwards. */
 assert.ok(painted.includes('&rarr; skipped'), 'a group sent nowhere does not say where it lands');
+
+/* AN AMBIGUOUS ROW YOU CAN ACTUALLY DO SOMETHING WITH. The section rendered 154
+   rows of ranked candidates whose tiles and Skip button had no handlers, so the
+   only available action was to leave it - the inert Run button one screen down,
+   again. Both directions are asserted because they are different outcomes: a
+   pick writes the holding you meant, a skip records that you declined. */
+{
+  const before = t.IMPORT_MATCHED.length, skipped = t.IMPORT_SKIPPED;
+  const cand = (set, num) => ({ n: 'Terminate', set, num, lang: 'en', rar: 2, usd: 5.82 });
+  const row = () => ({ line: { n: 'Terminate', set: 'FNM', num: '1', qty: 2, foil: 1, lang: 'ja' },
+    why: '2 printings match', hold: { qty: 2, foil: 1, lang: 'ja' }, group: 'Promos',
+    candidates: [[cand('MM3', '85'), 50], [cand('APC', '110'), 50]] });
+  t.UNRESOLVED.push(row(), row());
+  ctx.location.hash = '#/io'; t.render();
+  // every tile is a way to file that row, and Skip is the row's other answer
+  assert.ok(painted.includes('resolveUnresolved(0,0)') && painted.includes('resolveUnresolved(0,1)'),
+    'the candidate tiles still have no handler');
+  assert.ok(painted.includes('resolveUnresolved(0,-1)'), 'Skip still has no handler');
+  // a tile has to say WHICH printing it is - two crops of the same card are the
+  // same picture, so the set and number are the only thing telling them apart
+  assert.ok(painted.includes('MM3 85') && painted.includes('APC 110'),
+    'the candidates are not identified by set and number');
+  // ...and the row says where it would land, because that is half the decision
+  assert.ok(painted.includes('&rarr; Promos'), 'an ambiguous row does not say which group it belongs to');
+
+  /* THE HOLDING'S OWN FACTS SURVIVE THE PICK. Without `hold` the resolved copy
+     took the candidate's defaults - a foil Japanese copy came back nonfoil and
+     English, which is the rehydrate bug in a new place. */
+  t.resolveUnresolved(0, 1);
+  assert.strictEqual(t.UNRESOLVED.length, 1, 'resolving a row did not remove it');
+  const got = t.IMPORT_MATCHED[t.IMPORT_MATCHED.length - 1];
+  assert.strictEqual(got.card.set, 'APC', 'the pick landed on a printing that was not clicked');
+  assert.strictEqual(got.card.foil, 1, 'the resolved copy lost its finish');
+  assert.strictEqual(got.card.lang, 'ja', 'the resolved copy lost its language');
+  assert.strictEqual(got.card.qty, 2, 'the resolved copy lost its quantity');
+  assert.strictEqual(got.group, 'Promos', 'the resolved copy lost its group');
+  /* The group is CREATED by the first row resolved into it: IMPORT_GROUPS is
+     built from rows that already matched, so a portfolio whose every row was
+     ambiguous had no line on the grouping table to send anywhere. */
+  assert.ok(t.IMPORT_GROUPS.some(g => g[0] === 'Promos' && g[1] === 1 && g[2] === 'binder'),
+    'resolving into a group that had no matched rows did not create it');
+
+  // skip is a decision, and counted apart from "no printing matched"
+  t.resolveUnresolved(0, -1);
+  assert.strictEqual(t.UNRESOLVED.length, 0, 'skipping a row did not remove it');
+  assert.strictEqual(t.IMPORT_SKIPPED, skipped + 1, 'a skipped row is not counted');
+  assert.strictEqual(t.IMPORT_MATCHED.length, before + 1, 'a skipped row was filed anyway');
+  t.IMPORT_MATCHED.length = before;
+}
 t.IMPORT_GROUPS.length = 0;
 
 // --- config: two columns, coherent groups, a source toggle that moves ---
