@@ -524,6 +524,9 @@
   .h-\[1\.2em\] {
     height: 1.2em;
   }
+  .h-\[1\.9em\] {
+    height: 1.9em;
+  }
   .h-\[1\.45em\] {
     height: 1.45em;
   }
@@ -556,6 +559,9 @@
   }
   .h-screen {
     height: 100vh;
+  }
+  .max-h-\[26rem\] {
+    max-height: 26rem;
   }
   .max-h-\[45\%\] {
     max-height: 45%;

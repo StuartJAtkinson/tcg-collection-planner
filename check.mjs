@@ -13,7 +13,7 @@ const page = readFileSync('index.html', 'utf8');   // the markup too: <body> car
 const src = `${['sets.js', 'trim.js', 'anatomy.js'].map(f => readFileSync(f, 'utf8')).join('\n')}
 ${page.match(/<script>([\s\S]*)<\/script>/)[1]}`;
 const js = src
-  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, CAN_BE_LOCAL, MISSING_LOCAL, srcBytes, onDisk, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, plateOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
+  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, CAN_BE_LOCAL, MISSING_LOCAL, srcBytes, onDisk, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, plateOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, printingsOf, pickPrinting, printKey, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
   + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen,'
   + ' setDebug: v => { DEBUG = v; } };';
 
@@ -1245,10 +1245,19 @@ for (const [k] of t.NAV)
 // the ones in the line, and the page has to be honest about that rather than
 // showing an empty catalogue card.
 t.pickGame('mtg'); go('#/search'); t.setView('compact'); t.render();
-assert.ok(/openCard\('[^']+'\)/.test(painted), 'a result row is not a way into the card');
+assert.ok(/openCard\('[^']+','[^']*'\)/.test(painted),
+  'a result row does not open the printing it drew');
 t.openCard('Noble Hierarch');
 assert.strictEqual(ctx.location.hash, '#/card', 'opening a card did not navigate');
-assert.strictEqual(t.P.matched, false, 'a freshly opened card is already matched');
+/* OPENING A CARD FROM THE CATALOGUE IS NOT AN IMPORT. This asserted the opposite
+   and the opposite was the bug: clicking a real printing in a real list landed on
+   "unmatched — everything unknown until this line is matched", which is the
+   import story told about a card nobody imported. The story still holds for a
+   flat line and every assertion about it below still runs; it is reached by the
+   Unmatch button now rather than by looking at a card. */
+assert.strictEqual(t.P.matched, true, 'a card opened from the catalogue arrives unmatched');
+assert.ok(painted.includes('>matched<'), 'the card page does not say it is matched');
+t.setMatched(false);
 assert.ok(painted.includes('>unmatched<'), 'the card page does not say it is unmatched');
 // the source line is shown verbatim and every parsed token with it — built from
 // the card that was opened, so a foil prints the *F* and a nonfoil doesn't
@@ -3099,4 +3108,38 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
   t.applySort();
   assert.strictEqual(t.grouping().length, 0, 'the break at the front still groups');
   t.clearSort();
+}
+
+/* EVERY PRINTING, OUT OF THE CATALOGUE. This band drew four invented rows —
+   the same set in another language, the opposite finish at a made-up multiple of
+   the price, and a hardcoded reprint — under a heading reading "every printing of
+   this card". Seeded here rather than asserted against the mocks, because the
+   fault was that four was a plausible-looking number: the fixture gives one name
+   three real printings and another one, and the band must draw exactly those. */
+{
+  const oracle = (n) => [n, '{1}', 'Artifact', 'Text.', '', '', 1, 'normal', '', 0, 0];
+  t.loadCards({ o: [oracle('Sol Ring'), oracle('Black Lotus')], p: [
+    [0, 'LEA', '269', 3, '00000000-0000-4000-8000-000000000051', 1.5, 0, 1],
+    [0, 'LEB', '270', 3, '00000000-0000-4000-8000-000000000052', 800, 0, 1],
+    [0, 'CMD', '261', 3, '00000000-0000-4000-8000-000000000053', 1.84, 0, 2, 'de'],
+    [1, 'LEA', '232', 3, '00000000-0000-4000-8000-000000000054', 9999, 0, 1],
+  ] });
+  t.pickGame('mtg');
+  assert.strictEqual(t.printingsOf('Sol Ring').length, 3, 'the card page invents or drops printings');
+  assert.strictEqual(t.printingsOf('Black Lotus').length, 1, 'a one-printing card gets more than one');
+  // opened on the printing you clicked, not on whichever the catalogue lists first
+  t.openCard('Sol Ring', 'CMD/261/de');
+  assert.strictEqual(t.openedCard().set, 'CMD', 'the card did not open on the printing that was clicked');
+  assert.ok(painted.includes('>de<'), 'the opened printing did not bring its own language');
+  // ...and every printing is drawn, each one selectable
+  for (const code of ['LEA', 'LEB', 'CMD'])
+    assert.ok(painted.includes(`>${code}</span>`), `the printings band is missing ${code}`);
+  assert.ok(!painted.includes('>232<'), 'another card\'s printing is listed under this one');
+  assert.strictEqual((painted.match(/pickPrinting\('/g) || []).length, 3,
+    'the printings are not each a way to show that printing');
+  t.pickPrinting('LEA/269/en');
+  assert.strictEqual(t.openedCard().set, 'LEA', 'picking a printing did not switch to it');
+  assert.ok(painted.includes('>showing<'), 'nothing says which printing is on show');
+  // the band counts what it drew rather than a number written next to it
+  assert.ok(painted.includes('>3 in the catalogue'), 'the printings band does not state its own count');
 }
