@@ -13,7 +13,7 @@ const page = readFileSync('index.html', 'utf8');   // the markup too: <body> car
 const src = `${['sets.js', 'trim.js', 'anatomy.js'].map(f => readFileSync(f, 'utf8')).join('\n')}
 ${page.match(/<script>([\s\S]*)<\/script>/)[1]}`;
 const js = src
-  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, CAN_BE_LOCAL, MISSING_LOCAL, srcBytes, onDisk, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, plateOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, heldOf, setBand, BandList, finishesOf, printingsOf, pickPrinting, printKey, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
+  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, canBeLocal, missingLocal, srcKeys, srcQualities, srcBytes, onDisk, Table, DisplayChip, GroupHead, CARD_VIEWS, UNALIGNED, unaligned, anatomyKey, AlignList, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, VIEWS, FORMATS, CARD_TYPES, RARITIES, FINISHES, RARITY_NAME, FINISH, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, plateOf, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, heldOf, setBand, BandList, finishesOf, printingsOf, pickPrinting, printKey, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, P, TABS, LISTS, GAMES, CFG, render, grouping,'
   + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen,'
   + ' setDebug: v => { DEBUG = v; } };';
 
@@ -1704,11 +1704,40 @@ for (let i = 1; i < groups.length; i++)
 // the source split the user called out: MTGJSON owns rows Scryfall doesn't
 for (const s of ['AllPrintings', 'all_cards', 'mtg_card_printings', 'identifiers.scryfallId'])
   assert.ok(painted.includes(s), `schema source map is missing "${s}"`);
+/* CONFIG IS SPLIT BY GAME. It listed all eight sources whichever game you were
+   browsing, so a Magic session was asked to reason about pokemontcg.io and the
+   "6 of 8 online" summary counted rows that could never matter to it. */
+const srcShown = t.srcKeys();
+assert.ok(srcShown.length && srcShown.every(k => !t.SOURCES[k].game || t.SOURCES[k].game === 'mtg'),
+  'a source for another game is listed while browsing Magic');
+assert.ok(srcShown.length < Object.keys(t.SOURCES).length, 'the game split shows every source anyway');
+for (const k of Object.keys(t.SOURCES)) {
+  const there = painted.includes(`>${t.SOURCES[k].name}<`);
+  assert.strictEqual(there, srcShown.includes(k),
+    `"${t.SOURCES[k].name}" is ${there ? 'srcShown' : 'hidden'} on a Magic config and should not be`);
+}
+/* DEAREST FIRST, both down the source list and down each source's sizes: the
+   top is the biggest thing you could put on this disk, the bottom the smallest
+   thing to pull when a page asks for it. The declarations are in whatever order
+   they were written — Scryfall's five run 24 MB, 78, 392, 37, 5 — which reads
+   as no order at all. */
+for (const kind of ['images', 'data']) {
+  const ks = t.srcKeys(kind);
+  const cost = ks.map(k => t.srcBytes(k, t.SOURCES[k].full));
+  assert.deepStrictEqual(cost.join(), [...cost].sort((a, b) => b - a).join(),
+    `the ${kind} sources are not ordered dearest first`);
+}
+for (const k of srcShown) {
+  const b = t.srcQualities(k).map(q => q[2]);
+  assert.deepStrictEqual(b.join(), [...b].sort((x, y) => y - x).join(),
+    `${k}'s sizes are not ordered dearest first`);
+  assert.strictEqual(t.srcQualities(k).length, t.SOURCES[k].q.length, `${k} lost a size in the sort`);
+}
 /* The page is STATIC and downloads nothing, so the control that matters is the
    command, not a button. There used to be a "Download & cache now" button here
    that did nothing at all — asserting it existed was asserting the lie. */
-for (const [k, s] of Object.entries(t.SOURCES)) {
-  const cmd = s.cmd(t.CFG.src[k].q);
+for (const k of srcShown) {
+  const s = t.SOURCES[k], cmd = s.cmd(t.CFG.src[k].q);
   assert.ok(cmd || s.why_local, `"${s.name}" offers no command and no reason it needs none`);
   if (cmd) assert.ok(painted.includes(cmd.replace(/&/g, '&amp;').replace(/</g, '&lt;')),
     `"${s.name}" does not show the command that fetches it`);
@@ -1724,11 +1753,13 @@ assert.ok(t.offlineBytes('full') > t.offlineBytes('drawn') * 5,
   'the fullest-size offline total is not dramatically bigger — is srcBytes wired up?');
 assert.ok(/1[0-9]{2}\.[0-9] GB/.test(painted), 'the full-size offline cost is not stated on the page');
 // a source that cannot go local is named, not counted as an outstanding chore
-assert.ok(t.MISSING_LOCAL.length && t.MISSING_LOCAL.every(k => !t.CAN_BE_LOCAL.includes(k)),
+assert.ok(Object.keys(t.SOURCES).some(k => t.SOURCES[k].noLocalYet),
+  'nothing declares that it cannot go local, so the named-not-counted rule is untested');
+assert.ok(t.missingLocal().every(k => !t.canBeLocal().includes(k)),
   'a source with no local side is being counted as one that has one');
 t.goOffline('full');
 assert.ok(t.allLocal(), 'going offline left a source online');
-for (const k of t.CAN_BE_LOCAL)
+for (const k of t.canBeLocal())
   assert.strictEqual(t.CFG.src[k].q, t.SOURCES[k].full, `${k} went local but not at its fullest size`);
 assert.ok(t.artUrl(t.CARDS()[0]).startsWith('art/'), 'offline mode still hotlinks card art');
 t.goOnline();
@@ -1740,16 +1771,27 @@ go('#/config');
    quietly drops the side it doesn't have is the drift this replaced. */
 const srcBand = painted.slice(bandAt('sources'), bandAt('schema source map'));
 assert.strictEqual(Object.keys(t.SOURCES).length, 8, 'the source list changed size — is the new one in Config?');
-for (const [k, s] of Object.entries(t.SOURCES)) {
+for (const k of srcShown) {
+  const s = t.SOURCES[k];
   const at = srcBand.indexOf(`>${s.name}<`);
   assert.ok(at > 0, `"${s.name}" is not in the sources band`);
-  const row = srcBand.slice(at, at + 2600);
+  // to the next source's name rather than a fixed window: a row is a header
+  // plus one line per size now, so its length varies with how many it offers
+  const next = srcShown.map(o => srcBand.indexOf(`>${t.SOURCES[o].name}<`, at + 1))
+    .filter(i => i > at).sort((x, y) => x - y)[0];
+  const row = srcBand.slice(at, next > 0 ? next : undefined);
   assert.ok(row.includes(s.gives), `"${s.name}" does not say what it gives`);
   for (const side of ['Local', 'Online'])
     assert.ok(row.includes(`>${side}</span>`), `"${s.name}" is missing its ${side} chip`);
   assert.ok(s.online || s.why, `"${s.name}" has no online side and no reason given`);
   assert.ok(s.q.length && s.q.every(q => row.includes(`setQuality('${k}','${q[0]}')`)),
     `"${s.name}" offers no quality choice`);
+  /* Asked PER SIZE, not per source. It used to answer only for whichever size
+     happened to be selected, so a directory holding 107k art crops read "not
+     fetched" the moment you clicked png — true of png, and it hid the one thing
+     the row is for: which of these five have I actually got. */
+  assert.strictEqual((row.match(/serve\.py answers this|on disk|&mdash;<\/span>/g) || []).length >= s.q.length,
+    true, `"${s.name}" does not answer "is it here" for every size it offers`);
 }
 // the side that doesn't exist says why, and can't be selected anyway
 assert.ok(painted.includes('MTGJSON publishes files, not an API'), 'MTGJSON is offered a live mode it does not have');
@@ -1978,6 +2020,46 @@ for (const h of handlers) {
   }
 }
 console.log(`  ${String(declared.length).padStart(3)} declarations, all used · ${handlers.size} inline handlers, all resolve`);
+
+/* WRITTEN DOWN ONCE. Each of these vocabularies existed twice — once as the
+   constant the filter counts against, and again inside the anatomy spec with an
+   invented number beside it — and two of the four copies had already drifted:
+   the spec's Legality listed eight formats to FORMATS' nine and its Rarity four
+   to RARITIES' five, so the sidebar offered a vocabulary the filter, the sort
+   and the card page did not share. These assert the spec is DERIVED, by
+   checking it against the one place each list is now declared. */
+{
+  const specOf = n => (t.GAMES.mtg.anatomy.find(g => g[1] === n) || [])[2] || [];
+  const names = n => specOf(n).map(x => x[0]).join();
+  assert.strictEqual(names('Type'), t.CARD_TYPES.join(), 'the Type chips are not CARD_TYPES');
+  assert.strictEqual(names('Finish'), t.FINISHES.join(), 'the Finish chips are not FINISHES');
+  assert.strictEqual(names('Rarity'), t.RARITIES.map(r => r[0]).join(), 'the Rarity chips are not RARITIES');
+  assert.strictEqual(t.RARITY_NAME.mtg.join(), t.RARITIES.map(r => r[0]).join(),
+    'the rarity NAMES are a second spelling of RARITIES');
+  assert.strictEqual(t.FINISH.mtg.join(), t.FINISHES.slice(0, 2).join(),
+    "a holding's two finishes are a second spelling of the printing's three");
+  /* A closed vocabulary carries NO count here: an invented one is a lie the
+     moment the catalogue loads, and these were 41 / 68 / 92 / 131 for formats
+     that hold 100k printings between them. */
+  for (const n of ['Legality', 'Type', 'Rarity', 'Finish'])
+    assert.ok(specOf(n).every(x => x.length === 1), `the ${n} chips still carry a hardcoded count`);
+  // ...and an OPEN one is not written down at all — it comes from the data
+  for (const n of ['Subtype', 'Keywords', 'Language', 'Artist'])
+    assert.strictEqual(specOf(n).length, 0, `${n} is a hand-picked sample presented as a vocabulary`);
+}
+/* ONE MAP FOR THE THREE CARD DISPLAYS. The name, the icon and the renderer were
+   written out separately in the sort bar and in each of the card page's two
+   bands, which is how two lists of the same cards ended up on one page
+   disagreeing about what a card looks like. */
+assert.strictEqual(Object.keys(t.CARD_VIEWS).join(), 'compact,details,grid',
+  'the card displays are no longer the three the bands and the sort bar share');
+for (const [v, o] of Object.entries(t.CARD_VIEWS)) {
+  assert.strictEqual(typeof o.draw, 'function', `${v} names no renderer`);
+  assert.ok(t.VIEWS.some(r => r[0] === v && r[1] === o.icon), `${v}'s icon is typed twice`);
+}
+// the sort bar's chips and the card page's are the same function
+assert.ok(t.DisplayChip('grid', '#', true, "setView('grid')").includes("setView('grid')"),
+  'the display chip does not carry its own handler');
 
 console.log('\ngame gated on the main then locked. fresh page applies nothing.');
 console.log('one page shape everywhere: selector -> filter -> sort -> view. break honoured in 5 layouts.');
@@ -3192,8 +3274,13 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
   assert.strictEqual(legalOf(0b000000100), 'Modern', 'a single-format card does not read its one format');
   assert.strictEqual(legalOf(0b000011100), 'Modern &middot; Legacy &middot; Vintage',
     'the formats are not read off the mask in order');
-  assert.strictEqual(legalOf(0b111111111), t.GAMES.mtg.anatomy[0][2].map(x => x[0]).join(' &middot; ') + ' &middot; Historic',
-    'a card legal everywhere does not list every format');
+  /* Against the SPEC's own list, with no correction bolted on. This assertion
+     used to read `... + ' · Historic'`, which was the drift written down: the
+     sidebar's Legality chips were a hand-typed copy of FORMATS that had lost
+     one, so the filter counted nine formats and offered eight. Both read the
+     one list now, and a suffix here would hide it going wrong again. */
+  assert.strictEqual(legalOf(0b111111111), t.GAMES.mtg.anatomy[0][2].map(x => x[0]).join(' &middot; '),
+    'the Legality chips and the legality bitmask are not the same nine formats');
   /* 0 is NOT the same as absent, and this is the distinction the fallback turns
      on: 9,222 catalogue cards are legal in nothing tracked — tokens, art series,
      un-cards — while a mock row has no bitmask at all and keeps its fiction. */
@@ -3259,6 +3346,44 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
   assert.strictEqual(t.P.hold, 'compact', 'the two bands share one display setting');
   t.setBand('prints', 'details');
   t.LISTS.decks.shift();
+
+  /* ALIGN ART — every printing beside its own high-quality pull, so a
+     misalignment noticed on one card can be pinned to a printing and then to
+     that printing's CLASS. Offered on the printings band alone: holdings are
+     copies you own, and how well the frame draws them is not a question about
+     ownership. */
+  t.setBand('prints', 'align'); go('#/card');
+  assert.ok(painted.includes(`setBand('prints','align')`), 'the align display is not offered');
+  assert.ok(!painted.includes(`setBand('hold','align')`), 'align is offered on the holdings band, where it answers nothing');
+  const pulls = (painted.match(/cards\.scryfall\.io\/large\//g) || []).length;
+  assert.strictEqual(pulls, t.printingsOf('Sol Ring').length,
+    'align does not pull one high-quality image per printing');
+  assert.ok(painted.includes('drawn &middot; printed'), 'align does not label the two halves');
+  assert.ok(painted.includes(t.anatomyKey(t.openedCard())),
+    'align does not name the class, which is the unit the verdict applies to');
+
+  /* A CLASS THE FRAME CANNOT DRAW IS DECLARED, NOT NUDGED. The tempting fix for
+     a misaligned class is a per-class offset, which is right for the printings
+     it was tuned against and wrong for the rest — extended art was exactly that
+     until this week. Naming a class here drops it to the printed card, which
+     cannot be misaligned because it IS the card. Empty by default: a class
+     listed here stops being drawn at all, and that is not a guess worth
+     making. */
+  assert.strictEqual(t.UNALIGNED.size, 0,
+    'a class is declared unalignable — was that decided against #/card\'s align display?');
+  const key = t.anatomyKey(t.openedCard());
+  const before = t.MockCard(t.openedCard());
+  t.UNALIGNED.add(key);
+  const after = t.MockCard(t.openedCard());
+  assert.ok(before.includes('color-mix') && !after.includes('color-mix'),
+    'declaring a class unalignable did not stop it being drawn');
+  assert.ok(after.includes('cards.scryfall.io') || after.includes('art/sf/'),
+    'an unalignable class draws neither a frame nor the printed card');
+  go('#/card');
+  assert.ok(painted.includes('this class is declared unalignable'),
+    'align does not say why a class shows one image instead of two');
+  t.UNALIGNED.delete(key);
+  t.setBand('prints', 'details');
 
   /* THE IDENTITY KEY IS SET + NUMBER + LANGUAGE, and finish is not in it: it is
      an attribute of the printing, which is why one row can offer two. Asserted

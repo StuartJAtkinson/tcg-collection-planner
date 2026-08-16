@@ -65,6 +65,29 @@ const PANEL        = 'rounded-xl border border-neutral-800 bg-neutral-900/50';
    costing more width than the extra digits were worth. */
 const num = n => n < 10000 ? String(n) : `${Math.round(n / 100) / 10}k`;
 
+/* THE CLOSED VOCABULARIES, DECLARED ONCE AND READ EVERYWHERE. Each of these was
+   written down twice — once here for the filter to count against, and again
+   inside the anatomy spec with a made-up number beside it — and two of the four
+   copies had already drifted apart: the spec's Legality listed eight formats to
+   FORMATS' nine (no Historic) and its Rarity four to RARITIES' five (no
+   Special), so the sidebar offered a different vocabulary from the one the
+   filter, the sort and the card page use.
+   They are up here rather than beside `facetCounts` because GAMES needs them and
+   GAMES is the first thing this file declares. An open vocabulary — subtypes,
+   keywords, artists — is NOT written down anywhere: it is taken from the data,
+   most common first, because any hand-picked list of hundreds is a sample
+   presented as a vocabulary. */
+const FORMATS = ['Standard', 'Pioneer', 'Modern', 'Legacy', 'Vintage', 'Commander', 'Pauper', 'Brawl', 'Historic'];
+const CARD_TYPES = ['Creature', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Planeswalker', 'Land', 'Battle'];
+const RARITIES = [['Common', 1], ['Uncommon', 2], ['Rare', 3], ['Mythic', 4], ['Special', 5]];
+const FINISHES = ['Nonfoil', 'Foil', 'Etched'];
+const PKM_CARDS = 21904;
+/* The spec wants [label, count] pairs and a closed vocabulary has no count worth
+   writing down: an invented one is a lie the moment the catalogue loads, and a
+   zero reads as "none of these" rather than "not counted yet". `facetCounts`
+   fills them in for real; ChipGroup draws no number when there isn't one. */
+const vocab = xs => xs.map(x => [Array.isArray(x) ? x[0] : x]);
+
 /* One entry per game — this is the whole "ready for another TCG" claim. The
    anatomy is a spec, not markup: adding a game is data, not a new component.
    `sort` differs too (mana/colour vs hp/type); the selector, break and the
@@ -75,22 +98,24 @@ const GAMES = {
     sets: `${num(SETS.length)} sets &middot; ${num(MTG_CARDS)} cards`,
     sort: ['kind','name','set','release','number','rarity','mana','colour','price','language'],
     anatomy: [
-      ['chips', 'Legality', [['Standard',41],['Pioneer',68],['Modern',92],['Legacy',131],['Vintage',134],['Commander',129],['Pauper',54],['Brawl',44]], { cols: 2, note: 'legal in' }],
+      ['chips', 'Legality', vocab(FORMATS), { cols: 2, note: 'legal in' }],
       ['combos'],
       ['range', 'Mana value', null, { symbols: true }],
-      ['chips', 'Type', [['Creature',58],['Instant',22],['Sorcery',18],['Artifact',12],['Enchantment',9],['Planeswalker',3],['Land',15],['Battle',0]], { cols: 3 }],
-      ['chips', 'Subtype', [['Human',14],['Elf',9],['Goblin',7],['Equipment',4],['Aura',6],['Saga',0]], { cols: 3, note: 'from the type line' }],
-      ['chips', 'Keywords', [['Flying',8],['Trample',5],['Exalted',6],['Landfall',3]], { cols: 2 }],
-      ['chips', 'Rarity', [['Common',60],['Uncommon',40],['Rare',35],['Mythic',10]], { cols: 2 }],
-      ['chips', 'Language', [['en',131],['de',9],['ja',5]], { cols: 3, other: true }],
+      ['chips', 'Type', vocab(CARD_TYPES), { cols: 3 }],
+      // the four open ones: a placeholder here is a sample, so the list is empty
+      // until facetCounts reads the real thing out of whatever is in scope
+      ['chips', 'Subtype', [], { cols: 3, note: 'from the type line' }],
+      ['chips', 'Keywords', [], { cols: 2 }],
+      ['chips', 'Rarity', vocab(RARITIES), { cols: 2 }],
+      ['chips', 'Language', [], { cols: 3, other: true }],
       ['range', 'Power', null, { other: true }],
       ['range', 'Toughness', null, { other: true }],
-      ['chips', 'Finish', [['Nonfoil',138],['Foil',41],['Etched',0]], { cols: 3, other: true }],
-      ['chips', 'Artist', [['Wayne Reynolds',4],['Jesper Ejsing',3],['Chris Rahn',3]], { cols: 2, other: true }],
+      ['chips', 'Finish', vocab(FINISHES), { cols: 3, other: true }],
+      ['chips', 'Artist', [], { cols: 2, other: true }],
     ],
   },
   pokemon: {
-    label: 'Pok&eacute;mon', total: num(21904), sets: `162 sets &middot; ${num(21904)} cards`,
+    label: 'Pok&eacute;mon', total: num(PKM_CARDS), sets: `162 sets &middot; ${num(PKM_CARDS)} cards`,
     sort: ['name','set','number','rarity','hp','type','price','language'],
     anatomy: [
       ['chips', 'Legality', [['Standard',74],['Expanded',148],['Unlimited',252]], { cols: 2, note: 'legal in' }],
@@ -267,7 +292,8 @@ const clearPicks = () => { P.pick = { printings: null, binders: null, decks: nul
    art is hotlinked is that number, and a typed number would drift off it. */
 const bytes = n => n >= 1e9 ? (n / 1e9).toFixed(1) + ' GB' : n >= 1e6 ? Math.round(n / 1e6) + ' MB' : Math.round(n / 1e3) + ' KB';
 const PACK_COUNT = Object.values(PACK_ART).reduce((n, o) => n + Object.keys(o).length, 0);
-const PKM_CARDS = 21904;
+// PKM_CARDS is declared with the vocabularies at the top — GAMES prints it too,
+// and it was a bare 21904 typed twice up there
 /* EVERY SIZE HERE IS A NUMBER OF BYTES PER UNIT, and every one of them was
    measured — the image sizes over 24 printings sampled across the catalogue,
    the files off the disk they are sitting on. They used to be prose typed into
@@ -278,7 +304,7 @@ const PKM_CARDS = 21904;
    sentence about it always will. `units` is what the number is per — one for a
    file, a card count for the two image sources. */
 const SOURCES = {
-  scryfall: { name: 'Scryfall', gives: 'card data &middot; set list', kind: 'data',
+  scryfall: { name: 'Scryfall', gives: 'card data &middot; set list', kind: 'data', game: 'mtg',
     def: ['local', 'all_cards'], full: 'all_cards', units: 1,
     file: q => `data/scryfall-${q.replace(/_/g, '-')}.jsonl.gz`,
     cmd: q => `npm run import   # fetches data/scryfall-${q.replace(/_/g, '-')}.jsonl.gz`,
@@ -287,7 +313,7 @@ const SOURCES = {
     q: [['oracle_cards', 'one row per card', 24.5e6], ['default_cards', 'one row per English printing', 77.5e6],
         ['all_cards', 'every printing, every language', 391.7e6],
         ['unique_artwork', 'one row per illustration', 37.4e6], ['rulings', 'rulings only', 5.3e6]] },
-  sfart: { name: 'Scryfall images', gives: 'card art', kind: 'images',
+  sfart: { name: 'Scryfall images', gives: 'card art', kind: 'images', game: 'mtg',
     def: ['online', 'art_crop'], full: 'png', units: MTG_CARDS,
     file: q => `art/sf/${q}`,
     cmd: q => `node gen-art.mjs ${q} --all      # or --anatomy for the sample page only`,
@@ -299,7 +325,7 @@ const SOURCES = {
     q: [['art_crop', '626&times;457 &mdash; the illustration alone, which is what every frame draws', 75e3],
         ['small', '146&times;204 &mdash; whole card', 14e3], ['normal', '488&times;680 &mdash; whole card', 104e3],
         ['large', '672&times;936 &mdash; whole card', 169e3], ['png', '745&times;1040 &mdash; whole card', 1231e3]] },
-  mtgjson: { name: 'MTGJSON', gives: 'printings &middot; booster collation &middot; sealed products', kind: 'data',
+  mtgjson: { name: 'MTGJSON', gives: 'printings &middot; booster collation &middot; sealed products', kind: 'data', game: 'mtg',
     def: ['local', 'AllPrintings'], full: 'AllPrintings', units: 1,
     file: q => q === 'psql' ? 'data/AllPrintings.psql.gz' : `data/${q}.json.gz`,
     cmd: q => `curl -o data/${q}.json.gz https://mtgjson.com/api/v5/${q}.json.gz`,
@@ -308,7 +334,7 @@ const SOURCES = {
     q: [['AllPrintings', 'every set', 178.1e6], ['Standard', 'Standard-legal sets', 16.4e6],
         ['Modern', 'Modern-legal sets', 93.6e6], ['Legacy', 'Legacy-legal sets', 151.1e6],
         ['psql', 'a Postgres dump', 220e6]] },
-  prices: { name: 'MTGJSON prices', gives: 'price history', kind: 'data',
+  prices: { name: 'MTGJSON prices', gives: 'price history', kind: 'data', game: 'mtg',
     def: ['local', 'AllPrices'], full: 'AllPrices', units: 1,
     file: q => `data/${q}.json.gz`,
     cmd: q => `curl -o data/${q}.json.gz https://mtgjson.com/api/v5/${q}.json.gz`,
@@ -322,21 +348,21 @@ const SOURCES = {
      instead of by a canvas pass per picture per page, forever. 110 KB is
      measured over the fetched set, not guessed; the 1000px figure is an
      estimate until somebody runs it, and the row says which it is showing. */
-  tcg: { name: 'TCGplayer', gives: 'booster pack art', kind: 'images',
+  tcg: { name: 'TCGplayer', gives: 'booster pack art', kind: 'images', game: 'mtg',
     def: ['online', '200w'], full: 'in_1000x1000', units: PACK_COUNT,
     file: q => `packs/${q}`,
     cmd: q => `node gen-packs.mjs ${q}`,
     local: 'packs/ &mdash; trimmed to alpha on the way in, so the browser does no canvas pass',
     online: 'tcgplayer-cdn.tcgplayer.com &middot; by product id, trimmed live in the browser',
     q: [['200w', '200&times;366', 110e3], ['in_1000x1000', '525&times;1000', 600e3]] },
-  ptcg: { name: 'pokemon-tcg-data', gives: 'Pok&eacute;mon card data', kind: 'data',
+  ptcg: { name: 'pokemon-tcg-data', gives: 'Pok&eacute;mon card data', kind: 'data', game: 'pokemon',
     def: ['local', 'master'], full: 'master', units: 1,
     file: () => 'data/pokemon-tcg-data.tar.gz',
     cmd: () => 'curl -Lo data/pokemon-tcg-data.tar.gz https://github.com/PokemonTCG/pokemon-tcg-data/archive/master.tar.gz',
     local: 'a GitHub repo, not an API key',
     online: null, why: 'the API needs a key; the repo behind it does not',
     q: [['master', 'the whole repo', 2.7e6]] },
-  ptcgart: { name: 'pokemontcg.io', gives: 'Pok&eacute;mon card art', kind: 'images',
+  ptcgart: { name: 'pokemontcg.io', gives: 'Pok&eacute;mon card art', kind: 'images', game: 'pokemon',
     def: ['online', 'small'], full: 'hires', units: PKM_CARDS,
     file: q => `art/ptcg/${q}`,
     cmd: () => null, noLocalYet: true,
@@ -344,7 +370,7 @@ const SOURCES = {
     local: 'art/ptcg/ &mdash; whole cards, frame and all',
     online: 'images.pokemontcg.io &middot; whole cards, frame and all &mdash; there is no art crop',
     q: [['small', '245&times;342', 160e3], ['hires', '734&times;1024', 845e3]] },
-  mana: { name: 'Mana font', gives: 'mana &amp; set symbols', kind: 'data',
+  mana: { name: 'Mana font', gives: 'mana &amp; set symbols', kind: 'data', game: 'mtg',
     def: ['local', 'woff2'], full: 'woff2', units: 1,
     file: () => 'mana.woff2',
     cmd: () => null, why_local: 'vendored &mdash; it is already in the repo',
@@ -451,23 +477,38 @@ const OFFLINE_MODES = {
   drawn: { label: 'as the app draws it', q: k => SOURCES[k].def[1] },
   full: { label: 'at the fullest size each offers', q: k => SOURCES[k].full },
 };
+/* THE SOURCES THIS GAME ACTUALLY USES. Config listed all eight whichever game
+   you were browsing, so a Magic session was asked to reason about pokemontcg.io
+   and a Pokemon one about MTGJSON's booster collation — and the "6 of 8 online"
+   summary counted rows that could never matter to you. A source declares its
+   game; one with none is shared and always shown.
+   Ordered DEAREST FIRST, at the fullest size each offers, so the list reads the
+   way the decision does: the biggest thing you could put on this disk at the
+   top, the smallest pull-it-when-you-need-it at the bottom. */
+const srcKeys = (kind) => Object.keys(SOURCES)
+  .filter(k => (!SOURCES[k].game || SOURCES[k].game === P.game) && (!kind || SOURCES[k].kind === kind))
+  .sort((a, b) => srcBytes(b, SOURCES[b].full) - srcBytes(a, SOURCES[a].full));
+/* Quality options, dearest first, for the same reason. The declarations are in
+   whatever order they were written in — Scryfall's five run 24 MB, 78, 392, 37,
+   5 — which reads as no order at all. */
+const srcQualities = k => [...SOURCES[k].q].sort((x, y) => y[2] - x[2]);
 /* A source with no local side can never be switched to one, so it is NAMED
    rather than counted. "6 of 8 offline" with no way to reach 8 is a broken
    promise, and flipping such a row to Local anyway would be worse: it would
    read as done while every request still went to the network. */
-const CAN_BE_LOCAL = Object.keys(SOURCES).filter(k => SOURCES[k].local && !SOURCES[k].noLocalYet);
-const MISSING_LOCAL = Object.keys(SOURCES).filter(k => SOURCES[k].noLocalYet);
-const offlineBytes = mode => CAN_BE_LOCAL.reduce((n, k) => n + srcBytes(k, OFFLINE_MODES[mode].q(k)), 0);
+const canBeLocal = () => srcKeys().filter(k => SOURCES[k].local && !SOURCES[k].noLocalYet);
+const missingLocal = () => srcKeys().filter(k => SOURCES[k].noLocalYet);
+const offlineBytes = mode => canBeLocal().reduce((n, k) => n + srcBytes(k, OFFLINE_MODES[mode].q(k)), 0);
 function goOffline(mode) {
-  for (const k of CAN_BE_LOCAL) { CFG.src[k].at = 'local'; CFG.src[k].q = OFFLINE_MODES[mode].q(k); }
+  for (const k of canBeLocal()) { CFG.src[k].at = 'local'; CFG.src[k].q = OFFLINE_MODES[mode].q(k); }
   render();
 }
 // the inverse, for getting back to the defaults without reloading
 function goOnline() {
-  for (const [k, s] of Object.entries(SOURCES)) { CFG.src[k].at = s.def[0]; CFG.src[k].q = s.def[1]; }
+  for (const k of srcKeys()) { CFG.src[k].at = SOURCES[k].def[0]; CFG.src[k].q = SOURCES[k].def[1]; }
   render();
 }
-const onlineNow = () => CAN_BE_LOCAL.filter(k => CFG.src[k].at === 'online');
+const onlineNow = () => canBeLocal().filter(k => CFG.src[k].at === 'online');
 const allLocal = () => onlineNow().length === 0;
 let DEBUG = false;
 const game = () => GAMES[P.game] || GAMES.mtg;
@@ -639,6 +680,23 @@ const Band = (name, body, { off = false, right = '', note = '', stick = false } 
    down the right. Column counts are literal strings because Tailwind scans
    source text — an interpolated `grid-cols-${n}` would never be generated. */
 const GRID = { 1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-3', 5: 'grid-cols-5', 6: 'grid-cols-6' };
+/* ONE TABLE, AND EVERY LIST ON CONFIG IS ONE. There were four hand-rolled
+   tables on that page — the schema map, the alias map, the files list and the
+   source rows — each with its own header markup, its own row markup and its own
+   column widths, which is why no two of them lined up and why three of them had
+   a header row that did not match the cells under it.
+   `cols` is [label, width class]; a row is cells in the same order. `rowCls`
+   exists because two of the four tint a row to mean something, and `rowAttrs`
+   because one of them is a picker and its rows are clickable. */
+const Table = (cols, rows, { rowCls = () => '', rowAttrs = () => '', foot = '', frame = true } = {}) => `
+  <div class="${frame ? 'overflow-hidden rounded-lg border border-neutral-800' : ''}">
+    <div class="flex items-baseline gap-2 border-b border-neutral-800 bg-neutral-900/60 px-2 py-1.5">
+      ${cols.map(([label, w]) => `<span class="${w} shrink-0 text-[10px] font-semibold uppercase tracking-wide text-neutral-600">${label}</span>`).join('')}</div>
+    ${rows.map((cells, i) => `<div ${rowAttrs(cells, i)} class="flex items-baseline gap-2 border-t border-neutral-900 px-2 py-1.5 text-[11px] ${rowCls(cells, i)}">
+      ${cols.map(([, w], j) => `<span class="${w} min-w-0 truncate">${cells[j] ?? ''}</span>`).join('')}</div>`).join('')}
+    ${foot ? `<p class="border-t border-neutral-800 px-2 py-1.5 text-[11px] text-neutral-600">${foot}</p>` : ''}
+  </div>`;
+
 const ChipGroup = (label, opts, note = '', cols = 2, live = false) => `
   <div class="mb-3">
     <div class="mb-1 flex items-baseline gap-2">
@@ -1021,7 +1079,9 @@ const lum = h => { const n = parseInt(h.slice(1), 16);
   return (0.2126 * (n >> 16) + 0.7152 * (n >> 8 & 255) + 0.0722 * (n & 255)) / 255; };
 const ink = l => l > 0.5 ? '#1a1a1a' : '#f0f0f0';
 // the dot is the same five tiers in both games; only the words differ
-const RARITY_NAME = { mtg: ['Common', 'Uncommon', 'Rare', 'Mythic', 'Special'],
+// Magic's tiers are RARITIES, which is what the filter chips and the sort key
+// already read; writing them out again here is how the two come to disagree
+const RARITY_NAME = { mtg: RARITIES.map(([n]) => n),
   pokemon: ['Common', 'Uncommon', 'Rare', 'Holo Rare', 'Illustration Rare'] };
 const rarityName = r => (RARITY_NAME[P.game] || RARITY_NAME.mtg)[r - 1] || '';
 // gold for multicolour, the colour itself for mono, grey for colourless — the
@@ -1068,6 +1128,25 @@ const LANDSCAPE = new Set(['planar', 'scheme', 'split']);
 const BANDED = new Set(['saga', 'class', 'leveler']);
 // the treatments where the art IS the card and the text is laid over it
 const OVERLAID = new Set(['fullart', 'textless', 'extendedart']);
+// a class is layout x treatment, and it is the unit everything about the shape
+// of a card is decided on — the anatomy page's rows, and UNALIGNED below
+const anatomyKey = c => `${c.layout || 'normal'} | ${c.treat || 'framed'}`;
+/* A CLASS THE FRAME CANNOT DRAW, DECLARED RATHER THAN NUDGED. When a printing
+   comes out misaligned the tempting fix is a per-class offset — a negative
+   margin here, a percentage there. That is a hardcoded alignment for a class
+   whose art is NOT uniform: right for the six printings it was tuned against
+   and wrong for the rest, and invisible either way because nothing on the page
+   compares the two. Extended art was exactly that until this week.
+   The rule instead: a class the shared geometry cannot draw is not drawn at
+   all. Name it here and the app pulls the complete printed card for it, which
+   cannot be misaligned because it IS the card — the same path an art-series
+   printing already takes for the same reason.
+   EMPTY ON PURPOSE. Nothing goes in until #/card's Align display shows it
+   failing, because a class listed here stops being drawn at all and that is not
+   a guess worth making. The overlaid treatments are the likely first entries:
+   the title sits ON the illustration at a position chosen per card. */
+const UNALIGNED = new Set([]);
+const unaligned = c => UNALIGNED.has(anatomyKey(c));
 // the face list only matters when there are two of them to draw
 const twoFaced = c => (c.faces?.length > 1 ? c.faces : null);
 const faceAt = (c, i) => c.faces?.[i] || c;
@@ -1764,8 +1843,12 @@ const MockCard = (c, fit, side) => {
      through the same wrapper and the same flip button — an art series card has
      two genuinely different sides and turning it over is the point of it.
      No art id and there is no scan to fall back TO, so the empty frame stands:
-     that is the mock rows and anything hand-built, never the catalogue. */
-  const scan = !framable(c) && !!c.art_id;
+     that is the mock rows and anything hand-built, never the catalogue.
+     Two reasons, one path: `framable` is DERIVED (this card has no cost, no
+     type and no rules, so a frame has nothing to say) and UNALIGNED is
+     DECLARED (this class cannot be drawn by the shared geometry, so it is not
+     drawn). Both end at the printed card, which is why they share the branch. */
+  const scan = (!framable(c) || unaligned(c)) && !!c.art_id;
   const paired = PAIRED.has(layout) && twoFaced(c) && !scan;
   const draw = (i, dbg, dplate) => (scan ? PrintedFace(c, i) : CardSide(c, i, dbg, dplate, treat, layout));
   /* The black edge is padding on a wrapper, not a border: border-width takes no
@@ -2206,10 +2289,8 @@ const ComboSlicer = () => {
    than vanishing. An open one — subtypes, of which the catalogue has hundreds —
    is taken from the data, most common first, because a hand-picked six was only
    ever a sample of it. */
-const FORMATS = ['Standard', 'Pioneer', 'Modern', 'Legacy', 'Vintage', 'Commander', 'Pauper', 'Brawl', 'Historic'];
-const CARD_TYPES = ['Creature', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Planeswalker', 'Land', 'Battle'];
-const RARITIES = [['Common', 1], ['Uncommon', 2], ['Rare', 3], ['Mythic', 4], ['Special', 5]];
-const FINISHES = ['Nonfoil', 'Foil', 'Etched'];
+// FORMATS, CARD_TYPES, RARITIES and FINISHES are declared at the top of the
+// file, above GAMES, because the anatomy spec reads the same four lists
 // the head of a type line is everything before the em-dash, the tail everything after
 // catalogue cards carry a real em dash, the mocks carry the entity — matching
 // only one left every mock card's full type line standing in for its head
@@ -2442,14 +2523,29 @@ const AnatomyFilter = () => {
    was offering to draw a binder as something that is not a binder — the tab
    exists because pages of pockets are the point. Every other tab keeps the
    full set, and a deck is a deck for the same reason. */
+/* THE THREE CARD DISPLAYS AND WHAT DRAWS EACH — one map, because they are
+   offered in three places now (the sort bar, and the card page's printings and
+   holdings bands) and the name, the icon and the renderer were written out
+   separately in each. Two lists of the same cards on one page disagreeing about
+   what a card looks like is exactly what that costs. `binder` and `deck` are
+   layouts of a whole LIST rather than of a card, which is why they are not in
+   here and not offered off the list bar. */
+const CARD_VIEWS = {
+  compact: { icon: '&#9776;', brk: 'a horizontal rule', draw: c => TitleRow(c) },
+  details: { icon: '&#8801;', brk: 'a horizontal rule', draw: c => KeyRow(c, true) },
+  grid:    { icon: '&#9638;', brk: 'a new row',         draw: c => Card(c) },
+};
 const VIEWS = [
-  ['compact', '&#9776;', 'a horizontal rule', ['search', 'printings', 'decks']],
-  ['details', '&#8801;', 'a horizontal rule', ['search', 'printings', 'decks']],
-  ['grid',    '&#9638;', 'a new row',         ['search', 'printings', 'decks']],
+  ...Object.entries(CARD_VIEWS).map(([v, o]) => [v, o.icon, o.brk, ['search', 'printings', 'decks']]),
   ['binder',  '&#9707;', 'a new page, headed by the grouping', ['printings', 'binders']],
   ['deck',    '&#9635;', 'a new section', ['decks']],
 ];
 const views = () => VIEWS.filter(([, , , tabs]) => !tabs || tabs.includes(P.tab));
+/* One display chip, three callers. The list bar's and the card page's were the
+   same eleven classes typed twice, so a change to one silently made the page
+   inconsistent with itself. */
+const DisplayChip = (v, icon, on, click, title = '') => `<button onclick="${click}" title="${title}"
+  class="${on ? CHIP_PLUS : CHIP_NEUTRAL} capitalize"><span class="text-neutral-500">${icon}</span>${v}</button>`;
 // The one tab with a default, because it has only one choice: a display you
 // cannot change is a question not worth asking. Everywhere else stays unpicked.
 const defaultView = () => (views().length === 1 ? views()[0][0] : null);
@@ -2512,9 +2608,7 @@ const SortRow = () => {
       <div class="flex shrink-0 flex-wrap items-center gap-1.5" title="Display — decides what a break means">
         <span class="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-neutral-600">Display</span>
         ${views().map(([v, icon, what]) =>
-          `<button onclick="setView('${v}')" title="break = ${what}"
-             class="${v === P.view ? CHIP_PLUS : CHIP_NEUTRAL} capitalize">
-             <span class="text-neutral-500">${icon}</span>${v}</button>`).join('')}
+          DisplayChip(v, icon, v === P.view, `setView('${v}')`, `break = ${what}`)).join('')}
       </div>`}
       <div class="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
         <span class="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-neutral-600">Order</span>
@@ -2726,6 +2820,19 @@ const GROUPS = () => {
   return out;
 };
 
+/* ONE GROUP HEADER, FOUR LAYOUTS. The amber label was typed out four times with
+   four slightly different wrappers; what genuinely differs between them is how
+   the header spans its container, which is the only thing left here. */
+const GROUP_WRAP = {
+  compact: 'px-2 py-1.5 [grid-column:1/-1]',
+  details: 'px-2 py-1.5',
+  grid: 'col-span-full',
+};
+const GroupHead = (g, i, cls = '', extra = '') => !g ? '' : `
+  <div class="flex items-center gap-2 ${i ? 'border-t border-neutral-800' : ''} ${
+    i && cls === GROUP_WRAP.grid ? 'mt-3 pt-3' : ''} ${cls}">
+    <span class="text-[11px] font-semibold uppercase tracking-wide text-amber-400/80">${g}</span>${extra}</div>`;
+
 const Results = () => {
   if (!P.view) return `
     <div class="rounded-lg border border-dashed border-neutral-800 px-4 py-10 text-center">
@@ -2734,8 +2841,7 @@ const Results = () => {
         A fresh page applies nothing on your behalf. Pick one on the sort bar &mdash;
         it also decides what a break does.</p>
       <div class="mt-4 flex flex-wrap justify-center gap-1.5">${views().map(([v, icon]) =>
-        `<button onclick="setView('${v}')" class="${CHIP_NEUTRAL} capitalize">
-           <span class="text-neutral-500">${icon}</span>${v}</button>`).join('')}</div>
+        DisplayChip(v, icon, false, `setView('${v}')`)).join('')}</div>
     </div>`;
   const gs = GROUPS();
   if (P.view === 'binder') {
@@ -2819,31 +2925,23 @@ const Results = () => {
   if (P.view === 'deck') {
     return `<div class="max-w-lg">
       ${gs.map(([g, cs]) => `<div class="mb-4">
-        ${g ? `<div class="mb-1 flex items-baseline gap-2 border-b border-neutral-800 pb-1">
-          <span class="text-[11px] font-semibold uppercase tracking-wide text-amber-400/80">${g}</span>
-          <span class="text-[10px] text-neutral-600">${cs.reduce((n, c) => n + (c.qty || 0), 0)} cards</span></div>` : ''}
+        ${GroupHead(g, 0, 'mb-1 border-b border-neutral-800 pb-1',
+          `<span class="text-[10px] text-neutral-600">${cs.reduce((n, c) => n + (c.qty || 0), 0)} cards</span>`)}
         ${cs.map(c => KeyRow(c)).join('')}</div>`).join('')}</div>`;
   }
+  /* THE THREE CARD DISPLAYS DIFFER IN THEIR WRAPPER AND NOTHING ELSE — the row
+     itself is CARD_VIEWS' renderer, the same one the card page's bands use. It
+     used to be three near-identical branches, each with its own copy of the
+     group header, which is how one of them came to keep `mt-3` and another to
+     drop `grid-column`. */
+  const drawn = gs.map(([g, cs], i) => GroupHead(g, i, GROUP_WRAP[P.view] || GROUP_WRAP.grid)
+    + cs.map(CARD_VIEWS[P.view].draw).join('')).join('');
   if (P.view === 'compact') {
     return `<div class="grid rounded-lg border border-neutral-800 bg-neutral-950/60"
-      style="grid-template-columns:repeat(${colsOf()},minmax(0,1fr))">
-      ${gs.map(([g, cs], i) => `
-        ${g ? `<div style="grid-column:1/-1" class="flex items-center gap-2 ${i ? 'border-t border-neutral-800' : ''} px-2 py-1.5">
-          <span class="text-[11px] font-semibold uppercase tracking-wide text-amber-400/80">${g}</span></div>` : ''}
-        ${cs.map(c => TitleRow(c)).join('')}`).join('')}</div>`;
+      style="grid-template-columns:repeat(${colsOf()},minmax(0,1fr))">${drawn}</div>`;
   }
-  if (P.view === 'details') {
-    return `<div class="rounded-lg border border-neutral-800 bg-neutral-950/60">
-      ${gs.map(([g, cs], i) => `
-        ${g ? `<div class="flex items-center gap-2 ${i ? 'border-t border-neutral-800' : ''} px-2 py-1.5">
-          <span class="text-[11px] font-semibold uppercase tracking-wide text-amber-400/80">${g}</span></div>` : ''}
-        ${cs.map(c => KeyRow(c, true)).join('')}`).join('')}</div>`;
-  }
-  return `<div class="grid gap-3" style="grid-template-columns:repeat(${colsOf()},minmax(0,1fr))">
-    ${gs.map(([g, cs], i) => `
-      ${g ? `<div class="col-span-full flex items-center gap-2 ${i ? 'mt-3 border-t border-neutral-800 pt-3' : ''}">
-        <span class="text-[11px] font-semibold uppercase tracking-wide text-amber-400/80">${g}</span></div>` : ''}
-      ${cs.map(Card).join('')}`).join('')}</div>`;
+  if (P.view === 'details') return `<div class="rounded-lg border border-neutral-800 bg-neutral-950/60">${drawn}</div>`;
+  return `<div class="grid gap-3" style="grid-template-columns:repeat(${colsOf()},minmax(0,1fr))">${drawn}</div>`;
 };
 
 const PAGES = {};
@@ -5101,30 +5199,32 @@ PAGES.io = () => Frame('io', {
         <button class="${BTN_PRIMARY}">Run</button></div>
 
       ${SectionHeader('Column map', '<span class="text-xs text-neutral-500">verified &middot; docs/import-formats.md</span>')}
-      <div class="mb-1 flex items-center gap-2 px-2 text-[10px] font-semibold uppercase tracking-wide text-neutral-600">
-        <span class="w-36">Canonical field</span><span class="w-44">Our column</span>
-        ${COLS.map(c => `<span class="w-16 text-center">${c}</span>`).join('')}</div>
-      ${CANON.map(r => {
-        const [f, ours, ...rest] = r; const ok = rest.pop();
-        return `<div class="flex items-center gap-2 border-b border-neutral-900 px-2 py-1.5 text-xs">
-          <span class="w-36 shrink-0 ${ok ? 'text-neutral-200' : 'text-amber-400'}">${f}</span>
-          <span class="w-44 shrink-0 font-mono text-[10px] ${ours.startsWith('NO') ? 'text-amber-400' : 'text-neutral-500'}">${ours}</span>
-          ${rest.map(v => `<span class="w-16 shrink-0 text-center font-mono tabular-nums ${v === '-' ? 'text-neutral-700' : 'text-emerald-400'}">${v}</span>`).join('')}
-        </div>`;
-      }).join('')}
-      <p class="mb-5 mt-2 text-[11px] text-neutral-500">Numbers are the column&rsquo;s <em>position</em> in that app&rsquo;s export &mdash; Archidekt maps positionally, so this fingerprints a file by shape even when the header text is unfamiliar. We alias-match headers first and fall back to this.
-      <span class="text-amber-400">Language has nowhere to land: <code>cards</code> has no <code>lang</code> column, so set + language + collector number isn&rsquo;t representable in <code>holdings</code> yet &mdash; and seven of nine formats carry it.</span></p>
+      ${/* The same Table the config page's five lists use. This was the fourth
+            hand-rolled one and the widest, and its header row was declared with
+            w-36/w-44 against cells that carried the same widths a second time —
+            change one and the columns silently stop lining up. */''}
+      ${Table([['Canonical field', 'w-36'], ['Our column', 'w-44'],
+               ...COLS.map(c => [c, 'w-16 text-center'])],
+        CANON.map((r) => {
+          const [f, ours, ...rest] = [...r]; const ok = rest.pop();
+          return [`<span class="${ok ? 'text-neutral-200' : 'text-amber-400'}">${f}</span>`,
+            `<span class="font-mono text-[10px] ${ours.startsWith('NO') ? 'text-amber-400' : 'text-neutral-500'}">${ours}</span>`,
+            ...rest.map(v => `<span class="font-mono tabular-nums ${v === '-' ? 'text-neutral-700' : 'text-emerald-400'}">${v}</span>`)];
+        }),
+        { foot: 'Numbers are the column&rsquo;s <em>position</em> in that app&rsquo;s export &mdash; Archidekt maps positionally, so this fingerprints a file by shape even when the header text is unfamiliar. We alias-match headers first and fall back to this. <span class="text-amber-400">Language has nowhere to land: <code>cards</code> has no <code>lang</code> column, so set + language + collector number isn&rsquo;t representable in <code>holdings</code> yet &mdash; and seven of nine formats carry it.</span>' })}
+      <div class="mb-5"></div>
 
       ${SectionHeader('Grouping column &rarr; container',
         '<span class="rounded-full border border-neutral-700 px-2 py-0.5 text-[10px] uppercase tracking-wide text-neutral-400">one-off &middot; this import only</span>')}
       <p class="mb-2 text-[11px] text-neutral-500">The source&rsquo;s folder / tag / portfolio column, read once to decide what each group <em>becomes</em>. This is the only place it&rsquo;s asked: after the import lands, a binder is edited on the binder &mdash; add, remove, arrange &mdash; not by re-running this.</p>
-      <div class="mb-5 grid gap-1.5">
-        ${[['Main',2410,'binder'],['Mono-Red Burn',74,'deck'],['Trade box',312,'box'],['(blank)',94,'']].map(([n, c, k]) => `
-          <div class="flex items-center gap-3 rounded border border-neutral-800 bg-neutral-900 px-3 py-1.5 text-sm">
-            <span class="w-44 shrink-0 truncate">${n}</span><span class="w-20 shrink-0 text-xs text-neutral-500">${c} rows</span>
-            <span class="flex gap-1.5">${['binder','box','deck'].map(t => chip(t[0].toUpperCase() + t.slice(1), k === t ? '+' : '')).join('')}</span>
-            ${k ? '' : '<span class="text-xs text-neutral-600">&rarr; unsorted</span>'}</div>`).join('')}
-      </div>
+      ${Table([['Group in the file', 'w-44'], ['Rows', 'w-20'], ['Becomes', 'flex-1']],
+        [['Main', 2410, 'binder'], ['Mono-Red Burn', 74, 'deck'], ['Trade box', 312, 'box'], ['(blank)', 94, '']]
+          .map(([n, c, k]) => [`<span class="text-neutral-200">${n}</span>`,
+            `<span class="text-neutral-500">${c} rows</span>`,
+            `<span class="flex flex-wrap items-center gap-1.5">${
+              ['binder', 'box', 'deck'].map(x => chip(x[0].toUpperCase() + x.slice(1), k === x ? '+' : '')).join('')}${
+              k ? '' : '<span class="text-neutral-600">&rarr; unsorted</span>'}</span>`]))}
+      <div class="mb-5"></div>
 
       ${SectionHeader('Resolve ambiguous', '<span class="text-xs text-neutral-500">3 of 2,796 rows didn&rsquo;t auto-match</span>')}
       <div class="flex items-start gap-4 rounded-lg border border-neutral-800 bg-neutral-900 p-3">
@@ -5155,53 +5255,67 @@ PAGES.io = () => Frame('io', {
    side that had drifted from the truth on five of the eight rows. "Is it here"
    was not answerable at all, which is the question that decides whether the
    app works on a train. */
-const DiskChip = (k) => {
-  const s = SOURCES[k], have = onDisk(k);
-  if (have === null) return `<span class="rounded-full border border-neutral-800 px-2 py-0.5 text-[10px] text-neutral-600"
+/* Asked PER QUALITY, not per source. It used to answer only for the size that
+   happened to be selected, so switching Scryfall images from art_crop to png
+   made a directory holding 107k crops read "not fetched" — true of png,
+   useless as an answer, and it hid the one thing the row is for: which of these
+   five have I actually got. onDisk already took a quality; nothing asked it. */
+const DiskChip = (k, q = CFG.src[k].q) => {
+  const s = SOURCES[k], have = onDisk(k, q);
+  if (have === null) return `<span class="text-neutral-600"
     title="serve.py answers this; run it, or this is check.mjs with no server">not checked</span>`;
-  if (!have) return `<span class="rounded-full border border-amber-800/60 bg-amber-950/20 px-2 py-0.5 text-[10px] text-amber-500/90"
-    title="${esc(s.file(CFG.src[k].q))}">not fetched</span>`;
+  if (!have) return `<span class="text-neutral-700" title="${esc(s.file(q))}">&mdash;</span>`;
   // a directory that holds a tenth of what it should is not "on disk", and
   // saying so is the whole reason the count is carried through from serve.py
   const part = have.of && have.n < have.of;
-  return `<span class="rounded-full border ${part ? 'border-amber-800/60 bg-amber-950/20 text-amber-500/90'
-      : 'border-emerald-800/60 bg-emerald-950/20 text-emerald-400/90'} px-2 py-0.5 text-[10px]"
-    title="${esc(s.file(CFG.src[k].q))} &mdash; ${bytes(have.bytes)}, ${ago(have.mtime)}">${
+  return `<span class="${part ? 'text-amber-500/90' : 'text-emerald-400/90'}"
+    title="${esc(s.file(q))} &mdash; ${bytes(have.bytes)}, ${ago(have.mtime)}">${
     have.of ? `${num(have.n)} of ${num(have.of)}` : 'on disk'} &middot; ${bytes(have.bytes)}</span>`;
 };
 
+/* A SOURCE IS A HEADER AND ONE ROW PER SIZE IT OFFERS, DEAREST FIRST. It was a
+   card: a name, a status pill, two side chips, then a wrapped run of quality
+   chips and four prose lines. Everything was there and nothing was comparable —
+   you could not read down a column to see which sizes are on the disk, because
+   there were no columns, and the disk answer only ever described the ONE size
+   that happened to be selected.
+   The order is the decision: the top row is the biggest thing you could put on
+   this disk, the bottom is the smallest thing to pull when a page asks for it.
+   Picking a row picks that size; Local / Online is the source's own choice and
+   stays on the header, because it is one answer for all of them. */
+const QUALITY_COLS = [['', 'w-6'], ['size', 'w-24'], ['what it is', 'flex-1'],
+  ['cost', 'w-20 text-right'], ['on disk', 'w-32 text-right']];
 const SourceRow = (k) => {
   const s = SOURCES[k], c = CFG.src[k], out = c.at === 'online';
   const side = (at, label) => s[at]
     ? `<span onclick="setSrc('${k}','${at}')">${chip(label, c.at === at ? '+' : '')}</span>`
     : `<span class="${CHIP_NEUTRAL} cursor-default opacity-30" title="${esc(s.why)}">${label}</span>`;
   const cmd = s.cmd(c.q);
-  const have = onDisk(k);
-  return `<div class="mb-2 rounded border ${out ? 'border-sky-900/70 bg-sky-950/20' : 'border-neutral-800 bg-neutral-900'} px-3 py-2">
-    <div class="flex flex-wrap items-center gap-2 text-xs">
-      <span class="w-28 shrink-0 font-medium text-neutral-200">${s.name}</span>
+  const rows = srcQualities(k).map(([v, d, b]) => [
+    `<span class="${c.q === v ? 'text-emerald-400' : 'text-neutral-700'}">${c.q === v ? '&#9679;' : '&#9675;'}</span>`,
+    `<span class="font-mono ${c.q === v ? 'text-neutral-100' : 'text-neutral-400'}">${v}</span>`,
+    `<span class="text-neutral-500">${d || ''}</span>`,
+    `<span class="tabular-nums ${c.q === v ? 'text-neutral-200' : 'text-neutral-600'}">${bytes(b * (s.units || 1))}</span>`,
+    DiskChip(k, v),
+  ]);
+  return `<div class="mb-3 rounded-lg border ${out ? 'border-sky-900/70' : 'border-neutral-800'} overflow-hidden">
+    <div class="flex flex-wrap items-center gap-2 ${out ? 'bg-sky-950/20' : 'bg-neutral-900'} px-3 py-2 text-xs">
+      <span class="shrink-0 font-medium text-neutral-200">${s.name}</span>
       <span class="min-w-0 flex-1 truncate text-[11px] text-neutral-500">${s.gives}</span>
-      ${DiskChip(k)}
       <span class="flex shrink-0 gap-1.5">${side('local', 'Local')}${side('online', 'Online')}</span></div>
-    <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
-      <span class="w-28 shrink-0 text-[10px] uppercase tracking-wide text-neutral-600">quality</span>
-      ${s.q.map(([v, d, b]) => `<span onclick="setQuality('${k}','${v}')" class="text-xs">${
-        chip(v, c.q === v ? '+' : '', ` <span class="text-neutral-600">${
-          bytes(b * (s.units || 1))}${d ? ` &middot; ${d}` : ''}</span>`)}</span>`).join('')}</div>
-    <div class="mt-1.5 flex flex-wrap gap-x-2 font-mono text-[10px]">
-      <span class="w-28 shrink-0 uppercase tracking-wide ${out ? 'text-neutral-700' : 'text-neutral-600'}">local</span>
-      <span class="min-w-0 flex-1 ${out ? 'text-neutral-700' : 'text-neutral-500'}">${
-        bytes(srcBytes(k))}${s.units > 1 ? ` over ${num(s.units)} files` : ''} &middot; ${s.local}${
-        have && have.bytes ? ` &mdash; <span class="text-emerald-600">${bytes(have.bytes)} here, ${ago(have.mtime)}</span>` : ''}</span></div>
-    <div class="flex flex-wrap gap-x-2 font-mono text-[10px]">
-      <span class="w-28 shrink-0 uppercase tracking-wide ${out ? 'text-sky-700' : 'text-neutral-700'}">online</span>
-      <span class="min-w-0 flex-1 ${out ? 'text-sky-400/80' : 'text-neutral-700'}">${s.online || '&mdash; ' + s.why}</span></div>
+    <div class="px-3 py-1 text-[10px] ${out ? 'text-sky-400/80' : 'text-neutral-500'}">${
+      out ? s.online : s.local}${s.units > 1 && !out ? ` &mdash; ${num(s.units)} files` : ''}</div>
+    ${Table(QUALITY_COLS, rows, {
+      frame: false,
+      rowCls: (_, i) => `cursor-pointer hover:bg-neutral-900/60 ${srcQualities(k)[i][0] === c.q ? 'bg-emerald-500/5' : ''}`,
+      rowAttrs: (_, i) => `onclick="setQuality('${k}','${srcQualities(k)[i][0]}')"`,
+    })}
     <!-- The command, because this page is static and CANNOT download anything.
          It used to carry a "Download & cache now" button that did nothing, which
          is worse than no button: it says the job is one click away when it is
          one paste away. -->
-    <div class="mt-1 flex flex-wrap gap-x-2 font-mono text-[10px]">
-      <span class="w-28 shrink-0 uppercase tracking-wide text-neutral-700">to fetch</span>
+    <div class="flex flex-wrap gap-x-2 border-t border-neutral-800 px-3 py-1.5 font-mono text-[10px]">
+      <span class="w-16 shrink-0 uppercase tracking-wide text-neutral-700">to fetch</span>
       <span class="min-w-0 flex-1 ${cmd ? 'text-neutral-400' : 'text-neutral-700'}">${
         cmd ? `<code>${esc(cmd)}</code>` : `&mdash; ${s.why_local || s.why}`}</span></div>
   </div>`;
@@ -5215,7 +5329,9 @@ PAGES.config = () => Frame('config', {
     <div class="${PANEL} px-4 pt-4">
 
       ${Band('sources', `
-        <p class="mb-2 text-[11px] text-neutral-500">Eight sources, one shape. <span class="text-neutral-300">Local</span> is a file on this disk you can work from with the network off; <span class="text-neutral-300">Online</span> is somebody else&rsquo;s server answering per request. Where one of the two doesn&rsquo;t exist the chip says why rather than going missing. The importer is <span class="text-neutral-300">MTGJSON-primary</span>: it streams AllPrintings and cross-references Scryfall by <code>identifiers.scryfallId</code>.</p>
+        <p class="mb-2 text-[11px] text-neutral-500">${srcKeys().length} sources, one shape, and only ${
+          game().label}&rsquo;s &mdash; a source declares which game it feeds and the others are not your problem right now. <span class="text-neutral-300">Local</span> is a file on this disk you can work from with the network off; <span class="text-neutral-300">Online</span> is somebody else&rsquo;s server answering per request. Where one of the two doesn&rsquo;t exist the chip says why rather than going missing. Every list runs <span class="text-neutral-300">dearest first</span>: the top row is the biggest thing you could put on this disk, the bottom is the smallest thing to pull when a page asks for it.${
+          P.game === 'mtg' ? ' The importer is <span class="text-neutral-300">MTGJSON-primary</span>: it streams AllPrintings and cross-references Scryfall by <code>identifiers.scryfallId</code>.' : ''}</p>
 
         <!-- THE OFFLINE CONTROL, above the rows rather than below them: "can I
              use this with the network off" is the question the whole band is
@@ -5234,28 +5350,31 @@ PAGES.config = () => Frame('config', {
           <p class="mt-2 text-[11px] ${allLocal() ? 'text-emerald-400/90' : 'text-neutral-500'}">${
             allLocal()
               ? 'Every source that has a local side is set to it. Nothing on this page needs the network.'
-              : `<span class="text-neutral-300">${onlineNow().length} of 8 still online</span> &mdash; ${
-                  onlineNow().map(k => SOURCES[k].name).join(', ')}. ${
-                  MISSING_LOCAL.map(k => SOURCES[k].name).join(' and ')} is not counted &mdash; it cannot go local at all: ${
-                  MISSING_LOCAL.map(k => SOURCES[k].why_local).join('; ')}.`}</p>
-          <p class="mt-1 text-[11px] text-neutral-600">Setting a size does not fetch it &mdash; this page is static and downloads nothing. Each row carries the command that does, and a file that was never fetched falls through to the CDN rather than breaking the picture.</p>
+              : `<span class="text-neutral-300">${onlineNow().length} of ${canBeLocal().length} still online</span> &mdash; ${
+                  onlineNow().map(k => SOURCES[k].name).join(', ')}.${missingLocal().length
+                  ? ` ${missingLocal().map(k => SOURCES[k].name).join(' and ')} is not counted &mdash; it cannot go local at all: ${
+                      missingLocal().map(k => SOURCES[k].why_local).join('; ')}.` : ''}`}</p>
+          <p class="mt-1 text-[11px] text-neutral-600">Setting a size does not fetch it &mdash; this page is static and downloads nothing. Each source carries the command that does, and a file that was never fetched falls through to the CDN rather than breaking the picture.</p>
         </div>
 
-        ${['data', 'images'].map(kind => `
+        ${['images', 'data'].map((kind) => {
+          const ks = srcKeys(kind);
+          if (!ks.length) return '';
+          return `
           <div class="mb-1 flex items-baseline gap-2 px-1">
             <span class="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">${
               kind === 'data' ? 'catalogue data' : 'pictures'}</span>
             <span class="text-[10px] text-neutral-600">${kind === 'data'
               ? 'megabytes, and the app is wrong without them'
               : 'gigabytes, and the app draws a frame without them'}</span>
-            <span class="ml-auto text-[10px] font-mono text-neutral-600">${
-              bytes(Object.keys(SOURCES).filter(k => SOURCES[k].kind === kind)
-                .reduce((n, k) => n + srcBytes(k), 0))} at the sizes set below</span>
+            <span class="ml-auto font-mono text-[10px] text-neutral-600">${
+              bytes(ks.reduce((n, k) => n + srcBytes(k), 0))} at the sizes set below</span>
           </div>
-          ${Object.keys(SOURCES).filter(k => SOURCES[k].kind === kind).map(SourceRow).join('')}`).join('')}`,
-        { note: 'what comes from where', right: `<span class="text-[10px] font-mono ${
+          ${ks.map(SourceRow).join('')}`;
+        }).join('')}`,
+        { note: `what ${game().label} draws from`, right: `<span class="font-mono text-[10px] ${
           allLocal() ? 'text-emerald-400' : 'text-sky-400'}">${
-          allLocal() ? 'offline ready' : `${onlineNow().length}/8 online`}</span>` })}
+          allLocal() ? 'offline ready' : `${onlineNow().length}/${canBeLocal().length} online`}</span>` })}
 
       ${(() => {
         /* WHAT THIS BROWSER IS REMEMBERING, and the way to stop it. A store with
@@ -5279,39 +5398,38 @@ PAGES.config = () => Frame('config', {
         </div>`, { note: 'kept between reloads', right: `<span class="text-[10px] font-mono ${
           kb ? 'text-sky-400' : 'text-neutral-600'}">${kb < 1 ? 'empty' : `${kb.toFixed(0)} KB`}</span>` });
       })()}
-      ${Band('schema source map', `
-        <div class="mb-1 flex items-center gap-2 px-1 text-[10px] font-semibold uppercase tracking-wide text-neutral-600">
-          <span class="flex-1">Table / columns</span><span class="w-24">Scryfall</span><span class="w-24">MTGJSON</span></div>
-        ${[['sets &mdash; base', '/sets', '&mdash;', 0],
+      ${P.game !== 'mtg' ? '' : Band('schema source map', (() => {
+        const rows = [['sets &mdash; base', '/sets', '&mdash;', 0],
            ['sets &mdash; block, parent, mtgo, arena, foil/online-only, languages', '&mdash;', 'AllPrintings', 0],
            ['cards &mdash; identity, images, artist', 'all_cards', '&mdash;', 1],
            ['cards &mdash; driver + crossover', 'fallback', 'AllPrintings', 1],
            ['mtg_card_printings &mdash; uuid, lang, finishes, promo', '&mdash;', 'AllPrintings', 0],
            ['prices', 'all_cards', 'AllPrices', 1],
-           ['card_facets', 'derived', 'derived', 0]].map(([t, sf, mj, swaps]) => {
-          const live = swaps && CFG.src.scryfall.at === 'online';
-          return `<div class="flex items-center gap-2 border-b border-neutral-900 px-1 py-1.5 text-[11px] ${live ? 'bg-sky-500/5' : ''}">
-            <span class="flex-1 text-neutral-300">${t}</span>
-            <span class="w-28 font-mono ${sf === '&mdash;' ? 'text-neutral-700' : live ? 'text-sky-300' : 'text-sky-400/80'}">${live ? '/cards (live)' : sf}</span>
-            <span class="w-24 font-mono ${mj === '&mdash;' ? 'text-neutral-700' : 'text-violet-400/80'}">${mj}</span></div>`;
-        }).join('')}
-        <p class="mt-2 text-[11px] text-neutral-600">The schema is genuinely mixed &mdash; MTGJSON drives, Scryfall fills in. Flipping Scryfall to Live changes only the three highlighted rows; everything MTGJSON owns is unaffected, and <code>sets</code> is live either way.</p>`)}
+           ['card_facets', 'derived', 'derived', 0]];
+        const live = r => r[3] && CFG.src.scryfall.at === 'online';
+        return Table([['Table / columns', 'flex-1'], ['Scryfall', 'w-28'], ['MTGJSON', 'w-24']],
+          rows.map(r => [`<span class="text-neutral-300">${r[0]}</span>`,
+            `<span class="font-mono ${r[1] === '&mdash;' ? 'text-neutral-700' : live(r) ? 'text-sky-300' : 'text-sky-400/80'}">${live(r) ? '/cards (live)' : r[1]}</span>`,
+            `<span class="font-mono ${r[2] === '&mdash;' ? 'text-neutral-700' : 'text-violet-400/80'}">${r[2]}</span>`]),
+          { rowCls: (_, i) => live(rows[i]) ? 'bg-sky-500/5' : '',
+            foot: 'The schema is genuinely mixed &mdash; MTGJSON drives, Scryfall fills in. Flipping Scryfall to Live changes only the three highlighted rows; everything MTGJSON owns is unaffected, and <code>sets</code> is live either way.' });
+      })(), { note: 'MTG only &mdash; two upstreams, one schema' })}
 
-      ${Band('cache', `
-        <div class="flex flex-wrap items-center gap-3 rounded border border-neutral-800 bg-neutral-900 px-3 py-2 text-xs">
-          <span class="font-mono text-neutral-500">cards 108,412 &middot; sets 947 &middot; facets 311,905 &middot; prices 144,201</span>
-          <button class="${BTN_SECONDARY} ml-auto">Rebuild from sources</button></div>
-        <p class="mt-2 text-[11px] text-neutral-600">Disposable. Delete it and rebuild from the two sources above.</p>`,
+      ${Band('cache', Table([['Table', 'flex-1'], ['Rows', 'w-24 text-right']],
+        [['cards', '108,412'], ['sets', '947'], ['card_facets', '311,905'], ['prices', '144,201']]
+          .map(([t, n]) => [`<span class="font-mono text-neutral-300">${t}</span>`,
+            `<span class="tabular-nums text-neutral-500">${n}</span>`]),
+        { foot: 'Disposable. Delete it and rebuild from the sources above.' })
+        + `<div class="mt-2 flex"><button class="${BTN_SECONDARY} ml-auto">Rebuild from sources</button></div>`,
         { note: 'disposable' })}
 
-      ${Band('files', `
-        ${[['binders/alara-block','binder',412],['binders/unsorted','binder',3016],
-           ['decks/mono-red-burn','deck',74],['decks/bant-exalted','deck',60]].map(([f, kind, n]) => `
-          <div class="mb-1.5 flex items-center gap-2 rounded border border-emerald-900/50 bg-emerald-950/10 px-3 py-1.5 text-xs">
-            <span class="min-w-0 flex-1 truncate font-mono text-neutral-300">${f}.csv</span>
-            <span class="w-12 shrink-0 text-neutral-600">${kind}</span>
-            <span class="w-16 shrink-0 text-right tabular-nums text-neutral-500">${n} rows</span></div>`).join('')}
-        <p class="mt-1 text-[11px] text-neutral-600">Yours, irreplaceable. set &middot; language &middot; collector no &middot; finish &middot; qty. The file <em>is</em> the export.</p>`,
+      ${Band('files', Table([['File', 'flex-1'], ['Kind', 'w-16'], ['Rows', 'w-16 text-right']],
+        [['binders/alara-block', 'binder', 412], ['binders/unsorted', 'binder', 3016],
+         ['decks/mono-red-burn', 'deck', 74], ['decks/bant-exalted', 'deck', 60]]
+          .map(([f, kind, n]) => [`<span class="font-mono text-neutral-300">${f}.csv</span>`,
+            `<span class="text-neutral-600">${kind}</span>`,
+            `<span class="tabular-nums text-neutral-500">${n}</span>`]),
+        { foot: 'Yours, irreplaceable. set &middot; language &middot; collector no &middot; finish &middot; qty. The file <em>is</em> the export.' }),
         { note: 'irreplaceable' })}
 
     </div>
@@ -5326,32 +5444,26 @@ PAGES.config = () => Frame('config', {
       ${Band('identity', `<div class="max-w-xs">${NumberField('Current user', 'stuart')}</div>
         <p class="mt-1 text-[11px] text-neutral-600">Was <code>&lsquo;stuart&rsquo;</code> hardcoded in 14 places.</p>`)}
 
-      ${Band('refresh', `
-        <div class="grid gap-2 text-xs">
-          <label class="flex flex-wrap items-center gap-2"><span class="w-24 shrink-0 text-neutral-400">Prices</span>
-            <span class="flex gap-1.5">${chip('Daily','+')}${chip('Weekly','')}${chip('Manual','')}</span></label>
-          <label class="flex flex-wrap items-center gap-2"><span class="w-24 shrink-0 text-neutral-400">Gameplay data</span>
-            <span class="flex gap-1.5">${chip('Daily','')}${chip('Weekly','+')}${chip('On set release','')}</span></label>
-          <label class="flex flex-wrap items-center gap-2"><span class="w-24 shrink-0 text-neutral-400">Downloaded file</span>
-            <span class="flex gap-1.5">${chip('Keep cached','+')}${chip('Stream &amp; discard','')}</span></label>
-        </div>
-        <p class="mt-2 text-[11px] text-neutral-600">Upstream prices move once a day; gameplay data rarely &mdash; their guidance, not ours. Keep = 549 MB in data/, fast re-runs. Discard = no disk, re-downloads each run. Either way <code>buildScryfallIndex</code> holds ~250 MB resident while it runs.</p>`)}
+      ${Band('refresh', Table([['What', 'w-32'], ['How often', 'flex-1']],
+        [['Prices', [['Daily', '+'], ['Weekly', ''], ['Manual', '']]],
+         ['Gameplay data', [['Daily', ''], ['Weekly', '+'], ['On set release', '']]],
+         ['Downloaded file', [['Keep cached', '+'], ['Stream &amp; discard', '']]]]
+          .map(([what, opts]) => [`<span class="text-neutral-300">${what}</span>`,
+            `<span class="flex flex-wrap gap-1.5">${opts.map(([o, on]) => chip(o, on)).join('')}</span>`]),
+        { foot: 'Upstream prices move once a day; gameplay data rarely &mdash; their guidance, not ours. Keep = 549 MB in data/, fast re-runs. Discard = no disk, re-downloads each run. Either way <code>buildScryfallIndex</code> holds ~250 MB resident while it runs.' }))}
 
-      ${Band('import / export map', `
-        <div class="mb-1 flex items-center gap-2 px-1 text-[10px] font-semibold uppercase tracking-wide text-neutral-600">
-          <span class="w-32">Canonical field</span><span class="flex-1">Accepted header aliases</span></div>
-        ${[['quantity','count, quantity, qty, amount'],
-           ['card name','name, card name, card_name'],
-           ['set code','edition, set, set code, set_id'],
-           ['collector number','collector number, card number, number'],
-           ['language','language, lang'],
-           ['finish / foil','foil, finish, printing, is_foil'],
-           ['grouping','tags, folder name, portfolio name, binder']].map(([f, a]) => `
-          <div class="flex items-center gap-2 border-b border-neutral-900 px-1 py-1.5 text-[11px]">
-            <span class="w-32 shrink-0 text-neutral-200">${f}</span>
-            <span class="min-w-0 flex-1 truncate font-mono text-neutral-500">${a}</span>
-            <button class="${BTN_SECONDARY}">Edit</button></div>`).join('')}
-        <p class="mt-2 text-[11px] text-neutral-600">One alias table for all nine apps, applied in both directions. Per-source ids hang off <code>mtg_card_printings</code>.</p>`)}
+      ${Band('import / export map', Table([['Canonical field', 'w-32'], ['Accepted header aliases', 'flex-1'], ['', 'w-12']],
+        [['quantity', 'count, quantity, qty, amount'],
+         ['card name', 'name, card name, card_name'],
+         ['set code', 'edition, set, set code, set_id'],
+         ['collector number', 'collector number, card number, number'],
+         ['language', 'language, lang'],
+         ['finish / foil', 'foil, finish, printing, is_foil'],
+         ['grouping', 'tags, folder name, portfolio name, binder']]
+          .map(([f, a]) => [`<span class="text-neutral-200">${f}</span>`,
+            `<span class="font-mono text-neutral-500">${a}</span>`,
+            `<button class="${BTN_SECONDARY}">Edit</button>`]),
+        { foot: 'One alias table for all nine apps, applied in both directions. Per-source ids hang off <code>mtg_card_printings</code>.' }))}
 
       ${Band('defaults', `
         <div class="grid gap-x-8 sm:grid-cols-2">
@@ -5427,7 +5539,8 @@ function pickGame(k) {
    time Wizards prints something new, and they do: `prepare` and `case` are both
    younger than this app, and neither needed a code change to appear below. */
 const ANATOMY_SAMPLES = 6;
-const anatomyKey = c => `${c.layout || 'normal'} | ${c.treat || 'framed'}`;
+// anatomyKey lives with SIDED/PAIRED/OVERLAID — the class is the unit those
+// sets are keyed on, and UNALIGNED needs it long before this page does
 let ANATOMY = null, ANATOMY_OF = null;
 const anatomyClasses = () => {
   const all = ALL();
@@ -5518,11 +5631,15 @@ const TREAT_NOTE = {
    width is its unrotated HEIGHT, so to fill a container of width W it needs an
    unrotated width of W x 488/680 = 71.8%. The resulting 680/488 = 1.393 is what
    `aspect-[7/5]` (1.4) was already drawing. */
-const ScanImage = (c, i) => LANDSCAPE.has(c.layout)
+/* `q` because the two callers want different pulls: the anatomy page compares 66
+   classes at once and `normal` is plenty, while Align art is looking at ONE
+   card to decide whether a whole class can be drawn, and a 488px scan is not
+   enough pixels to answer that. */
+const ScanImage = (c, i, q = 'normal') => LANDSCAPE.has(c.layout)
   ? `<div class="relative aspect-[7/5] w-full">
-       <img src="${artUrl(c, i, 'normal')}" loading="lazy"${artAttrs(c, i, 'normal')} alt=""
+       <img src="${artUrl(c, i, q)}" loading="lazy"${artAttrs(c, i, q)} alt=""
          class="absolute left-1/2 top-1/2 w-[71.8%] -translate-x-1/2 -translate-y-1/2 rotate-90 rounded-lg shadow-lg"></div>`
-  : `<img src="${artUrl(c, i, 'normal')}" loading="lazy"${artAttrs(c, i, 'normal')} alt=""
+  : `<img src="${artUrl(c, i, q)}" loading="lazy"${artAttrs(c, i, q)} alt=""
        class="w-full rounded-lg shadow-lg">`;
 const AnatomyPair = (c, i) => `
   <div class="flex min-w-0 gap-2">
@@ -5655,7 +5772,10 @@ const legalIn = c => (c.legal === undefined
   : FORMATS.filter((_, i) => c.legal & (1 << i))
       .map((f, i) => f + (c.rest & (1 << FORMATS.indexOf(f)) ? ' <span class="text-amber-400/80">(restricted)</span>' : ''))
       .join(' &middot; '));
-const FINISH = { mtg: ['Nonfoil', 'Foil'], pokemon: ['Normal', 'Holofoil'] };
+// a holding is foil or it is not, so this is the first two of FINISHES rather
+// than a second spelling of them — Etched is a printing's third finish, never a
+// flag's second state
+const FINISH = { mtg: FINISHES.slice(0, 2), pokemon: ['Normal', 'Holofoil'] };
 const PKM_SETS = { BS: 'Base Set', PGO: 'Pok&eacute;mon GO', SVI: 'Scarlet &amp; Violet', BRS: 'Brilliant Stars' };
 
 const setName = code => PKM_SETS[code] || (SETS.find(r => r[1] === code) || [])[0] || code;
@@ -5823,8 +5943,10 @@ const Candidates = () => {
     return `<span class="w-16 shrink-0 text-right text-xs font-medium ${
       printKey(c) === here ? 'text-emerald-400' : 'text-neutral-800'}">${printKey(c) === here ? 'showing' : ''}</span>`;
   };
-  // taller in grid: 26rem of card is a row and a half, where it is a dozen rows
-  return `<div data-scroll="printings" class="${P.prints === 'grid' ? 'max-h-[44rem]' : 'max-h-[26rem]'} overflow-y-auto">${
+  // taller for the two that draw cards: 26rem of card is a row and a half,
+  // where it is a dozen rows
+  const tall = P.prints === 'grid' || P.prints === 'align';
+  return `<div data-scroll="printings" class="${tall ? 'max-h-[44rem]' : 'max-h-[26rem]'} overflow-y-auto">${
     BandList(printingsOf(P.card), P.prints, mark, c => printKey(c) === here)}</div>`;
 };
 
@@ -5862,34 +5984,69 @@ const MeldBand = () => {
    is 864 printings, and in grid that is 864 mock cards in a 26rem scroller. The
    browser skips the ones it is not showing; the rows are cheap enough to leave
    alone. */
-const BAND_VIEWS = [['compact', '&#9776;'], ['details', '&#8801;'], ['grid', '&#9638;']];
 function setBand(k, v) { P[k] = v; render(); }
-const BandSwitch = (k) => `<span class="flex items-center gap-1.5">${
-  BAND_VIEWS.map(([v, icon]) => `<button onclick="setBand('${k}','${v}')"
-    class="${v === P[k] ? CHIP_PLUS : CHIP_NEUTRAL} capitalize">
-    <span class="text-neutral-500">${icon}</span>${v}</button>`).join('')}</span>`;
+const BandSwitch = (k, extra = []) => `<span class="flex items-center gap-1.5">${
+  [...Object.entries(CARD_VIEWS).map(([v, o]) => [v, o.icon, '']), ...extra]
+    .map(([v, icon, title]) => DisplayChip(v, icon, v === P[k], `setBand('${k}','${v}')`, title)).join('')}</span>`;
 
 /* `P.cols.grid`, not `colsOf()`. colsOf answers for the LIST's current layout,
    and the card page has no layout — P.view is null there, so it answered 1 and
    drew a single card the width of the band. The grid count is the one you set
    for grids; capped at 6 because this band is a column of the page, not the
    whole pane. */
-const BandList = (cs, view, right, on = () => false) => (view === 'grid'
-  ? `<div class="grid gap-3 p-1" style="grid-template-columns:repeat(${Math.min(P.cols.grid || 6, 6)},minmax(0,1fr))">
-      ${cs.map(c => `<div class="flex flex-col gap-1 rounded ${on(c) ? 'ring-1 ring-emerald-500' : ''}"
-        style="content-visibility:auto;contain-intrinsic-size:auto 16rem">
-        ${Card(c)}
-        <div class="flex items-center justify-between gap-2 text-xs">${right(c)}</div>
-      </div>`).join('')}</div>`
-  : `<div class="${PANEL} overflow-hidden">
-      ${/* No border here: KeyRow draws its own rule and TitleRow deliberately
-            has none, exactly as they do in the list. A border on the wrapper
-            doubled the first and invented the second. */''}
-      ${cs.map(c => `<div class="flex items-center gap-3 px-2 ${
-        on(c) ? 'bg-emerald-500/10' : ''}" style="content-visibility:auto;contain-intrinsic-size:auto 2.2rem">
-        <span class="min-w-0 flex-1">${view === 'details' ? KeyRow(c, true) : TitleRow(c)}</span>
-        ${right(c)}
-      </div>`).join('')}</div>`);
+/* ALIGN ART — every printing of this card drawn beside its own high-quality
+   pull, so a misalignment you noticed on one card can be pinned to a printing
+   and then to that printing's CLASS. The anatomy page asks the same question
+   across all 66 classes with six samples each; this asks it down one card,
+   which is the shape the question actually arrives in ("this card looks wrong").
+   The verdict it feeds is UNALIGNED, and the point of the label on every tile
+   is that the answer is per CLASS and never per printing: a fix that lands one
+   card and breaks its siblings is the hardcoded alignment this is here to
+   avoid. A class already declared unalignable says so and shows the printed
+   card once, because there are no longer two things to compare. */
+const AlignList = (cs, right, on = () => false) => `
+  <div class="grid gap-3 p-1" style="grid-template-columns:repeat(${Math.min(P.cols.grid || 3, 3)},minmax(0,1fr))">
+    ${cs.map((c) => {
+      const off = unaligned(c) || !framable(c);
+      return `<div class="rounded-lg border ${on(c) ? 'border-emerald-600' : 'border-neutral-800'} bg-neutral-950/60 p-2"
+        style="content-visibility:auto;contain-intrinsic-size:auto 18rem">
+        <div class="mb-1.5 flex items-baseline gap-2 text-[10px]">
+          <span class="shrink-0 font-mono uppercase text-neutral-300">${c.set} ${c.num}</span>
+          <span class="min-w-0 flex-1 truncate font-mono ${off ? 'text-amber-400/90' : 'text-neutral-600'}"
+            title="${off ? 'This class is not drawn — the printed card is pulled instead' : 'layout | treatment — the unit the verdict applies to'}">${anatomyKey(c)}</span>
+          ${right(c)}
+        </div>
+        ${off
+          ? `${ScanImage(c, 0, 'large')}
+             <p class="mt-1 text-[10px] text-amber-400/70">printed card &mdash; ${
+               unaligned(c) ? 'this class is declared unalignable' : 'nothing here for a frame to hold'}</p>`
+          : `<div class="flex min-w-0 gap-2">
+              <div class="min-w-0 flex-1">${MockCard(c)}</div>
+              <div class="min-w-0 flex-1">${ScanImage(c, 0, 'large')}</div></div>
+             <p class="mt-1 text-[10px] text-neutral-600">drawn &middot; printed</p>`}
+      </div>`;
+    }).join('')}</div>`;
+
+const BandList = (cs, view, right, on = () => false) => {
+  if (view === 'align') return AlignList(cs, right, on);
+  const cell = (CARD_VIEWS[view] || CARD_VIEWS.compact).draw;
+  return view === 'grid'
+    ? `<div class="grid gap-3 p-1" style="grid-template-columns:repeat(${Math.min(P.cols.grid || 6, 6)},minmax(0,1fr))">
+        ${cs.map(c => `<div class="flex flex-col gap-1 rounded ${on(c) ? 'ring-1 ring-emerald-500' : ''}"
+          style="content-visibility:auto;contain-intrinsic-size:auto 16rem">
+          ${cell(c)}
+          <div class="flex items-center justify-between gap-2 text-xs">${right(c)}</div>
+        </div>`).join('')}</div>`
+    : `<div class="${PANEL} overflow-hidden">
+        ${/* No border here: KeyRow draws its own rule and TitleRow deliberately
+              has none, exactly as they do in the list. A border on the wrapper
+              doubled the first and invented the second. */''}
+        ${cs.map(c => `<div class="flex items-center gap-3 px-2 ${
+          on(c) ? 'bg-emerald-500/10' : ''}" style="content-visibility:auto;contain-intrinsic-size:auto 2.2rem">
+          <span class="min-w-0 flex-1">${cell(c)}</span>
+          ${right(c)}
+        </div>`).join('')}</div>`;
+};
 
 const Holdings = () => {
   const held = heldOf(P.card);
@@ -5967,7 +6124,8 @@ PAGES.card = () => Frame(P.tab, {
         ${Band(P.matched ? 'printings' : 'candidates', Candidates(), {
           note: `${num(printingsOf(P.card).length)} in the catalogue &mdash; ${P.matched
             ? 'click one to show it' : 'what the line could mean, and the identity key is what tells them apart'}`,
-          right: BandSwitch('prints') })}
+          right: BandSwitch('prints', [['align', '&#8660;',
+            'Every printing drawn beside its own high-quality pull &mdash; for deciding whether a CLASS of card can be drawn at all']]) })}
         ${Band('holdings', Holdings(), { note: 'your copies, wherever they live', right: BandSwitch('hold') })}
       </div>
     </div>`,
