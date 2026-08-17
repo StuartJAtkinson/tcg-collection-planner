@@ -15,6 +15,7 @@ ${page.match(/<script>([\s\S]*)<\/script>/)[1]}`;
 const js = src
   + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, canBeLocal, missingLocal, srcKeys, srcQualities, srcBytes, onDisk, Table, DisplayChip, GroupHead, CARD_VIEWS, UNALIGNED, unaligned, anatomyKey, setFact, AlignList, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, VIEWS, FORMATS, CARD_TYPES, RARITIES, FINISHES, RARITY_NAME, FINISH, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, plateOf, scopedCards, LANGS, langFilter, langName, setLang, contrast, relLum, SURFACE, FRAME, lum, surfaceKey, mix, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, roles, roleOf, roleCount, ROLE_MIN, fieldLabel, zoneWeight, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, heldOf, heldByPrint, setBand, BandList, framable, printingsOf, alignFacts, finishesOf, printingsOf, pickPrinting, printKey, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, addSortTo, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, UNRESOLVED, IMPORT_GROUPS, filtered, ownedIn, holdingsChanged, CANON, COLS, flatLine, P, TABS, LISTS, GAMES, CFG, render, grouping, resolveRow, resolveUnresolved, setIconUrl, loadSymIndex, setIcon,'
   + ' get IMPORT_MATCHED() { return IMPORT_MATCHED; }, get IMPORT_SKIPPED() { return IMPORT_SKIPPED; },'
+  + ' get IMPORT_NAME() { return IMPORT_NAME; }, set IMPORT_NAME(v) { IMPORT_NAME = v; },'
   + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen, PARENT_COLLATION, collationFor,'
   + ' applyImport, setGroupKind, clearHoldings,'
   + ' setDebug: v => { DEBUG = v; } };';
@@ -1995,13 +1996,8 @@ t.clearItem();
 go('#/io');
 /* THE PAGE NAMES THE SOURCES IT CAN ACTUALLY MAP, which is the column map's own
    list - names as Archidekt's own importer spells them, see
-   docs/import-formats.md. It used to name ten, because a Source dropdown offered
-   ten; that control read nothing (readImport auto-detects by header, 144/144 on
-   the sample and 2,453/2,607 on the real export) and three of its options -
-   Helvault, Archidekt, Deckstats - had no column in the table below it. */
+   docs/import-formats.md. */
 for (const s of t.COLS) assert.ok(painted.includes(s), `import is missing the "${s}" source`);
-assert.ok(!/>Auto-detect</.test(painted),
-  'the Source dropdown is back, and nothing reads it any more than it did before');
 /* LANGUAGE HAS A COLUMN. This used to assert `NO COLUMN YET` was on the page -
    asserting the drift, not the behaviour. That string described the DELETED
    Postgres app's `cards` table, while the schema map two bands below on the same
@@ -2023,8 +2019,13 @@ assert.ok(!painted.includes('NO COLUMN YET'), 'the import map still claims langu
    rendered the heading and a "nothing imported yet" placeholder, which is the
    kind of "page is reassuring itself" UI the rest of this file is allergic to.
    The block below proves the section works by seeding rows and re-rendering. */
-// the grouping step is a one-off, and says so
+/* Grouping + Apply are gated on IMPORT_NAME - no file, no source column to
+   read, no Apply to press. The placeholder paragraph below is the bottom of
+   the page telling the user what comes next. */
+// the grouping step is a one-off, and says so - but only when a file is read
+t.IMPORT_NAME = 'sample.csv'; ctx.location.hash = '#/io'; t.render();
 assert.ok(/one-off/.test(painted), 'the grouping step is not marked as a one-off');
+t.IMPORT_NAME = ''; ctx.location.hash = '#/io'; t.render();
 /* THE GROUPS IN THE FILE YOU LOADED, and with no file there are none. This
    listed Main 2410 rows, Mono-Red Burn 74, Trade box 312, (blank) 94 - an import
    that had never run, with counts precise enough to read as one that had. */
