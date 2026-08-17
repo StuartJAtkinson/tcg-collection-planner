@@ -2109,8 +2109,10 @@ const panelClose = painted.indexOf('</div>', panelOpen);
 const buttonAt = painted.indexOf('onclick="clearHoldings()"');
 assert.ok(panelOpen > 0 && panelClose > panelOpen, 'panel structure is unrecognisable');
 assert.ok(buttonAt > panelClose, 'Clear Holdings button is inside the max-w-4xl panel instead of escaping it');
-assert.ok(/onclick="clearHoldings\(\)"[\s\S]{0,80}class="block w-full/.test(painted),
-  'Clear Holdings button is not full-width');
+assert.ok(/onclick="clearHoldings\(\)"[\s\S]{0,120}width:100vw/.test(painted),
+  'Clear Holdings button is not full-viewport-width');
+assert.ok(/onclick="clearHoldings\(\)"[\s\S]{0,120}position:fixed/.test(painted),
+  'Clear Holdings button is not fixed-positioned');
 // nothing to clear, so the button is disabled
 assert.ok(/onclick="clearHoldings\(\)"[\s\S]{0,40}disabled/.test(painted),
   'Clear Holdings is enabled when nothing has been imported');

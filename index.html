@@ -6400,10 +6400,9 @@ PAGES.io = () => Frame('io', {
        you named is yours, not the importer's. Disabled when nothing has been
        imported yet, because a button that does nothing on this page is worse
        than a button that says it has nothing to do. */''}
-  <div class="fixed bottom-0 left-0 right-0 z-30 border-t border-neutral-800 bg-neutral-950/95 px-6 py-3 backdrop-blur">
-    <button onclick="clearHoldings()" ${[...LISTS.decks, ...LISTS.binders].some(r => r[4]?.length) ? '' : 'disabled'}
-      class="block w-full cursor-pointer rounded-full border border-red-900/60 bg-red-900/60 px-3 py-2 text-xs font-semibold text-red-200 hover:border-red-700 hover:bg-red-800/70 disabled:cursor-not-allowed disabled:opacity-40">Clear Holdings</button>
-  </div>`,
+  <button onclick="clearHoldings()" ${[...LISTS.decks, ...LISTS.binders].some(r => r[4]?.length) ? '' : 'disabled'}
+    style="position:fixed;left:0;right:0;bottom:0;width:100vw;z-index:30"
+    class="block cursor-pointer border-t border-red-900/60 bg-red-900/60 px-3 py-2 text-xs font-semibold text-red-200 hover:border-red-700 hover:bg-red-800/70 disabled:cursor-not-allowed disabled:opacity-40">Clear Holdings</button>`,
 });
 
 /* ======================= CONFIG ======================================= */
