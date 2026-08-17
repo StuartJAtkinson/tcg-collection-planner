@@ -13,7 +13,7 @@ const page = readFileSync('index.html', 'utf8');   // the markup too: <body> car
 const src = `${['sets.js', 'trim.js', 'anatomy.js'].map(f => readFileSync(f, 'utf8')).join('\n')}
 ${page.match(/<script>([\s\S]*)<\/script>/)[1]}`;
 const js = src
-  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, canBeLocal, missingLocal, srcKeys, srcQualities, srcBytes, onDisk, Table, DisplayChip, GroupHead, CARD_VIEWS, UNALIGNED, unaligned, anatomyKey, setFact, AlignList, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, VIEWS, FORMATS, CARD_TYPES, RARITIES, FINISHES, RARITY_NAME, FINISH, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, plateOf, scopedCards, LANGS, langFilter, langName, setLang, contrast, relLum, SURFACE, FRAME, lum, surfaceKey, mix, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, roles, roleOf, roleCount, ROLE_MIN, fieldLabel, zoneWeight, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, heldOf, heldByPrint, setBand, BandList, framable, printingsOf, alignFacts, finishesOf, printingsOf, pickPrinting, printKey, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, addSortTo, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, UNRESOLVED, IMPORT_GROUPS, filtered, ownedIn, holdingsChanged, CANON, COLS, flatLine, P, TABS, LISTS, GAMES, CFG, render, grouping, resolveRow, resolveUnresolved,'
+  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, canBeLocal, missingLocal, srcKeys, srcQualities, srcBytes, onDisk, Table, DisplayChip, GroupHead, CARD_VIEWS, UNALIGNED, unaligned, anatomyKey, setFact, AlignList, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, VIEWS, FORMATS, CARD_TYPES, RARITIES, FINISHES, RARITY_NAME, FINISH, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, plateOf, scopedCards, LANGS, langFilter, langName, setLang, contrast, relLum, SURFACE, FRAME, lum, surfaceKey, mix, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, roles, roleOf, roleCount, ROLE_MIN, fieldLabel, zoneWeight, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, heldOf, heldByPrint, setBand, BandList, framable, printingsOf, alignFacts, finishesOf, printingsOf, pickPrinting, printKey, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, addSortTo, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, UNRESOLVED, IMPORT_GROUPS, filtered, ownedIn, holdingsChanged, CANON, COLS, flatLine, P, TABS, LISTS, GAMES, CFG, render, grouping, resolveRow, resolveUnresolved, setIconUrl, loadSymIndex, setIcon,'
   + ' get IMPORT_MATCHED() { return IMPORT_MATCHED; }, get IMPORT_SKIPPED() { return IMPORT_SKIPPED; },'
   + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen,'
   + ' setDebug: v => { DEBUG = v; } };';
@@ -2206,7 +2206,53 @@ go('#/config');
    names what it gives, offers BOTH sides, and prices both - a source that
    quietly drops the side it doesn't have is the drift this replaced. */
 const srcBand = painted.slice(bandAt('sources'), bandAt('schema source map'));
-assert.strictEqual(Object.keys(t.SOURCES).length, 8, 'the source list changed size - is the new one in Config?');
+assert.strictEqual(Object.keys(t.SOURCES).length, 9, 'the source list changed size - is the new one in Config?');
+/* SET SYMBOLS ARE A SOURCE NOW, and that is the whole fix. `setIconUrl` used to
+   return an svgs.scryfall.io URL unconditionally with no local branch and no
+   entry here - so it was the most frequent request in the app (one per card AND
+   per set row, where art is one per card) and `allLocal()` had never counted it,
+   which is how Config came to print "nothing on this page needs the network" in
+   green while the page was asking Scryfall for dozens of symbols per render. */
+{
+  assert.ok(t.canBeLocal().includes('sfsym'), 'set symbols are still not a source that can go local');
+  const before = t.CFG.src.sfsym.at;
+  t.setSrc('sfsym', 'local');
+  assert.ok(t.setIconUrl('MKM').startsWith('sym/'), 'set symbols ignore the Local setting');
+  t.setSrc('sfsym', 'online');
+  assert.ok(t.setIconUrl('MKM').startsWith('https://svgs.scryfall.io/'), 'the online side is gone');
+  // a set nobody knows still gets no symbol, so an unmatched card cannot borrow one
+  assert.strictEqual(t.setIconUrl('ZZZZ'), '', 'an unknown set borrowed a symbol');
+
+  /* NOT PUBLISHED IS NOT NOT FETCHED. Scryfall serves no symbol for a few codes
+     we carry - MBC and FRC - and the symbol is a CSS MASK, so there is no
+     `onerror`: a mask whose file 404s renders as a solid coloured square, which
+     is worse than the plain rarity disc the page draws when it has no URL. With
+     the index those sets fall back to the disc; without it, everything is
+     optimistic, because a square for one render beats no symbols at all. */
+  t.setSrc('sfsym', 'local');
+  t.loadSymIndex(new Set(['mkm']));
+  assert.ok(t.setIconUrl('MKM').startsWith('sym/'), 'a symbol that IS on disk was dropped');
+  assert.strictEqual(t.setIconUrl('MBC'), '',
+    'a symbol Scryfall never published still draws a mask, so it renders as a solid square');
+  t.loadSymIndex(null);
+  assert.ok(t.setIconUrl('MBC').startsWith('sym/'),
+    'with no index yet the page gave up on symbols instead of trying');
+
+  /* CONFLUX'S SYMBOL IS `con`, WHICH WINDOWS WILL NOT LET BE A FILE. It bit here
+     exactly as it bit the boosters: node "wrote" sym/con.svg, reported success,
+     and created nothing, because the path IS the console device - the fetch
+     counted 334 successes and git then refused to add a path that did not exist.
+     The local URL has to carry the same trailing underscore the file does; the
+     CDN is unaffected, so only the local side is asserted. */
+  t.loadSymIndex(new Set(['con']));
+  assert.strictEqual(t.setIconUrl('CON'), 'sym/con_.svg',
+    'the local set symbol for Conflux names a file Windows cannot create');
+  t.setSrc('sfsym', 'online');
+  assert.strictEqual(t.setIconUrl('CON'), 'https://svgs.scryfall.io/sets/con.svg',
+    'the underscore leaked into the CDN URL, which has no such file');
+  t.loadSymIndex(null);
+  t.setSrc('sfsym', before);
+}
 for (const k of srcShown) {
   const s = t.SOURCES[k];
   const at = srcBand.indexOf(`>${s.name}<`);
@@ -4201,4 +4247,26 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
     `the Language facet offers ${offered.length} of ${codes.length} languages in scope`);
   // ...and the one you would widen TO is reachable, which is the whole point
   assert.ok(offered.includes('ko'), 'the least-printed language in scope cannot be widened to');
+}
+
+/* THE GENERATOR AND THE PAGE NAME A SYMBOL THE SAME WAY, asserted across the two
+   files rather than trusted. gen-symbols.mjs decides which 336 files to fetch and
+   setIcon decides which one to ask for; if they disagree the app requests a name
+   that was never written and every card silently loses its symbol. This is the
+   same cross-file guard gen-cards/gen-langs get for their bulk files. */
+{
+  const gs = readFileSync('gen-symbols.mjs', 'utf8');
+  const icons = new Set(t.SETS.map(r => (r[7] || r[1].toLowerCase())).filter(Boolean));
+  assert.ok(/r\[7\]\s*\|\|\s*r\[1\]\.toLowerCase\(\)/.test(gs),
+    'gen-symbols.mjs no longer derives a symbol name the way setIcon does');
+  assert.ok(gs.includes('sym'), 'gen-symbols.mjs does not write where the page reads');
+  /* 986 sets, 336 symbols - the collapse is the reason the local mirror is a
+     megabyte, and it is a fact about the data rather than a number anyone chose:
+     promos, tokens and Secret Lair variants point at their parent's icon. */
+  assert.ok(icons.size < t.SETS.length / 2,
+    'the icon override stopped collapsing sets onto shared symbols');
+  // every set the app can draw resolves to a name the generator would fetch
+  for (const r of t.SETS)
+    assert.ok(icons.has(t.setIconUrl(r[1]).replace(/^.*\//, '').replace('.svg', '')),
+      `set ${r[1]} asks for a symbol gen-symbols.mjs would never write`);
 }

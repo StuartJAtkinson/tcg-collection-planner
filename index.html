@@ -387,6 +387,29 @@ const SOURCES = {
     q: [['art_crop', '626&times;457 &mdash; the illustration alone, which is what every frame draws', 75e3],
         ['small', '146&times;204 &mdash; whole card', 14e3], ['normal', '488&times;680 &mdash; whole card', 104e3],
         ['large', '672&times;936 &mdash; whole card', 169e3], ['png', '745&times;1040 &mdash; whole card', 1231e3]] },
+  /* THE MOST FREQUENT REQUEST IN THE APP, and until now the only one with no
+     Local side at all. A set symbol is drawn on every card AND on every row of
+     the set table, where art is drawn once per card - so a 240-card page asked
+     svgs.scryfall.io for dozens of them while Config said in green that nothing
+     on the page needed the network. It was not in SOURCES, so `allLocal()` had
+     never counted it and could not have known.
+     It is also the cheapest local side here by three orders of magnitude: 986
+     sets share 336 DISTINCT symbols - promos, tokens and Secret Lair variants
+     all point at their parent's icon - and an SVG is a couple of KB. One size,
+     because a vector has no sizes. */
+  sfsym: { name: 'Scryfall set symbols', gives: 'set symbols', kind: 'images', game: 'mtg',
+    /* Defaults ONLINE, like the other image sources, and deliberately: the
+       symbol is a CSS mask rather than an <img>, so there is no `onerror` to
+       catch a file that was never fetched - a broken mask is a coloured square,
+       not a missing picture. The defect this fixes was never the default, it
+       was that `allLocal()` could not see this source at all and said "nothing
+       needs the network" while it was the busiest request on the page. */
+    def: ['online', 'svg'], full: 'svg', units: 336,
+    file: () => 'sym',
+    cmd: () => 'node gen-symbols.mjs      # 336 files, about a megabyte',
+    local: 'sym/ &mdash; one SVG per distinct symbol, shared by every set that uses it',
+    online: 'svgs.scryfall.io &middot; one request per set on screen, every render',
+    q: [['svg', 'vector &mdash; one file per symbol, drawn at any size', 3e3]] },
   mtgjson: { name: 'MTGJSON', gives: 'printings &middot; booster collation &middot; sealed products', kind: 'data', game: 'mtg',
     def: ['local', 'AllPrintings'], full: 'AllPrintings', units: 1,
     file: q => q === 'psql' ? 'data/AllPrintings.psql.gz' : `data/${q}.json.gz`,
@@ -1619,9 +1642,50 @@ const typeFit = n => n > 44 ? 'text-[0.59em]' : n > 36 ? 'text-[0.68em]' : n > 3
 /* Built once: MockCard looks a set up per card, and 240 linear scans of 986 rows
    per render is a scan too many. */
 const SET_BY_CODE = new Map(SETS.map(r => [r[1], r]));
-const setIconUrl = (code) => {
+/* Column 7 is the icon OVERRIDE and column 1 is the code - 986 sets resolve to
+   336 distinct symbols this way, which is why the local mirror is a megabyte
+   rather than three. gen-symbols.mjs derives its file list with the same
+   expression, and check.mjs asserts the two agree. */
+/* Conflux's set code is CON, and Windows has reserved that name - with any
+   extension - since DOS. Node writes `boosters/CON.json` happily and nothing can
+   then read it back, so the file on disk carries a trailing underscore and every
+   place that names one has to agree: here, gen-boosters.mjs, gen-symbols.mjs and
+   serve.py. Declared here rather than beside the boosters, because the set
+   symbols hit it too: `sym/con.svg` is the console device, and node "wrote" it
+   334 times without ever creating a file - the fetch reported success and git
+   then refused to add a path that does not exist. */
+const RESERVED_NAME = /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i;
+const packFile = (code) => RESERVED_NAME.test(code) ? `${code}_` : code;
+const setIcon = (code) => {
   const r = code && SET_BY_CODE.get(code.toUpperCase());
-  return r ? `https://svgs.scryfall.io/sets/${r[7] || r[1].toLowerCase()}.svg` : '';
+  return r ? (r[7] || r[1].toLowerCase()) : '';
+};
+/* Which symbols were actually written, so "not published" can be told from "not
+   fetched yet". Scryfall serves none for a few codes we carry (MBC, FRC), and a
+   symbol is a CSS MASK rather than an <img> - there is no `onerror` to fall back
+   with, and a mask whose file 404s renders as a solid coloured square. With the
+   list, those sets get the plain rarity disc the page already draws for a card
+   whose set it does not know. Null until it lands, and null is optimistic: the
+   worst case is a square for one render, against a symbol-less first paint for
+   every set if it were the other way. */
+let SYM_INDEX = null;
+async function loadSymIndex(seed) {
+  // a seed always wins, and null is a seed: the harness has to be able to put
+  // the "not settled yet" state back after testing the settled one
+  if (seed !== undefined) { SYM_INDEX = seed; return; }
+  if (SYM_INDEX || typeof fetch !== 'function') return;
+  try {
+    const res = await fetch('sym/index.json');
+    SYM_INDEX = res.ok ? new Set(await res.json()) : new Set();
+  } catch { SYM_INDEX = new Set(); }
+  render();
+}
+const setIconUrl = (code) => {
+  const i = setIcon(code);
+  if (!i) return '';
+  // the CDN serves `con.svg` fine - it is only the local FILE that cannot exist
+  if (CFG.src.sfsym.at !== 'local') return `https://svgs.scryfall.io/sets/${i}.svg`;
+  return !SYM_INDEX || SYM_INDEX.has(i) ? `sym/${packFile(i)}.svg` : '';
 };
 /* The set symbol, inked by rarity - which is how a real card tells you both at
    once, in the one place on the frame that carries them. It is an external SVG,
@@ -4138,12 +4202,6 @@ const printingAt = (key) => {
   }
   return PRINTING_AT.get(key);
 };
-/* Conflux's set code is CON, and Windows has reserved that name - with any
-   extension - since DOS. Node writes `boosters/CON.json` happily and nothing can
-   then read it back, so the file on disk carries a trailing underscore and every
-   place that names one has to agree: here, gen-boosters.mjs, and serve.py. */
-const RESERVED_NAME = /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i;
-const packFile = (code) => RESERVED_NAME.test(code) ? `${code}_` : code;
 async function loadBoosters(code, seed) {
   if (seed) { COLLATION.set(code, seed); render(); return; }
   if (COLLATION.has(code) || typeof fetch !== 'function') return;
@@ -7400,6 +7458,7 @@ render();
 // 5 MB is in flight, and re-renders itself when the real catalogue lands
 loadCards();
 loadPackIndex();   // 3.4 KB: which booster kinds each set actually has
+loadSymIndex();    // 3 KB: which set symbols are on disk, vs never published
 loadDisk();        // what serve.py can see on disk, for Config's Local column
 </script>
 </body>
