@@ -6291,7 +6291,7 @@ const carry = f => CANON.find(r => r[0] === f).slice(2, 2 + COLS.length).filter(
 PAGES.io = () => Frame('io', {
   desc: 'One alias table, not nine parsers: each source maps its own headers onto the same canonical fields. Export runs the same map backwards, but it lives in every page&rsquo;s subheader &mdash; you export whatever you&rsquo;re looking at, so it never needed a tab of its own. An unrecognised header is a mapping you fix here &mdash; never a code change.',
   stats: Stats([[String(UNRESOLVED.length), 'unresolved']]),
-  body: `<div class="${PANEL} px-4 pb-20 pt-4">
+  body: `<div class="${PANEL} px-4 pt-4">
     ${Band('import', `
       ${/* THE SOURCE DROPDOWN IS GONE, and it is the third inert control on this
              screen to go the same way. `readImport` has always auto-detected by
@@ -6383,7 +6383,10 @@ PAGES.io = () => Frame('io', {
 
     ${/* Apply is live and it is the only thing that writes. Disabled with
            nothing read, because a button that does nothing is worse than one
-           that says why. */''}
+           that says why. Clear Holdings sits next to Apply on the same row:
+           same scope as what Apply writes, opposite direction. Both are sticky
+           together, so the destructive and constructive actions are read as a
+           pair, not as a giant strip at the bottom of the screen. */''}
     <div class="sticky bottom-0 -mx-4 mt-4 flex items-center gap-3 border-t border-neutral-800 bg-neutral-950/95 px-4 py-3">
       <button onclick="applyImport()" ${IMPORT_MATCHED.length ? '' : 'disabled'}
         class="${IMPORT_MATCHED.length ? BTN_PRIMARY : `${BTN_PRIMARY} cursor-not-allowed opacity-40`}">Apply</button>
@@ -6391,18 +6394,10 @@ PAGES.io = () => Frame('io', {
         ? `${num(IMPORT_MATCHED.length)} holdings into ${IMPORT_GROUPS.filter(g => g[2]).length} container${
             IMPORT_GROUPS.filter(g => g[2]).length === 1 ? '' : 's'} &mdash; nothing is written until you press it`
         : 'nothing read yet'}</span>
+      <button onclick="clearHoldings()" ${[...LISTS.decks, ...LISTS.binders].some(r => r[4]?.length) ? '' : 'disabled'}
+        class="${BTN_DANGER} ml-auto disabled:cursor-not-allowed disabled:opacity-40">Clear Holdings</button>
     </div>
-  </div>
-  ${/* Clear Holdings escapes the panel's max-w-4xl so the button really is
-       window-wide, not panel-wide. Same scope as what Apply writes, opposite
-       direction: it empties `row[4]` on every binder and deck and recomputes
-       the deck counts, then saveState(). Containers themselves stay — a binder
-       you named is yours, not the importer's. Disabled when nothing has been
-       imported yet, because a button that does nothing on this page is worse
-       than a button that says it has nothing to do. */''}
-  <button onclick="clearHoldings()" ${[...LISTS.decks, ...LISTS.binders].some(r => r[4]?.length) ? '' : 'disabled'}
-    style="position:fixed;left:0;right:0;bottom:0;width:100vw;z-index:30"
-    class="block cursor-pointer border-t border-red-900/60 bg-red-900/60 px-3 py-2 text-xs font-semibold text-red-200 hover:border-red-700 hover:bg-red-800/70 disabled:cursor-not-allowed disabled:opacity-40">Clear Holdings</button>`,
+  </div>`,
 });
 
 /* ======================= CONFIG ======================================= */

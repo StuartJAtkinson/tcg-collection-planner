@@ -2100,16 +2100,13 @@ t.IMPORT_GROUPS.length = 0;
 go('#/io');
 assert.ok(painted.includes('onclick="clearHoldings()"'), 'Clear Holdings button is absent from the import page');
 assert.ok(/>Clear Holdings<\/button>/.test(painted), 'Clear Holdings button label is missing');
-/* The Clear Holdings button escapes the panel entirely — the panel now spans
-   window width too (no max-w), so any wrapper constraint on it would be
-   cosmetic; the inline fixed positioning pins it to viewport edges. */
+/* Clear Holdings sits next to Apply on the same sticky row, right-aligned via
+   ml-auto. The two actions are read as a pair — same scope, opposite direction. */
 assert.ok(!painted.includes('max-w-4xl'), 'import panel is back to max-w-4xl');
-assert.ok(/onclick="clearHoldings\(\)"[\s\S]{0,120}position:fixed/.test(painted),
-  'Clear Holdings button is not fixed-positioned at viewport edges');
-assert.ok(/onclick="clearHoldings\(\)"[\s\S]{0,120}width:100vw/.test(painted),
-  'Clear Holdings button is not full-viewport-width');
+assert.ok(/onclick="clearHoldings\(\)"[\s\S]{0,250}ml-auto/.test(painted),
+  'Clear Holdings button is not right-aligned next to Apply');
 // nothing to clear, so the button is disabled
-assert.ok(/onclick="clearHoldings\(\)"[\s\S]{0,40}disabled/.test(painted),
+assert.ok(/onclick="clearHoldings\(\)"[\s\S]{0,250}disabled/.test(painted),
   'Clear Holdings is enabled when nothing has been imported');
 // ...and clearing actually empties the rows. Seed a holding, run the function,
 // and assert the row's `row[4]` is empty while the container itself survives.
