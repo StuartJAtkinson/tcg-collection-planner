@@ -6186,11 +6186,14 @@ async function readImport(file) {
     IMPORT_MATCHED.push({ group, card: { ...hits[0], ...hold } });
     groups.set(group, (groups.get(group) || 0) + 1);
   }
-  /* Every group starts as a BINDER. A default of nothing meant the common case
-     - one portfolio of cards you own - needed a click per group before Apply
-     did anything, and "binder" is what a portfolio, a folder and a box all are
-     here. Change any of them before applying. */
-  for (const [n, c] of [...groups].sort((a, b) => b[1] - a[1])) IMPORT_GROUPS.push([n, c, 'binder']);
+  /* GROUP KIND DEFAULTS, by size. > 300 rows is "everything that didn't fit
+     anywhere else" — unsorted, left as '' so the row says "→ skipped" until
+     you name it. > 100 is a single large binder (a portfolio, a deckbox, a
+     folder). ≤ 100 is a deck (the median deck is 60 cards; "Mono-Red Burn"
+     was 74 in the sample). The thresholds are read at import time, not
+     stored — change any of them before pressing Apply. */
+  const kindFor = c => c > 300 ? '' : c > 100 ? 'binder' : 'deck';
+  for (const [n, c] of [...groups].sort((a, b) => b[1] - a[1])) IMPORT_GROUPS.push([n, c, kindFor(c)]);
   render();
 }
 /* THE ONE THING YOU COULD DO WITH AN AMBIGUOUS ROW WAS LEAVE IT. The section
@@ -6318,23 +6321,12 @@ PAGES.io = () => Frame('io', {
               IMPORT_SKIPPED ? ` &middot; <span class="text-neutral-500">${num(IMPORT_SKIPPED)} skipped</span>` : ''}${
               IMPORT_OTHER ? ` &middot; <span class="text-neutral-600">${num(IMPORT_OTHER)} not ${GAMES[P.game]?.label || 'this game'}</span>` : ''}</span>`}</div>
 
-      ${SectionHeader('Column map', '<span class="text-xs text-neutral-500">verified &middot; docs/import-formats.md</span>')}
-      ${/* The same Table the config page's five lists use. This was the fourth
-            hand-rolled one and the widest, and its header row was declared with
-            w-36/w-44 against cells that carried the same widths a second time -
-            change one and the columns silently stop lining up. */''}
-      ${Table([['Canonical field', 'w-36'], ['Our column', 'w-44'],
-               ...COLS.map(c => [c, 'w-16 text-center'])],
-        CANON.map((r) => {
-          const [f, ours, ...rest] = [...r]; const ok = rest.pop();
-          return [`<span class="${ok ? 'text-neutral-200' : 'text-amber-400'}">${f}</span>`,
-            `<span class="font-mono text-[10px] ${ours.startsWith('NO') ? 'text-amber-400' : 'text-neutral-500'}">${ours}</span>`,
-            ...rest.map(v => `<span class="font-mono tabular-nums ${v === '-' ? 'text-neutral-700' : 'text-emerald-400'}">${v}</span>`)];
-        }),
-        { foot: `Numbers are the column&rsquo;s <em>position</em> in that app&rsquo;s export &mdash; Archidekt maps positionally, so this fingerprints a file by shape even when the header text is unfamiliar. We alias-match headers first and fall back to this. Language lands on the printing, where the identity key already reads it: ${
-          carry('language')} of these ${COLS.length} exports carry it, and ${num(2634)} of ${num(107347)} catalogue printings are not English.` })}
-      <div class="mb-5"></div>
-
+      ${/* The column map is collapsed into a <details> at the bottom of the page.
+            It is real and worth keeping (readImport fingerprints a file by it),
+            but the import flow on the page above it is the page: Choose file,
+            see groups, decide ambiguous rows, Apply. The map is the long tail
+            of "what if my exporter uses different headers", and it does not
+            have to be in the way. */''}
       ${SectionHeader('Grouping column &rarr; container',
         '<span class="rounded-full border border-neutral-700 px-2 py-0.5 text-[10px] uppercase tracking-wide text-neutral-400">one-off &middot; this import only</span>')}
       <p class="mb-2 text-[11px] text-neutral-500">The source&rsquo;s folder / tag / portfolio column, read once to decide what each group <em>becomes</em>. This is the only place it&rsquo;s asked: after the import lands, a binder is edited on the binder &mdash; add, remove, arrange &mdash; not by re-running this.</p>
@@ -6361,25 +6353,23 @@ PAGES.io = () => Frame('io', {
              had never run. The mechanism is real and worth keeping; what it
              cannot do is claim three decisions are waiting when none is. */}
       ${!UNRESOLVED.length
-        ? `${SectionHeader('Resolve ambiguous', '<span class="text-xs text-neutral-500">nothing imported yet</span>')}
-           <p class="rounded-lg border border-dashed border-neutral-800 px-4 py-6 text-center text-[11px] text-neutral-600">
-             A row that matches more than one printing lands here with its candidates ranked, and you pick.
-             Nothing has been imported, so there is nothing to decide.</p>`
+        ? ``
         : `${SectionHeader('Resolve ambiguous', `<span class="text-xs text-neutral-500">${
              UNRESOLVED.length} of ${num(IMPORT_ROWS)} rows didn&rsquo;t auto-match</span>`)}
            ${UNRESOLVED.map((u, i) => `
            <div class="mb-2 flex items-start gap-4 rounded-lg border border-neutral-800 bg-neutral-900 p-3">
-             <div class="w-28 shrink-0">${MockCard(u.line)}
+             <div class="w-56 shrink-0">
+               <div class="aspect-[5/7] w-full overflow-hidden rounded-lg bg-black/70">${PrintedFace(u.line, 0)}</div>
                <div class="mt-1 text-[10px] text-amber-400">${u.why}</div>
                <div class="text-[10px] text-neutral-500">&rarr; ${u.group}</div></div>
-             <div class="flex gap-3 overflow-x-auto">
+             <div class="flex flex-wrap gap-3">
                ${u.candidates.map(([c, pc], ci) => `
                  <button onclick="resolveUnresolved(${i},${ci})" title="File this copy as ${jsArg(c.set)} ${jsArg(c.num)}"
-                   class="w-28 shrink-0 cursor-pointer rounded-lg border border-neutral-800 p-1 text-left hover:border-emerald-600">
-                   ${MockCard(c)}
+                   class="w-56 shrink-0 cursor-pointer rounded-lg border border-neutral-800 p-1 text-left hover:border-emerald-600">
+                   <div class="aspect-[5/7] w-full overflow-hidden rounded-lg bg-black/70">${PrintedFace(c, 0)}</div>
                    <div class="mt-1 text-center text-[10px] text-neutral-500">${c.set} ${c.num} &middot; ${pc}%</div></button>`).join('')}
-               <div class="flex items-center"><button onclick="resolveUnresolved(${i},-1)"
-                 class="${BTN_SECONDARY}">Skip</button></div></div></div>`).join('')}`}`)}
+               <div class="flex w-56 items-center"><button onclick="resolveUnresolved(${i},-1)"
+                 class="${BTN_SECONDARY} w-full">Skip</button></div></div></div>`).join('')}`}`)}
 
     ${/* Apply is live and it is the only thing that writes. Disabled with
            nothing read, because a button that does nothing is worse than one
@@ -6397,6 +6387,26 @@ PAGES.io = () => Frame('io', {
       <button onclick="clearHoldings()" ${[...LISTS.decks, ...LISTS.binders].some(r => r[4]?.length) ? '' : 'disabled'}
         class="${BTN_DANGER} ml-auto disabled:cursor-not-allowed disabled:opacity-40">Clear Holdings</button>
     </div>
+
+    <details class="mt-6 rounded-lg border border-neutral-800 bg-neutral-900/40 p-3">
+      <summary class="cursor-pointer text-[11px] uppercase tracking-wide text-neutral-400">
+        Column map &middot; ${COLS.length} sources &middot; the fingerprint readImport falls back to
+      </summary>
+      ${/* The same Table the config page's five lists use. This was the fourth
+              hand-rolled one and the widest, and its header row was declared with
+              w-36/w-44 against cells that carried the same widths a second time -
+              change one and the columns silently stop lining up. */''}
+      ${Table([['Canonical field', 'w-36'], ['Our column', 'w-44'],
+               ...COLS.map(c => [c, 'w-16 text-center'])],
+        CANON.map((r) => {
+          const [f, ours, ...rest] = [...r]; const ok = rest.pop();
+          return [`<span class="${ok ? 'text-neutral-200' : 'text-amber-400'}">${f}</span>`,
+            `<span class="font-mono text-[10px] ${ours.startsWith('NO') ? 'text-amber-400' : 'text-neutral-500'}">${ours}</span>`,
+            ...rest.map(v => `<span class="font-mono tabular-nums ${v === '-' ? 'text-neutral-700' : 'text-emerald-400'}">${v}</span>`)];
+        }),
+        { foot: `Numbers are the column&rsquo;s <em>position</em> in that app&rsquo;s export &mdash; Archidekt maps positionally, so this fingerprints a file by shape even when the header text is unfamiliar. We alias-match headers first and fall back to this. Language lands on the printing, where the identity key already reads it: ${
+          carry('language')} of these ${COLS.length} exports carry it, and ${num(2634)} of ${num(107347)} catalogue printings are not English.` })}
+    </details>
   </div>`,
 });
 

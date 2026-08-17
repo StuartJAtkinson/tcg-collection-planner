@@ -2019,7 +2019,10 @@ assert.ok(!painted.includes('NO COLUMN YET'), 'the import map still claims langu
   // external ids identify nothing this app needs - set, number and language do
   assert.ok(!t.CANON.some(r => /uid|uuid/i.test(r[0])), 'the column map still carries an external id');
 }
-assert.ok(painted.includes('Resolve ambiguous'), 'no ambiguous-row resolver');
+/* Resolve ambiguous is gated on having rows to resolve - the previous version
+   rendered the heading and a "nothing imported yet" placeholder, which is the
+   kind of "page is reassuring itself" UI the rest of this file is allergic to.
+   The block below proves the section works by seeding rows and re-rendering. */
 // the grouping step is a one-off, and says so
 assert.ok(/one-off/.test(painted), 'the grouping step is not marked as a one-off');
 /* THE GROUPS IN THE FILE YOU LOADED, and with no file there are none. This
@@ -2049,8 +2052,14 @@ assert.ok(painted.includes('&rarr; skipped'), 'a group sent nowhere does not say
    pick writes the holding you meant, a skip records that you declined. */
 {
   const before = t.IMPORT_MATCHED.length, skipped = t.IMPORT_SKIPPED;
-  const cand = (set, num) => ({ n: 'Terminate', set, num, lang: 'en', rar: 2, usd: 5.82 });
-  const row = () => ({ line: { n: 'Terminate', set: 'FNM', num: '1', qty: 2, foil: 1, lang: 'ja' },
+  /* art_id is what PrintedFace reads to build the URL. Real candidates from
+     `resolveRow` are catalogue cards that always carry one; the test mock is
+     realistic on this point so the rendering code under test sees the same
+     shape it sees in production. */
+  const cand = (set, num) => ({ n: 'Terminate', set, num, lang: 'en', rar: 2, usd: 5.82,
+    art_id: '00000000-0000-0000-0000-000000000000' });
+  const row = () => ({ line: { n: 'Terminate', set: 'FNM', num: '1', qty: 2, foil: 1, lang: 'ja',
+    art_id: '00000000-0000-0000-0000-000000000000' },
     why: '2 printings match', hold: { qty: 2, foil: 1, lang: 'ja' }, group: 'Promos',
     candidates: [[cand('MM3', '85'), 50], [cand('APC', '110'), 50]] });
   t.UNRESOLVED.push(row(), row());
@@ -2205,7 +2214,11 @@ for (const stale of ['108,412', '947<', '311,905', '144,201'])
 {
   ctx.location.hash = '#/io'; t.render();
   assert.ok(!/bg-amber-500[^>]*>\d/.test(painted), 'the Import badge shows a count with nothing to resolve');
-  assert.ok(painted.includes('nothing imported yet'), 'the resolve section invents rows to resolve');
+  /* The resolve section is GATED on UNRESOLVED.length — it does not render the
+     heading at all until there are rows to decide. Asserting the section's
+     presence when it should be absent is the opposite of what the gate means;
+     the negative on Lighming Bolt still covers the hardcoded-fixture case. */
+  assert.ok(!painted.includes('Resolve ambiguous'), 'the resolve section still renders when there is nothing to resolve');
   assert.ok(!painted.includes('Lighming Bolt'), 'the hardcoded unresolved row is back');
   ctx.location.hash = '#/config'; t.render();
 }
