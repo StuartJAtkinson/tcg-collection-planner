@@ -603,9 +603,27 @@ assert.ok(t.PACK_SAT > 1, 'the pack saturation is a no-op - say so or remove it'
    as no trim at all, in the other direction. Local carries no onload. */
 {
   const gp = readFileSync('index.html', 'utf8');
-  const local = gp.match(/const packAttrs = \(id\) => packLocal\(\) \? ([^\n]+)/)[1];
+  const local = gp.match(/const packAttrs = \([^)]*\) => packLocal\(\) \? ([^\n]+)/)[1];
   assert.ok(!local.includes('trimPack'),
     'a local pack image is trimmed again in the browser, so it is levelled and saturated twice');
+  /* ...and it does not reach for the CDN either. Local used to swap the
+     attributes and re-fetch from tcgplayer on any missing file, so a half-run
+     gen-packs looked complete and "Local" quietly meant "local where possible".
+     Asserted against the source because the fallback lived in an inline
+     handler that only fires on a real 404, which this harness cannot produce. */
+  assert.ok(!local.includes('packCdn') && !/packMissing[\s\S]{0,400}?packCdn/.test(gp),
+    'a missing local pack image still falls through to the CDN, so Local needs the network');
+}
+/* THE SAME FOR ART, and this is the one that mattered: 449 of 107,606 crops are
+   on disk, so a CDN fallback fired on ~99.6% of cards - a failed local request
+   AND a network one, which made Local the SLOWER setting while Config said in
+   green that nothing on the page needs the network. */
+{
+  const gp = readFileSync('index.html', 'utf8');
+  // anchored on the expression's own end, not on a newline: the file is CRLF
+  const art = gp.match(/const artAttrs =[\s\S]*?: '';/)[0];
+  assert.ok(!art.includes('artCdn'),
+    'a missing local art file still falls through to the CDN, so Local needs the network');
 }
 /* THE GAP IS ONE ROW SIZED TO THE SHORTFALL, and the arithmetic is asserted
    rather than the row count, because the row count is exactly what stopped

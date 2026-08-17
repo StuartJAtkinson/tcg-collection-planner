@@ -1452,10 +1452,16 @@ const artLocal = (c, i, q = artQ(c)) => c.energy
   ? `art/ptcg/${q}/${c.art_id}.png`
   : `art/sf/${q}/${artSide(c, i)}/${c.art_id[0]}/${c.art_id[1]}/${c.art_id}.${q === 'png' ? 'png' : 'jpg'}`;
 const artUrl = (c, i, q) => CFG.src[artKey(c)].at === 'local' ? artLocal(c, i, q) : artCdn(c, i, q);
-// set Local, but that file was never fetched: fall through to the CDN once,
-// then give up - `onerror` is cleared first or a dead CDN loops forever
+/* LOCAL MEANS LOCAL. This used to re-point a missing local file at the CDN, and
+   with 449 of 107,606 crops on disk that made Local the SLOWER setting: a failed
+   local request and then a network one, on ~99.6% of cards, while the Config
+   band said in green that nothing on the page needs the network.
+   The fallback was written as a kindness and it is the wrong one - it makes an
+   un-run download invisible, which is precisely what the status band exists to
+   make visible. A file that was never fetched now draws as absent, the same
+   answer the language pips give for an index that was never built. */
 const artAttrs = (c, i, q) => CFG.src[artKey(c)].at === 'local'
-  ? ` onerror="this.onerror=null;this.removeAttribute('onerror');this.src='${artCdn(c, i, q)}'"` : '';
+  ? ' onerror="this.onerror=null;this.hidden=true"' : '';
 
 /* The whole printed card, for the printings a frame has nothing to say about.
    `art_crop` is the illustration alone, so it is the one configured size that
@@ -3418,7 +3424,7 @@ const GROUPS = () => {
   for (const c of cs) {
     // split on every grouping term, caption with only the ones that name
     // something - so main type still breaks the page and stays out of the words
-    const key = terms.map(t => GROUP_LABEL[t.f](c)).join(' ');
+    const key = terms.map(t => GROUP_LABEL[t.f](c)).join(' ');
     const label = terms.filter(t => !UNNAMED_GROUP.has(t.f))
       .map(t => GROUP_LABEL[t.f](c)).join(' &middot; ');
     if (!out.length || out[out.length - 1][2] !== key) out.push([label, [], key]);
@@ -3758,7 +3764,7 @@ function cyclePacks() {
       // trimmed on disk already: no canvas pass, and no CORS to negotiate
       p.img.removeAttribute('crossorigin');
       p.img.removeAttribute('onload');
-      p.img.setAttribute('onerror', `packMissing(this, '${id}')`);
+      p.img.setAttribute('onerror', `packMissing(this)`);
     } else {
       // a fresh go at CORS, which the retry may have taken off this element
       p.img.setAttribute('onload', 'trimPack(this)');
@@ -3837,18 +3843,16 @@ const packArt = (code, kinds) => {
 const packLocal = () => CFG.src.tcg.at === 'local';
 const packCdn = id => `https://tcgplayer-cdn.tcgplayer.com/product/${id}_${CFG.src.tcg.q}.jpg`;
 const packUrl = id => packLocal() ? `packs/${id}_${CFG.src.tcg.q}.png` : packCdn(id);
-const packAttrs = (id) => packLocal() ? `onerror="packMissing(this, '${id}')"`
+const packAttrs = () => packLocal() ? 'onerror="packMissing(this)"'
   : 'crossorigin="anonymous" onload="trimPack(this)" onerror="packRetry(this)"';
-/* Set to Local, but that file has not been fetched yet. An un-run download
-   should degrade to the online behaviour rather than to a broken image, so it
-   falls through to the CDN and trims live - the attributes are swapped rather
-   than the handlers assigned, because assigning would leave the inline ones
-   attached as well and both would fire. */
-function packMissing(img, id) {
-  img.setAttribute('onerror', 'packRetry(this)');
-  img.setAttribute('onload', 'trimPack(this)');
-  img.crossOrigin = 'anonymous';
-  img.src = packCdn(id);
+/* Set to Local, but that file has not been fetched yet - which is a thing to
+   SHOW, not to paper over. This used to swap the attributes and re-fetch from
+   the CDN, so a half-run gen-packs looked complete and Local quietly meant
+   "local where possible". The wrapper is hidden instead; the pack keeps its
+   own shape and colour, and Config's per-size count is where the number lives. */
+function packMissing(img) {
+  img.onerror = null;
+  img.hidden = true;
 }
 
 const SetList = () => {
