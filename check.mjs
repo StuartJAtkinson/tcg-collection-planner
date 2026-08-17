@@ -2100,19 +2100,14 @@ t.IMPORT_GROUPS.length = 0;
 go('#/io');
 assert.ok(painted.includes('onclick="clearHoldings()"'), 'Clear Holdings button is absent from the import page');
 assert.ok(/>Clear Holdings<\/button>/.test(painted), 'Clear Holdings button label is missing');
-/* The Clear Holdings button lives at <main> level, NOT inside the max-w-4xl
-   panel — the panel constrains the import controls, the button escapes it.
-   Marker: the button appears AFTER the panel's closing div (the max-w-4xl one)
-   and BEFORE the next closing div (which is </main>). */
-const panelOpen = painted.indexOf('max-w-4xl');
-const panelClose = painted.indexOf('</div>', panelOpen);
-const buttonAt = painted.indexOf('onclick="clearHoldings()"');
-assert.ok(panelOpen > 0 && panelClose > panelOpen, 'panel structure is unrecognisable');
-assert.ok(buttonAt > panelClose, 'Clear Holdings button is inside the max-w-4xl panel instead of escaping it');
+/* The Clear Holdings button escapes the panel entirely — the panel now spans
+   window width too (no max-w), so any wrapper constraint on it would be
+   cosmetic; the inline fixed positioning pins it to viewport edges. */
+assert.ok(!painted.includes('max-w-4xl'), 'import panel is back to max-w-4xl');
+assert.ok(/onclick="clearHoldings\(\)"[\s\S]{0,120}position:fixed/.test(painted),
+  'Clear Holdings button is not fixed-positioned at viewport edges');
 assert.ok(/onclick="clearHoldings\(\)"[\s\S]{0,120}width:100vw/.test(painted),
   'Clear Holdings button is not full-viewport-width');
-assert.ok(/onclick="clearHoldings\(\)"[\s\S]{0,120}position:fixed/.test(painted),
-  'Clear Holdings button is not fixed-positioned');
 // nothing to clear, so the button is disabled
 assert.ok(/onclick="clearHoldings\(\)"[\s\S]{0,40}disabled/.test(painted),
   'Clear Holdings is enabled when nothing has been imported');

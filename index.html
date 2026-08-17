@@ -6291,7 +6291,7 @@ const carry = f => CANON.find(r => r[0] === f).slice(2, 2 + COLS.length).filter(
 PAGES.io = () => Frame('io', {
   desc: 'One alias table, not nine parsers: each source maps its own headers onto the same canonical fields. Export runs the same map backwards, but it lives in every page&rsquo;s subheader &mdash; you export whatever you&rsquo;re looking at, so it never needed a tab of its own. An unrecognised header is a mapping you fix here &mdash; never a code change.',
   stats: Stats([[String(UNRESOLVED.length), 'unresolved']]),
-  body: `<div class="${PANEL} max-w-4xl px-4 pb-20 pt-4">
+  body: `<div class="${PANEL} px-4 pb-20 pt-4">
     ${Band('import', `
       ${/* THE SOURCE DROPDOWN IS GONE, and it is the third inert control on this
              screen to go the same way. `readImport` has always auto-detected by
