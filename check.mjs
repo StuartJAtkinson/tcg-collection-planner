@@ -16,6 +16,7 @@ const js = src
   + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, canBeLocal, missingLocal, srcKeys, srcQualities, srcBytes, onDisk, Table, DisplayChip, GroupHead, CARD_VIEWS, UNALIGNED, unaligned, anatomyKey, setFact, AlignList, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, VIEWS, FORMATS, CARD_TYPES, RARITIES, FINISHES, RARITY_NAME, FINISH, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, plateOf, scopedCards, LANGS, langFilter, langName, setLang, contrast, relLum, SURFACE, FRAME, lum, surfaceKey, mix, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, roles, roleOf, roleCount, ROLE_MIN, fieldLabel, zoneWeight, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, heldOf, heldByPrint, setBand, BandList, framable, printingsOf, alignFacts, finishesOf, printingsOf, pickPrinting, printKey, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, addSortTo, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, UNRESOLVED, IMPORT_GROUPS, filtered, ownedIn, holdingsChanged, CANON, COLS, flatLine, P, TABS, LISTS, GAMES, CFG, render, grouping, resolveRow, resolveUnresolved, setIconUrl, loadSymIndex, setIcon,'
   + ' get IMPORT_MATCHED() { return IMPORT_MATCHED; }, get IMPORT_SKIPPED() { return IMPORT_SKIPPED; },'
   + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen, PARENT_COLLATION, collationFor,'
+  + ' applyImport, setGroupKind, clearHoldings,'
   + ' setDebug: v => { DEBUG = v; } };';
 
 /* The collation is generated data, like sets.js - read from disk, not fetched.
@@ -39,6 +40,9 @@ const ctx = vm.createContext({
     setItem: (k, v) => m.set(k, String(v)),
     removeItem: k => m.delete(k) }; })()),
   location: { hash: '', reload: () => {} }, addEventListener: () => {}, setInterval: () => {}, console,
+  /* confirm() is called by destructive actions (clearHoldings) and the harness
+     has to say yes — the test seeds a holding right before invoking it, so a
+     "no" answer would make the assertion that follows untestable. */ confirm: () => true,
 });
 vm.runInContext(js, ctx);
 const t = ctx.__t;
@@ -2087,6 +2091,31 @@ assert.ok(painted.includes('&rarr; skipped'), 'a group sent nowhere does not say
   t.IMPORT_MATCHED.length = before;
 }
 t.IMPORT_GROUPS.length = 0;
+
+/* CLEAR HOLDINGS. The import tab exposes a full-width button that empties every
+   binder and deck's holdings (`row[4]`) and recomputes the deck counts — the
+   reverse of Apply, scoped to what an import lands in. Containers themselves
+   stay; only the holdings inside them go. The button is gated on having any
+   holdings at all. */
+go('#/io');
+assert.ok(painted.includes('onclick="clearHoldings()"'), 'Clear Holdings button is absent from the import page');
+assert.ok(/>Clear Holdings<\/button>/.test(painted), 'Clear Holdings button label is missing');
+assert.ok(/onclick="clearHoldings\(\)"[\s\S]{0,80}class="mt-2 block w-full/.test(painted),
+  'Clear Holdings button is not full-width below Apply');
+// nothing to clear, so the button is disabled
+assert.ok(/onclick="clearHoldings\(\)"[\s\S]{0,40}disabled/.test(painted),
+  'Clear Holdings is enabled when nothing has been imported');
+// ...and clearing actually empties the rows. Seed a holding, run the function,
+// and assert the row's `row[4]` is empty while the container itself survives.
+// Default binder rows are 3-tuples (`[name, subtitle, dims]`) — holdings is a
+// 5th element an import lands — so we attach `row[4]` if it isn't there yet.
+if (!t.LISTS.binders[0][4]) t.LISTS.binders[0][4] = [];
+t.LISTS.binders[0][4].push({ n: 'X', set: 'MH2', num: '123', qty: 1, foil: 0, lang: 'en' });
+const target = t.LISTS.binders[0][0];
+t.clearHoldings();
+assert.ok(t.LISTS.binders[0][4].length === 0, 'clearHoldings left a binder with cards in it');
+assert.strictEqual(t.LISTS.binders[0][0], target, 'clearHoldings deleted the container it should have kept');
+for (const r of t.LISTS.decks) assert.strictEqual(r[4]?.length || 0, 0, 'clearHoldings left a deck with cards in it');
 
 // --- config: two columns, coherent groups, a source toggle that moves ---
 go('#/config');
