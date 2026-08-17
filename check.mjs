@@ -15,7 +15,7 @@ ${page.match(/<script>([\s\S]*)<\/script>/)[1]}`;
 const js = src
   + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, setSrc, setQuality, artUrl, artCdn, artLocal, bytes, OFFLINE_MODES, goOffline, goOnline, offlineBytes, allLocal, onlineNow, canBeLocal, missingLocal, srcKeys, srcQualities, srcBytes, onDisk, Table, DisplayChip, GroupHead, CARD_VIEWS, UNALIGNED, unaligned, anatomyKey, setFact, AlignList, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, VIEWS, FORMATS, CARD_TYPES, RARITIES, FINISHES, RARITY_NAME, FINISH, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, plateOf, scopedCards, LANGS, langFilter, langName, setLang, contrast, relLum, SURFACE, FRAME, lum, surfaceKey, mix, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, roles, roleOf, roleCount, ROLE_MIN, fieldLabel, zoneWeight, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, heldOf, heldByPrint, setBand, BandList, framable, printingsOf, alignFacts, finishesOf, printingsOf, pickPrinting, printKey, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, addSortTo, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, UNRESOLVED, IMPORT_GROUPS, filtered, ownedIn, holdingsChanged, CANON, COLS, flatLine, P, TABS, LISTS, GAMES, CFG, render, grouping, resolveRow, resolveUnresolved, setIconUrl, loadSymIndex, setIcon,'
   + ' get IMPORT_MATCHED() { return IMPORT_MATCHED; }, get IMPORT_SKIPPED() { return IMPORT_SKIPPED; },'
-  + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen,'
+  + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen, PARENT_COLLATION, collationFor,'
   + ' setDebug: v => { DEBUG = v; } };';
 
 /* The collation is generated data, like sets.js - read from disk, not fetched.
@@ -2698,6 +2698,48 @@ for (const [name, code] of [['Murders at Karlov Manor', 'MKM'], ['The Lost Caver
 const undraftable = t.SETS.find(r => r[6] && !B[r[1]] && !r[4] && t.DRAFTABLE?.has?.(r[5]));
 if (undraftable) assert.deepStrictEqual(t.packsFor(undraftable[0]).length, 0,
   'a set collated only into non-draft products still offers a draft');
+/* PARENT COLLATION. Some sets have no `set.booster` of their own — TSB is the
+   Timeshifted subset of TSP, H1R/H2R are the Timeshifts of MH1/MH2, 4BB/FBB/
+   BCHR are foreign-border reprints of 4ED/3ED/CHR, PLST and SLX are reprints
+   that rode in MKM-era Collector Boosters. The page resolves them through
+   PARENT_COLLATION at fetch time; the assertion pins the map and that every
+   entry's parent actually has a file on disk. */
+const ALIAS = t.PARENT_COLLATION;
+assert.ok(ALIAS && typeof ALIAS === 'object', 'PARENT_COLLATION is absent');
+const expected = { TSB: 'TSP', H1R: 'MH1', H2R: 'MH2', '4BB': '4ED', FBB: '3ED', BCHR: 'CHR', PLST: 'MKM', SLX: 'MKM' };
+// ordered equality is too brittle for a literal map; pin the entries
+assert.deepStrictEqual([...Object.entries(ALIAS)].sort(), [...Object.entries(expected)].sort(),
+  'PARENT_COLLATION drifted from the agreed map');
+for (const [code, parent] of Object.entries(ALIAS)) {
+  assert.ok(packIndex[parent], `alias ${code} -> ${parent}, but ${parent} has no booster file`);
+  assert.ok(t.SETS.find(r => r[1] === code), `alias ${code} -> ${parent}, but ${code} is not a known set`);
+  assert.ok(!packIndex[code], `alias ${code} has its own booster file; the alias is masking real data`);
+}
+// the alias is applied at fetch — opening it must land on the parent's kinds
+const tsb = t.SETS.find(r => r[1] === 'TSB');
+if (tsb) {
+  // TSB is draft_innovation + has release date → packsFor runs and reports parent kinds
+  const kinds = t.packsFor(tsb[0]);
+  assert.ok(kinds && kinds[0] === packIndex[ALIAS.TSB][0], `TSB should draft as ${ALIAS.TSB} (${packIndex[ALIAS.TSB][0]}), got ${kinds}`);
+}
+/* WEIGHT TOTALS. The declared `total` on every recipe and sheet is MTGJSON's
+   own sum, and pickWeighted uses it as the upper bound. If a sheet ever
+   drifts out of sync with its cards, the picker silently biases toward the
+   end of the list — which is the failure mode this whole audit was about. */
+const RESERVED = /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i;
+const diskName = n => RESERVED.test(n) ? `${n}_` : n;
+for (const code of Object.keys(packIndex)) {
+  const j = JSON.parse(readFileSync(`boosters/${diskName(code)}.json`, 'utf8'));
+  for (const [kind, cfg] of Object.entries(j.kinds)) {
+    const sumRecipes = cfg.recipes.reduce((t, [w]) => t + w, 0);
+    assert.strictEqual(cfg.total, sumRecipes, `${code}/${kind}: recipe total ${cfg.total} != sum ${sumRecipes}`);
+    for (const [name, sheet] of Object.entries(cfg.sheets)) {
+      const sum = Object.values(sheet.cards).reduce((t, w) => t + w, 0);
+      assert.strictEqual(sheet.total, sum, `${code}/${kind}/${name}: sheet total ${sheet.total} != sum ${sum}`);
+      assert.ok(Object.keys(sheet.cards).length > 0, `${code}/${kind}/${name}: empty sheet`);
+    }
+  }
+}
 // the note that carries the numbers, since they get no column of their own
 /* The catalogue. check.mjs renders with no network, so what runs here is the
    fallback path - which is exactly the property worth pinning: the page has to

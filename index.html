@@ -4190,6 +4190,23 @@ const BOOSTER_LABEL = { play: 'Play Booster', draft: 'Draft Booster',
 const packLabel = (k) => BOOSTER_LABEL[k] || 'Booster';
 let PACK_INDEX = null;            // code -> [kinds], from boosters/index.json
 const COLLATION = new Map();      // code -> the set's collation, fetched on open
+/* PARENT COLLATION. A handful of sets are reprints or subsets that print
+   inside another set's boosters and never get their own `set.booster` block —
+   TSB is the Timeshifted subset of TSP, H1R / H2R the Timeshifts sheets of
+   MH1 / MH2, 4BB / FBB / BCHR the foreign-border reprints of 4ED / 3ED / CHR,
+   PLST the supplementary cards that rode in MKM-era Collector Boosters, and
+   SLX the Universes Within subset of MKM. None of them has a published
+   collation, so drafting them deals from the parent set's booster file. The
+   alias is a set name → set code pointer, not a copy: every card drawn still
+   carries the PARENT'S set code on its identity, which is the truth about
+   where it was printed. Sets with no parent and no collation (J25, MBC, the
+   2026 unreleased) stay as `[]` and the page names the gap. */
+const PARENT_COLLATION = {
+  TSB: 'TSP', H1R: 'MH1', H2R: 'MH2',
+  '4BB': '4ED', FBB: '3ED', BCHR: 'CHR',
+  PLST: 'MKM', SLX: 'MKM',
+};
+const collationFor = (code) => PARENT_COLLATION[code] || code;
 /* Sheets name cards as "SET:number", so the join to the catalogue is the
    printing's own identity and no MTGJSON uuid has to be carried on 107k rows.
    SET matters as much as number: the List and Special Guest slots deal cards
@@ -4205,8 +4222,11 @@ const printingAt = (key) => {
 async function loadBoosters(code, seed) {
   if (seed) { COLLATION.set(code, seed); render(); return; }
   if (COLLATION.has(code) || typeof fetch !== 'function') return;
+  // The alias is resolved at fetch time, not at call time, so COLLATION is
+  // keyed by the REQUESTED code — the page asks "4BB" and gets 4BB's window.
+  const file = collationFor(code);
   try {
-    const res = await fetch(`boosters/${packFile(code)}.json`);
+    const res = await fetch(`boosters/${packFile(file)}.json`);
     if (!res.ok) return;
     COLLATION.set(code, (await res.json()).kinds);
     render();
@@ -4250,7 +4270,8 @@ const packsForMode = (label, mode) => {
                 1 of 296 promo sets. commander is big (median 331 cards) but is
                 a fixed product - 2 of 45.
      booster    MTGJSON's `set.booster`, the community's reverse-engineered
-                collation. 187 of these 986 sets have it. A set can be perfectly
+                collation. 182 of these 986 sets have it; 8 more (`PARENT_COLLATION`)
+                draft from a parent set's booster file. A set can be perfectly
                 draftable and still not have it yet: TRK ships 2026-11-13 and
                 nobody has opened enough packs to work it out.
 
@@ -4266,15 +4287,21 @@ const DRAFTABLE = new Set(['expansion', 'core', 'masters', 'draft_innovation']);
    a commander deck's `set` booster, say - is not something you draft. */
 const packsFor = (label) => {
   const r = setRow(label);
-  if (!r || r[4] || !DRAFTABLE.has(r[5])) return null;
-  if (!r[6]) return [];
-  const kind = BOOSTER[r[1]]?.[0];
+  if (!r || (!DRAFTABLE.has(r[5]) && !(r[1] in PARENT_COLLATION))) return null;
+  if (r[4] && !(r[1] in PARENT_COLLATION)) return null;
+  // a set with a parent collation is draftable regardless of its own `has-booster`
+  // flag — the alias points at a real booster file the page can fetch
+  const aliased = r[1] in PARENT_COLLATION;
+  if (!aliased && !r[6]) return [];
+  const kind = BOOSTER[collationFor(r[1])]?.[0];
   if (!kind) return [];
   /* The generated index says which kinds the set actually has a sheet for, so
      "and a Collector Booster" is read rather than assumed from the era - 49 of
      the 179 drafted sets have one, not every play-era set. The variant names
-     are also PACK_ART's keys, so the art follows the collation. */
-  const has = PACK_INDEX?.[r[1]];
+     are also PACK_ART's keys, so the art follows the collation. An aliased
+     set (PLST, TSB, H1R, etc.) reports the parent set's kinds — what the
+     collation actually populated. */
+  const has = PACK_INDEX?.[collationFor(r[1])];
   return has ? [kind, ...has.filter((k) => k !== kind)] : [kind];
 };
 /* "472 cards on the sheets, rarest 1 in 971 packs" - the collation in the one
