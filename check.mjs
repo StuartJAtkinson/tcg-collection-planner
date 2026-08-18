@@ -2124,12 +2124,18 @@ assert.ok(/onclick="clearHoldings\(\)"[\s\S]{0,250}disabled/.test(painted),
 // and assert the row's `row[4]` is empty while the container itself survives.
 // Default binder rows are 3-tuples (`[name, subtitle, dims]`) — holdings is a
 // 5th element an import lands — so we attach `row[4]` if it isn't there yet.
+// Imported rows wear r[3] === 'imported'; hand-made rows carry a different tag.
+// clearHoldings must drop the imported ones AND wipe any cards from the rest.
 if (!t.LISTS.binders[0][4]) t.LISTS.binders[0][4] = [];
 t.LISTS.binders[0][4].push({ n: 'X', set: 'MH2', num: '123', qty: 1, foil: 0, lang: 'en' });
-const target = t.LISTS.binders[0][0];
+const hand = t.LISTS.binders[0][0];
+t.LISTS.decks.push(['Imported Port', 2, '2 distinct', 'imported', [{ n: 'X', set: 'MH2', num: '123', qty: 1, foil: 0, lang: 'en' }]]);
+t.LISTS.binders.push(['Imported Binder', 1, [3, 3], 'imported', [{ n: 'X', set: 'MH2', num: '123', qty: 1, foil: 0, lang: 'en' }]]);
 t.clearHoldings();
-assert.ok(t.LISTS.binders[0][4].length === 0, 'clearHoldings left a binder with cards in it');
-assert.strictEqual(t.LISTS.binders[0][0], target, 'clearHoldings deleted the container it should have kept');
+assert.ok(t.LISTS.binders[0][4].length === 0, 'clearHoldings left a hand-made binder with cards in it');
+assert.strictEqual(t.LISTS.binders[0][0], hand, 'clearHoldings deleted the container it should have kept');
+assert.ok(!t.LISTS.binders.some(r => r[0] === 'Imported Binder'), 'clearHoldings kept an imported binder');
+assert.ok(!t.LISTS.decks.some(r => r[0] === 'Imported Port'), 'clearHoldings kept an imported deck');
 for (const r of t.LISTS.decks) assert.strictEqual(r[4]?.length || 0, 0, 'clearHoldings left a deck with cards in it');
 
 // --- config: two columns, coherent groups, a source toggle that moves ---

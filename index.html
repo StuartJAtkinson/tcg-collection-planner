@@ -6228,19 +6228,23 @@ function setGroupKind(name, kind) {
    replaced - importing the same portfolio twice is a top-up, not a rebuild. */
 /* CLEAR HOLDINGS, scoped to the rows an import landed in. Holdings live on the
    `row[4]` of each binder/deck entry, so "clear holdings" means emptying those
-   arrays and recomputing the derived counts. Containers themselves stay — a
-   binder named "Alara block" is yours, not the importer's. No reload, because
-   the in-memory state already has what localStorage would rehydrate. */
+   arrays AND dropping the containers the import made - their `r[3]` is
+   literally 'imported', the same field a draft-tagged row uses for its origin
+   line. A binder tagged '4 × 4 pockets' (or a deck tagged '4 × Pack · sealed')
+   is one YOU made; it stays, just empty. The reset of r[1]/r[2] keeps a
+   hand-made deck's selector line from lying about a card count that just
+   hit zero. No reload, because the in-memory state already has what
+   localStorage would rehydrate. */
 const clearHoldings = () => {
   const total = [...LISTS.decks, ...LISTS.binders].reduce((n, r) => n + (r[4]?.length || 0), 0);
   if (!total) return;
-  if (!confirm(`Clear ${total} holding${total === 1 ? '' : 's'} across every binder and deck? Import a fresh file to bring them back.`)) return;
+  if (!confirm(`Clear ${total} holding${total === 1 ? '' : 's'} across every binder and deck? The containers the import made go with them; anything you made yourself stays, just empty.`)) return;
   for (const r of LISTS.decks) r[4] = [];
   for (const r of LISTS.binders) r[4] = [];
-  for (const r of LISTS.decks) {
-    r[1] = 0;
-    r[2] = '0 distinct';
-  }
+  LISTS.decks = LISTS.decks.filter(r => r[3] !== 'imported');
+  LISTS.binders = LISTS.binders.filter(r => r[3] !== 'imported');
+  for (const r of LISTS.decks) { r[1] = 0; r[2] = '0 distinct'; }
+  for (const r of LISTS.binders) { r[1] = 0; r[2] = [...P.dims]; }
   holdingsChanged();
   saveState();
   render();
