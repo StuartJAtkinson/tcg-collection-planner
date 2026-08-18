@@ -9,6 +9,17 @@
 // supposed to be the same picture, that is Config's chip silently changing how
 // the app looks, which is the one thing the port below exists to prevent.
 //
+// RESUME-SAFE BY DESIGN, NOT BY ACCIDENT. Each iteration fetches ONE booster,
+// trims it, writes its PNG, and only then advances. The manifest is rewritten
+// every 25 boosters, not once at the end. A network drop in the middle of a
+// run loses at most ONE booster - the one whose HTTP fetch was in flight at
+// the moment the connection died - and the next run picks up exactly there:
+// the manifest already records every PNG written so far, and the booster that
+// never landed is the only one re-fetched. Ctrl-C is the same story. The on-
+// disk state is the source of truth, not the terminal log, and that is why
+// this loop's terminal output can be one line per booster - progress is a
+// side effect of the write, not the driver of it.
+//
 // So `packs/.recipe.json` records the fingerprint the files were made with: the
 // five constants AND the source of trim() itself, hashed, so editing either is a
 // new recipe. A file is skipped only when it is on disk AND the manifest says it
