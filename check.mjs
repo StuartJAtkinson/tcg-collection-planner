@@ -2065,10 +2065,12 @@ assert.ok(painted.includes('&rarr; skipped'), 'a group sent nowhere does not say
     candidates: [[cand('MM3', '85'), 50], [cand('APC', '110'), 50]] });
   t.UNRESOLVED.push(row(), row());
   ctx.location.hash = '#/io'; t.render();
-  // every tile is a way to file that row, and Skip is the row's other answer
+  // every tile is a way to file that row. There is no Skip - either of the
+  // candidates is the right answer; not picking one removes the row by leaving
+  // it for a later read of the same file
   assert.ok(painted.includes('resolveUnresolved(0,0)') && painted.includes('resolveUnresolved(0,1)'),
     'the candidate tiles still have no handler');
-  assert.ok(painted.includes('resolveUnresolved(0,-1)'), 'Skip still has no handler');
+  assert.ok(!painted.includes('resolveUnresolved(0,-1)'), 'Skip button is back');
   // a tile has to say WHICH printing it is - two crops of the same card are the
   // same picture, so the set and number are the only thing telling them apart
   assert.ok(painted.includes('MM3 85') && painted.includes('APC 110'),

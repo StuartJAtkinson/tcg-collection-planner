@@ -6355,18 +6355,19 @@ PAGES.io = () => Frame('io', {
              UNRESOLVED.length} of ${num(IMPORT_ROWS)} rows didn&rsquo;t auto-match</span>`)}
            ${UNRESOLVED.map((u, i) => `
            <div class="mb-2 flex items-start gap-4 rounded-lg border border-neutral-800 bg-neutral-900 p-3">
-             <div class="w-56 shrink-0">
-               <div class="aspect-[5/7] w-full overflow-hidden rounded-lg bg-black/70">${PrintedFace(u.line, 0)}</div>
-               <div class="mt-1 text-[10px] text-amber-400">${u.why}</div>
-               <div class="text-[10px] text-neutral-500">&rarr; ${u.group}</div></div>
-             <div class="grid grid-cols-6 gap-3">
+             <div class="grid flex-1 grid-cols-6 gap-3">
                ${u.candidates.map(([c, pc], ci) => `
                  <button onclick="resolveUnresolved(${i},${ci})" title="File this copy as ${jsArg(c.set)} ${jsArg(c.num)}"
                    class="cursor-pointer rounded-lg border border-neutral-800 p-1 text-left hover:border-emerald-600">
                    <div class="aspect-[5/7] w-full overflow-hidden rounded-lg bg-black/70">${PrintedFace(c, 0)}</div>
                    <div class="mt-1 text-center text-[10px] text-neutral-500">${c.set} ${c.num} &middot; ${pc}%</div></button>`).join('')}
-               <div class="flex items-center"><button onclick="resolveUnresolved(${i},-1)"
-                 class="${BTN_SECONDARY} w-full">Skip</button></div></div></div>`).join('')}`}`)}
+             </div>
+             <div class="w-72 shrink-0 font-mono text-[11px] text-neutral-300">
+               <div class="whitespace-pre-wrap break-words rounded-lg border border-neutral-800 bg-black/60 p-2">${flatLine(u.line)}</div>
+               <div class="mt-2 text-amber-400">${u.why}</div>
+               <div class="text-neutral-500">&rarr; ${u.group}</div>
+             </div>
+           </div>`).join('')}`}`)}
 
     ${/* Apply sits below the grouping, at the bottom of the page - not sticky.
            The grouping column above it is its own block, and the rule "Apply
