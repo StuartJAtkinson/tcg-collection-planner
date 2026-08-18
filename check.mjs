@@ -1999,11 +1999,11 @@ go('#/io');
    docs/import-formats.md. */
 for (const s of t.COLS) assert.ok(painted.includes(s), `import is missing the "${s}" source`);
 /* LANGUAGE HAS A COLUMN. This used to assert `NO COLUMN YET` was on the page -
-   asserting the drift, not the behaviour. That string described the DELETED
+   asserting the drift, not the behaviour. That string described the deleted
    Postgres app's `cards` table, while the schema map two bands below on the same
-   page listed `lang` as a column of `mtg_card_printings`, so the page
-   contradicted itself and the check pinned the wrong half. Language is read off
-   the printing, is in `printKey`, and reaches the import line. */
+   page listed `lang` as a column of `printings`, so the page contradicted itself
+   and the check pinned the wrong half. Language is read off the printing, is in
+   `printKey`, and reaches the import line. */
 assert.ok(!painted.includes('NO COLUMN YET'), 'the import map still claims language has nowhere to land');
 {
   const lang = t.CANON.find(r => r[0] === 'language');
@@ -2150,7 +2150,7 @@ for (let i = 1; i < groups.length; i++)
   assert.ok(bandAt(groups[i - 1]) < bandAt(groups[i]),
     `config group order broke: "${groups[i]}" precedes "${groups[i - 1]}"`);
 // the source split the user called out: MTGJSON owns rows Scryfall doesn't
-for (const s of ['AllPrintings', 'all_cards', 'mtg_card_printings', 'identifiers.scryfallId'])
+for (const s of ['AllPrintings', 'all_cards', 'printings', 'identifiers.scryfallId'])
   assert.ok(painted.includes(s), `schema source map is missing "${s}"`);
 /* CONFIG IS SPLIT BY GAME. It listed all eight sources whichever game you were
    browsing, so a Magic session was asked to reason about pokemontcg.io and the

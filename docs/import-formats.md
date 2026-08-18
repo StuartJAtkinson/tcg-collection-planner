@@ -12,9 +12,9 @@ Archidekt maps **by column position**, having skipped the header row. So this ta
 the exact **column order and semantic content** of each app's export — which is enough to
 fingerprint a file by its column count and shape — but **not the literal header text**.
 
-Our importer matches by header alias (`src/import/csv.ts`), which is more robust to column
-reordering. The two approaches complement each other: alias-match first, and fall back to
-positional fingerprinting when the headers are unfamiliar.
+Our importer matches by header alias (the alias table at the bottom of `index.html`),
+which is more robust to column reordering. The two approaches complement each other:
+alias-match first, and fall back to positional fingerprinting when the headers are unfamiliar.
 
 ## Canonical fields
 
@@ -22,23 +22,17 @@ Archidekt's target vocabulary, which is near-identical to ours:
 
 | Their field | Ours | UI label |
 |---|---|---|
-| `quantity` | `holdings.quantity` | Quantity |
-| `oracleCard__name` | `cards.name` | Card name |
-| `edition__editioncode` | `sets.code` | Edition code |
-| `edition__editionname` | `sets.name` | Edition name |
-| `collectorNumber` | `cards.collector_number` | Collector number |
-| `modifier` | `holdings.finish` | Foil/Variant |
-| `condition` | `holdings.condition` | Condition |
-| `language` | **no column yet** — see below | Language |
+| `quantity` | per-container count | Quantity |
+| `oracleCard__name` | card name | Card name |
+| `edition__editioncode` | set code | Edition code |
+| `edition__editionname` | set name | Edition name |
+| `collectorNumber` | collector number | Collector number |
+| `modifier` | finish (foil/normal) | Foil/Variant |
+| `condition` | condition | Condition |
+| `language` | language | Language |
 | `uid` | external printing id | — |
-| `tags` | `containers` (the grouping column) | — |
+| `tags` | containers (the grouping column) | — |
 | `ignore` | dropped | Ignore |
-
-> **Gap:** `language` has nowhere to live. `cards` has no `lang` column (Scryfall's
-> `default_cards` is English-only); language exists only on `mtg_card_printings.lang`.
-> `holdings`' PK is `(user, card_id, finish, container)`, so set + language + collector
-> number is not representable today. Seven of the nine formats below carry a language
-> column.
 
 ## Column order per source
 
@@ -72,12 +66,12 @@ Sample row Archidekt shows for Moxfield:
   "Folder Name" is not in Archidekt's map, so it either sits in an ignored slot or their
   preset predates it — worth checking against a real export.
 - **`uid`** (ManaBox, Helvault, Lion's Eye) is the cheap win: an exact printing id, no
-  matching required. Would hang off `mtg_card_printings`.
+  matching required.
 
 ## Not covered
 
 **Deckstats** and **Collectr** aren't in Archidekt's preset list, so nothing here is
-verified for them. Collectr is already handled by `src/import/collectr.ts` via header
+verified for them. Collectr is already handled by `index.html`'s importer via header
 aliases. Deckstats remains unknown.
 
 Moxfield, Scryfall and Deckbox all return HTTP 403 to non-browser fetchers, so their own

@@ -5933,10 +5933,10 @@ const EXPORTERS = ['Moxfield','Deckbox','Dragonshield','ManaBox','Cardsphere','D
 /* Verified from Archidekt's own importer bundle - see docs/import-formats.md.
    Numbers are the column's position in that app's export; '-' means absent. */
 /* LANGUAGE HAS A COLUMN, and this said otherwise for as long as the row has
-   existed. `NO COLUMN YET` described the DELETED Postgres app's `cards` table,
+   existed. `NO COLUMN YET` described the deleted Postgres app's `cards` table,
    which had no `lang` - that app is gone, and the schema map two bands down this
-   same page has listed `mtg_card_printings - uuid, lang, finishes, promo` the
-   whole time, so the page contradicted itself in two places.
+   same page has listed `printings - uuid, lang, finishes, promo` the whole time,
+   so the page contradicted itself in two places.
    Language is not merely storable, it is already everywhere: read off the
    printing rather than assumed (2,634 of 107,347 are not English, across 19
    languages), part of `printKey`, a column in Details, a row on the card page,
@@ -5964,7 +5964,7 @@ const CANON = [
   ['collector number', 'cards.collector_number',   '10','6','3','4','-','5','5',  1],
   ['finish / variant', 'holdings.finish',          '7','9','7','5','7','4','7',   1],
   ['condition',        'holdings.condition',       '5','7','8','14','5','-','9',  1],
-  ['language',         'mtg_card_printings.lang',  '6','8','9','15','6','-','-',  1],
+  ['language',         'language',                  '6','8','9','15','6','-','-',  1],
   ['grouping / tags',  'containers',               '-','18','-','-','-','-','1',  1],
 ];
 const COLS = ['Moxfield','Deckbox','DragShield','ManaBox','Cardsphere','Delver','Collectr'];
@@ -6571,9 +6571,9 @@ PAGES.config = () => Frame('config', {
            ['sets &mdash; block, parent, mtgo, arena, foil/online-only, languages', '&mdash;', 'AllPrintings', 0],
            ['cards &mdash; identity, images, artist', 'all_cards', '&mdash;', 1],
            ['cards &mdash; driver + crossover', 'fallback', 'AllPrintings', 1],
-           ['mtg_card_printings &mdash; uuid, lang, finishes, promo', '&mdash;', 'AllPrintings', 0],
+           ['printings &mdash; uuid, lang, finishes, promo', '&mdash;', 'AllPrintings', 0],
            ['prices', 'all_cards', 'AllPrices', 1],
-           ['card_facets', 'derived', 'derived', 0]];
+           ['facets', 'derived', 'derived', 0]];
         const live = r => r[3] && CFG.src.scryfall.at === 'online';
         return Table([['Table / columns', 'flex-1'], ['Scryfall', 'w-28'], ['MTGJSON', 'w-24']],
           rows.map(r => [`<span class="text-neutral-300">${r[0]}</span>`,
@@ -6590,7 +6590,7 @@ PAGES.config = () => Frame('config', {
              typed always will, and these had. */}
       ${Band('cache', Table([['Table', 'flex-1'], ['Rows', 'w-24 text-right']],
         [['cards', ALL().length], ['sets', SETS.length],
-         ['card_facets', Object.values(facetCounts()).reduce((n, g) => n + g.length, 0)],
+         ['facets', Object.values(facetCounts()).reduce((n, g) => n + g.length, 0)],
          ['prices', ALL().reduce((n, c) => n + (c.usd ? 1 : 0), 0)]]
           .map(([t, n]) => [`<span class="font-mono text-neutral-300">${t}</span>`,
             `<span class="tabular-nums text-neutral-500">${n.toLocaleString('en-GB')}</span>`]),
@@ -6648,7 +6648,7 @@ PAGES.config = () => Frame('config', {
           .map(([f, a]) => [`<span class="text-neutral-200">${f}</span>`,
             `<span class="font-mono text-neutral-500">${a}</span>`,
             `<button class="${BTN_SECONDARY}">Edit</button>`]),
-        { foot: 'One alias table for all nine apps, applied in both directions. Per-source ids hang off <code>mtg_card_printings</code>.' }))}
+        { foot: 'One alias table for all nine apps, applied in both directions. Per-source ids are read off the printing row.' }))}
 
       ${Band('defaults', `
         <div class="grid gap-x-8 sm:grid-cols-2">

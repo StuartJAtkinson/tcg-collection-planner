@@ -13,7 +13,6 @@ touches them; re-deriving one means writing the script again.
 | file | what it is |
 |---|---|
 | [sources.md](sources.md) | where card data comes from and which source wins a conflict |
-| [card-anatomy.md](card-anatomy.md) | the shapes a card can be, in prose |
 | [import-formats.md](import-formats.md) | the ten exporter formats, read by `index.html` |
 | `schema-rows.json` | the Scryfall ↔ MTGJSON field map — which field on one side answers to which on the other, grouped by concern. The mapping itself is still true; it is the table `schema-scryfall-vs-mtgjson.xlsx` was built from. |
 | `schema-counts.json` | how many cards on each side actually carry each of those fields, measured over 116,568 Scryfall and 112,605 MTGJSON records. This is what "MTGJSON has it but only for half the catalogue" was decided on. |
