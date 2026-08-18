@@ -110,14 +110,20 @@ else console.log(`recipe ${recipe}`);
 if (stale || force) man = { recipe, constants: CONSTANTS, generated: new Date().toISOString(), files: {} };
 
 let done = 0, skipped = 0, plain = 0, failed = 0;
+const total = ids.length;
 const save = () => writeFileSync(MANIFEST,
   `${JSON.stringify({ ...man, recipe, constants: CONSTANTS, size }, null, 1)}\n`);
 
+// i is 1-based for humans reading logs. progress line carries current/total/name
+// and the outcome (trimmed, plain: <why>, failed: <msg>) so the bar can name
+// what it is doing AND record what happened without a second pass.
+let i = 0;
 for (const id of ids) {
+  i++;
   const name = `${id}_${size}.png`;
   // on disk AND on the record, made by the recipe in force. Two of the three is
   // not enough: a file the manifest has never heard of was made by something else
-  if (have.has(name) && man.files[name]) { skipped++; continue; }
+  if (have.has(name) && man.files[name]) { skipped++; console.log(`${i}/${total} ${id} skipped`); continue; }
   try {
     const res = await fetch(`https://tcgplayer-cdn.tcgplayer.com/product/${id}_${size}.jpg`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -138,13 +144,14 @@ for (const id of ids) {
     // this script giving up or the photograph never having had a border.
     man.files[name] = why ? `plain: ${why}` : 'trimmed';
     done++;
+    console.log(`${i}/${total} ${id} ${why ? `plain: ${why}` : 'trimmed'}`);
   } catch (e) {
     failed++;
-    console.error(`  ${id}: ${e.message}`);
+    console.log(`${i}/${total} ${id} failed: ${e.message}`);
   }
   // written as it goes, so an interrupted run keeps what it finished. The other
   // way round — one write at the end — means a Ctrl-C an hour in has done nothing
-  if ((done + skipped + failed) % 25 === 0) { process.stdout.write('.'); save(); }
+  if ((done + skipped + failed) % 25 === 0) save();
 }
 save();
 

@@ -316,6 +316,10 @@ const P = {
   // how many of the filtered list are rendered. Not a ceiling: the pane pages
   // in more as you reach the end until every one is shown.
   page: PAGE,
+  // gen-packs run state, or null. Lives on P so a render mid-run shows the bar
+  // exactly as the page renders it for any other live thing (held qty, filter
+  // count, etc.). Shape: { current, total, id, log, done, error }.
+  gen: null,
 };
 /* A tab is also the way back. Clicking it clears whatever was selected and
    reopens the list - including the two cases an href alone can't reach: you're
@@ -621,6 +625,52 @@ function goOnline() {
   for (const k of srcKeys()) { CFG.src[k].at = SOURCES[k].def[0]; CFG.src[k].q = SOURCES[k].def[1]; }
   render();
 }
+/* GEN-PACKS, FROM A BUTTON ON THE TCGPLAYER ROW. The button POSTs to a local
+   Node server (gen-packs-server.mjs on localhost:5245, started by `npm run
+   gen-serve`) which spawns gen-packs.mjs and streams its stdout back as SSE.
+   The page is the trigger + display - it does not reimplement the trim.
+   State lives on P so a render mid-run shows the live bar. gen-packs.mjs prints
+   one line per booster in the form `current/total id outcome`; the SSE handler
+   parses those, every other line goes into the log pane so a failed ffmpeg or
+   HTTP error is visible rather than just a stalled bar. */
+const GEN_PACKS_URL = 'http://localhost:5245';
+const genPacksStart = async () => {
+  if (P.gen) return;                         // a run is in flight, the button is disabled
+  P.gen = { current: 0, total: 0, id: '', log: [], done: null };
+  render();
+  try {
+    const r = await fetch(`${GEN_PACKS_URL}/run`, { method: 'POST' });
+    if (!r.ok) throw new Error(`server returned ${r.status}`);
+  } catch (e) {
+    // The server is not running. Tell the user how to start it, and clear state.
+    P.gen = { error: `gen-packs server is not running. Start it with \`npm run gen-serve\` in another terminal. (${e.message})` };
+    render();
+    return;
+  }
+  const es = new EventSource(`${GEN_PACKS_URL}/events`);
+  es.addEventListener('progress', (ev) => {
+    const m = JSON.parse(ev.data);
+    P.gen = { ...P.gen, current: m.current, total: m.total, id: m.id };
+    render();
+  });
+  es.addEventListener('log', (ev) => {
+    const m = JSON.parse(ev.data);
+    P.gen.log.push(m.line);
+    if (P.gen.log.length > 50) P.gen.log.shift();    // cap so the pane cannot grow forever
+    render();
+  });
+  es.addEventListener('done', (ev) => {
+    const m = JSON.parse(ev.data);
+    P.gen.done = m.code;
+    es.close();
+    render();
+  });
+  es.onerror = () => {                        // server died mid-run; let the user know
+    P.gen = { ...P.gen, error: 'connection to server lost' };
+    es.close();
+    render();
+  };
+};
 const onlineNow = () => canBeLocal().filter(k => CFG.src[k].at === 'online');
 const allLocal = () => onlineNow().length === 0;
 let DEBUG = false;
@@ -6486,6 +6536,40 @@ const SourceRow = (k) => {
       <span class="w-16 shrink-0 uppercase tracking-wide text-neutral-700">to fetch</span>
       <span class="min-w-0 flex-1 ${cmd ? 'text-neutral-400' : 'text-neutral-700'}">${
         cmd ? `<code>${esc(cmd)}</code>` : `&mdash; ${s.why_local || s.why}`}</span></div>
+    ${k === 'tcg' ? GenPacksBlock() : ''}
+  </div>`;
+};
+/* THE GEN-PACKS BUTTON + PROGRESS BAR. Lives only on the TCGplayer row because
+   that is the one source whose `cmd` runs gen-packs.mjs. The bar shows
+   current/total plus the booster being processed, and a small log pane for
+   anything that did not match the `i/total id outcome` shape (errors, blank
+   lines, ffmpeg noise). Disabled while a run is in flight - the server
+   refuses a second POST with 409. */
+const GenPacksBlock = () => {
+  const g = P.gen;
+  const running = g && g.done === null && !g.error;
+  const pct = g && g.total ? Math.round(100 * g.current / g.total) : 0;
+  return `<div class="border-t border-neutral-800 px-3 py-2 text-xs">
+    <div class="flex flex-wrap items-center gap-2">
+      <button onclick="genPacksStart()" ${running ? 'disabled' : ''}
+        class="${BTN_SECONDARY}">${running ? 'Running…' : 'Cut pack art from cache'}</button>
+      ${g && !g.error && g.total ? `<div class="min-w-0 flex-1">
+        <div class="h-1.5 w-full overflow-hidden rounded-full bg-neutral-800">
+          <div class="h-full bg-emerald-500/80 transition-all"
+            style="width:${pct}%"></div></div>
+        <div class="mt-1 flex justify-between font-mono text-[10px] text-neutral-500">
+          <span class="truncate">${g.current}/${g.total}${
+            g.id ? ` &middot; <span class="text-neutral-300">${esc(g.id)}</span>` : ''}</span>
+          <span class="tabular-nums">${pct}%</span></div></div>` : ''}
+    </div>
+    ${g && g.error ? `<p class="mt-2 text-[11px] text-amber-500/90">${esc(g.error)}</p>` : ''}
+    ${g && g.done !== null && g.done !== undefined ? `<p class="mt-2 text-[11px] ${
+      g.done === 0 ? 'text-emerald-400/90' : 'text-amber-500/90'}">${
+      g.done === 0 ? 'Done.' : `Exited with code ${g.done}.`} Reload this page to refresh the on-disk count.</p>` : ''}
+    ${g && g.log && g.log.length ? `<details class="mt-2 text-[10px] text-neutral-500">
+      <summary class="cursor-pointer">log (${g.log.length} line${g.log.length === 1 ? '' : 's'})</summary>
+      <pre class="mt-1 max-h-32 overflow-auto whitespace-pre-wrap font-mono">${
+        g.log.map(esc).join('\n')}</pre></details>` : ''}
   </div>`;
 };
 

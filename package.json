@@ -9,7 +9,8 @@
     "data": "node gen-data.mjs",
     "gen": "node gen-cards.mjs && node gen-sets.mjs && node gen-boosters.mjs",
     "art": "node gen-art.mjs",
-    "packs": "node gen-packs.mjs"
+    "packs": "node gen-packs.mjs",
+    "gen-serve": "node gen-packs-server.mjs"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.2",
