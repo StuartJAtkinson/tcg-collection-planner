@@ -13,6 +13,14 @@
 // Plain top-level declarations, no module: the page loads it with <script src>
 // exactly as it loads sets.js, and node reads it with new Function(). Making it
 // an ES module would buy the page nothing and cost it a fetch waterfall.
+//
+// THE BBOX IS WHAT MAKES THE FLOOD SAFE. A booster pack design that prints
+// white where the wrapper could carry white - the name, the pips, the chrome -
+// looks identical to the card behind it, and a flood from the rim will slip
+// through those bits and eat a chunk out of the card. Constraining the flood
+// to "anywhere outside the rough pack rectangle" closes that off; the
+// rectangle is found once, per row, in the same sweep a corner-vote would
+// have done.
 const TRIM_TOL = 28, PACK_SAT = 1.3, WHITE = 255, MAX_GAIN = 1.7, LEVELS = 0.02;
 
 /* `d` is RGBA, straight from getImageData or ffmpeg's rawvideo — the same bytes
@@ -49,7 +57,46 @@ function trimPixels(d, w, h) {
   // less than a quarter of the border agreeing on a colour is not a background
   if (agree < vote.length / 4) return 'no background';
   const br = d[bg], bgg = d[bg + 1], bb = d[bg + 2];
-  const seen = new Uint8Array(w * h), stack = ring.map(i => i / 4);
+  /* PACK BBOX BEFORE THE FLOOD. Wrappers put white where the flood does not
+     want to go - the name strip, the mana pips, the chrome round a Planeswalker
+     - and a flood through any of those eats a piece of the card. Drawing the
+     bbox tight enough to wrap the pack and pre-marking its interior means the
+     flood can only operate on the white rim that actually borders the card.
+     One row-sweep: per row, find the FIRST non-bg pixel from each side; the
+     union of those bounds across every row is the bbox. Irregular shapes get
+     a rectangle that contains them, never less, so a torn wrapper or an off-
+     centre photograph still sits inside the bbox and is safe. Empty image is
+     handled by the bbox == whole-image default below. */
+  let bx0 = w, bx1 = -1, by0 = h, by1 = -1;
+  for (let y = 0; y < h; y++) {
+    let rowL = w, rowR = -1;
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      if (Math.abs(d[i] - br) > TRIM_TOL || Math.abs(d[i + 1] - bgg) > TRIM_TOL
+        || Math.abs(d[i + 2] - bb) > TRIM_TOL) { rowL = x; break; }
+    }
+    for (let x = w - 1; x >= 0; x--) {
+      const i = (y * w + x) * 4;
+      if (Math.abs(d[i] - br) > TRIM_TOL || Math.abs(d[i + 1] - bgg) > TRIM_TOL
+        || Math.abs(d[i + 2] - bb) > TRIM_TOL) { rowR = x; break; }
+    }
+    if (rowL < w) {
+      if (rowL < bx0) bx0 = rowL;
+      if (rowR > bx1) bx1 = rowR;
+      if (y < by0) by0 = y;
+      if (y > by1) by1 = y;
+    }
+  }
+  // nothing non-bg found: default to the whole image, which is also no protection
+  if (bx0 > bx1) { bx0 = 0; bx1 = w - 1; by0 = 0; by1 = h - 1; }
+  const seen = new Uint8Array(w * h);
+  // pack interior is off-limits to the flood; marking seen[] up front means
+  // the flood cannot push a neighbour inside and the visited-check skips it
+  for (let y = by0; y <= by1; y++) {
+    const rowBase = y * w;
+    for (let x = bx0; x <= bx1; x++) seen[rowBase + x] = 1;
+  }
+  const stack = ring.map(i => i / 4);
   let cleared = 0;
   while (stack.length) {
     const at = stack.pop();
@@ -66,6 +113,11 @@ function trimPixels(d, w, h) {
     if (at < w * (h - 1)) stack.push(at + w);
   }
   if (cleared > w * h * 0.85) return 'ate the pack';
+  /* The bbox is the reason this rarely fires now: a flood cannot enter the
+     pack, so even one that ate the entire rim still clears only the area
+     outside the wrapper and lands well under the threshold. The check stays
+     because a photo where the wrapper nearly fills the frame would still
+     pass the bbox and the ring vote, and this is the last line of defence. */
   /* White balance off the very reference the fill just used. That colour WAS
      white when the pack was photographed, so whatever it came back as is the
      cast — this is the eyedropper "this should be white", with the dropper
