@@ -14,13 +14,12 @@
 // exactly as it loads sets.js, and node reads it with new Function(). Making it
 // an ES module would buy the page nothing and cost it a fetch waterfall.
 //
-// THE BBOX IS WHAT MAKES THE FLOOD SAFE. A booster pack design that prints
-// white where the wrapper could carry white - the name, the pips, the chrome -
-// looks identical to the card behind it, and a flood from the rim will slip
-// through those bits and eat a chunk out of the card. Constraining the flood
-// to "anywhere outside the rough pack rectangle" closes that off; the
-// rectangle is found once, per row, in the same sweep a corner-vote would
-// have done.
+// THE SHRUNKEN RECT SHIELDS THE CORE. The flood runs from the rim and clears
+// everything outside a rectangle, and the rectangle is the wrapper's own bbox
+// pulled inward 20% in width and 10% in height. That keeps a strip of wrapper
+// around the pack visible - the place where the flood used to leave a thin
+// white halo - while protecting the part of the image we actually want to see,
+// which is the booster's centre.
 const TRIM_TOL = 28, PACK_SAT = 1.3, WHITE = 255, MAX_GAIN = 1.7, LEVELS = 0.02;
 
 /* `d` is RGBA, straight from getImageData or ffmpeg's rawvideo — the same bytes
@@ -57,16 +56,25 @@ function trimPixels(d, w, h) {
   // less than a quarter of the border agreeing on a colour is not a background
   if (agree < vote.length / 4) return 'no background';
   const br = d[bg], bgg = d[bg + 1], bb = d[bg + 2];
-  /* PACK BBOX BEFORE THE FLOOD. Wrappers put white where the flood does not
-     want to go - the name strip, the mana pips, the chrome round a Planeswalker
-     - and a flood through any of those eats a piece of the card. Drawing the
-     bbox tight enough to wrap the pack and pre-marking its interior means the
-     flood can only operate on the white rim that actually borders the card.
-     One row-sweep: per row, find the FIRST non-bg pixel from each side; the
-     union of those bounds across every row is the bbox. Irregular shapes get
-     a rectangle that contains them, never less, so a torn wrapper or an off-
-     centre photograph still sits inside the bbox and is safe. Empty image is
-     handled by the bbox == whole-image default below. */
+  /* WHITE BALANCE FIRST, before the flood. The ring-vote bg colour is what the
+     fill will match against, so the fill works on the corrected scale; that
+     reference is also corrected, so it still matches itself. Scaling first
+     also lets the row-sweep below see a clean difference between the wrapper
+     and the white rim - the cast that hid the rim is now removed. */
+  const top = Math.max(br, bgg, bb);
+  const gain = top < 64 ? [1, 1, 1]
+    : [br, bgg, bb].map(c => Math.min(MAX_GAIN, WHITE / Math.max(c, 1)));
+  for (let i = 0; i < d.length; i += 4) {
+    d[i] = Math.min(255, d[i] * gain[0]);
+    d[i + 1] = Math.min(255, d[i + 1] * gain[1]);
+    d[i + 2] = Math.min(255, d[i + 2] * gain[2]);
+  }
+  /* PACK BBOX AFTER WHITE BALANCE. Same row-sweep as before - per row, the
+     FIRST non-bg pixel from each side, union across every row. The cast being
+     gone is what makes this clean now: pre-WB the wrapper's highlights could
+     read the same as the bg, which made a wrapper with no real white margin
+     impossible to bbox. The bbox is an intermediate; it is shrunk 20% width
+     and 10% height inward to form the no-go rect the flood respects. */
   let bx0 = w, bx1 = -1, by0 = h, by1 = -1;
   for (let y = 0; y < h; y++) {
     let rowL = w, rowR = -1;
@@ -89,12 +97,18 @@ function trimPixels(d, w, h) {
   }
   // nothing non-bg found: default to the whole image, which is also no protection
   if (bx0 > bx1) { bx0 = 0; bx1 = w - 1; by0 = 0; by1 = h - 1; }
+  // shrink the bbox inward to the no-go rect. 20% of width and 10% of height,
+  // split equally per side: 10% in from each horizontal edge, 5% from each
+  // vertical. The strip between this and the original bbox stays opaque -
+  // that is the bit of wrapper the user wants to see, so the flood leaves it.
+  const sw = bx1 - bx0, sh = by1 - by0;
+  const dx = Math.round(sw * 0.1), dy = Math.round(sh * 0.05);
+  const sx0 = bx0 + dx, sx1 = bx1 - dx, sy0 = by0 + dy, sy1 = by1 - dy;
   const seen = new Uint8Array(w * h);
-  // pack interior is off-limits to the flood; marking seen[] up front means
-  // the flood cannot push a neighbour inside and the visited-check skips it
-  for (let y = by0; y <= by1; y++) {
+  // mark the shrunken rect as off-limits to the flood
+  for (let y = sy0; y <= sy1; y++) {
     const rowBase = y * w;
-    for (let x = bx0; x <= bx1; x++) seen[rowBase + x] = 1;
+    for (let x = sx0; x <= sx1; x++) seen[rowBase + x] = 1;
   }
   const stack = ring.map(i => i / 4);
   let cleared = 0;
@@ -113,37 +127,6 @@ function trimPixels(d, w, h) {
     if (at < w * (h - 1)) stack.push(at + w);
   }
   if (cleared > w * h * 0.85) return 'ate the pack';
-  /* The bbox is the reason this rarely fires now: a flood cannot enter the
-     pack, so even one that ate the entire rim still clears only the area
-     outside the wrapper and lands well under the threshold. The check stays
-     because a photo where the wrapper nearly fills the frame would still
-     pass the bbox and the ring vote, and this is the last line of defence. */
-  /* White balance off the very reference the fill just used. That colour WAS
-     white when the pack was photographed, so whatever it came back as is the
-     cast — this is the eyedropper "this should be white", with the dropper
-     already in hand.
-     Every channel goes to WHITE — 255, not a shade under it. The reference is a
-     sheet of paper that was white, so taking it to anything less leaves the
-     whole photograph a step dim; the pixels that overshoot are the ones about
-     to be transparent anyway.
-     Scaling to its own top only removes the cast, and a quarter of these photos
-     (10 of 40 sampled) came back with a white that is merely light grey; those
-     stayed grey, correctly balanced and still underexposed. MAX_GAIN is the
-     brake: a reference at 147 or below is a photograph this can't rescue, and
-     below 64 it was never white at all, so only the saturation applies. */
-  const top = Math.max(br, bgg, bb);
-  const gain = top < 64 ? [1, 1, 1]
-    : [br, bgg, bb].map(c => Math.min(MAX_GAIN, WHITE / Math.max(c, 1)));
-  const hist = new Uint32Array(256);
-  let opaque = 0;
-  for (let i = 0; i < d.length; i += 4) {
-    if (!d[i + 3]) continue;                       // trimmed away, don't pay for it
-    const r = d[i] = Math.min(255, d[i] * gain[0]);
-    const g = d[i + 1] = Math.min(255, d[i + 1] * gain[1]);
-    const b = d[i + 2] = Math.min(255, d[i + 2] * gain[2]);
-    hist[Math.round(0.2126 * r + 0.7152 * g + 0.0722 * b)]++;
-    opaque++;
-  }
   /* Then LEVELS, off the pack's own histogram rather than the paper's. White
      balance can only carry a photograph as far as its backdrop, and a wrapper
      with no white in it stays flat: Doctor Who's red channel tops out at 241
@@ -155,6 +138,17 @@ function trimPixels(d, w, h) {
      gets washed further, which is the trade.
      One brake: a pack with no range to stretch (span under a quarter) is flat
      because it IS flat, and amplifying that only amplifies the JPEG. */
+  const hist = new Uint32Array(256);
+  let opaque = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    if (!d[i + 3]) continue;                       // trimmed away, don't pay for it
+    // WB already corrected every channel up top; build the histogram off the
+    // corrected pixels and DO NOT apply gain again here, or every channel
+    // doubles its correction and clips to white.
+    const r = d[i], g = d[i + 1], b = d[i + 2];
+    hist[Math.round(0.2126 * r + 0.7152 * g + 0.0722 * b)]++;
+    opaque++;
+  }
   let lo = 0, hi = 255, acc = 0;
   const edge = opaque * LEVELS;
   for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc >= edge) { lo = v; break; } }
