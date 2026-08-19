@@ -6384,7 +6384,6 @@ function applyImport() {
 const carry = f => CANON.find(r => r[0] === f).slice(2, 2 + COLS.length).filter(v => v !== '-').length;
 
 PAGES.io = () => Frame('io', {
-  desc: 'Each source maps its own headers onto the same canonical fields. Export runs the same map backwards, but it lives in every page&rsquo;s subheader &mdash; you export whatever you&rsquo;re looking at, so it never needed a tab of its own. An unrecognised header is a mapping you fix here &mdash; never a code change.',
   stats: Stats([[String(UNRESOLVED.length), 'unresolved']]),
   body: `<div class="${PANEL} px-4 pt-4">
     ${Band('import', `
@@ -6627,16 +6626,13 @@ const GenPacksBlock = () => {
 
 const CfgSub = () => {
   if (P.cfgGame == null) P.cfgGame = P.game;
-  return `<div class="shrink-0 border-b border-neutral-800 bg-neutral-900/60">
-    <div class="flex items-center gap-4 px-6 py-2">
-      <span class="shrink-0 text-xs font-semibold uppercase tracking-wide text-neutral-500">Config</span>
-      <span class="ml-auto"></span>
-      <span class="inline-flex shrink-0 rounded-lg border border-neutral-800 bg-neutral-950 p-0.5">
-        ${Object.keys(GAMES).map(k => `<button onclick="pickCfgGame('${k}')"
-          class="rounded-md px-3 py-1 text-xs font-medium transition ${k === P.cfgGame
-            ? 'bg-emerald-500/15 text-emerald-300' : 'text-neutral-400 hover:text-neutral-200'}">${GAMES[k].label}</button>`).join('')}
-      </span>
-    </div></div>`;
+  return `<div class="shrink-0 border-b border-neutral-800 bg-neutral-900/80">
+    <nav class="flex items-center gap-4 px-4">
+      <span class="border-b-2 border-transparent px-1 py-3 text-sm font-medium text-neutral-500">Config</span>
+      ${Object.keys(GAMES).map(k => `<button onclick="pickCfgGame('${k}')"
+        class="border-b-2 px-1 py-3 text-sm font-medium transition ${k === P.cfgGame
+          ? 'border-emerald-500 text-white' : 'border-transparent text-neutral-300 hover:text-white'}">${GAMES[k].label}</button>`).join('')}
+    </nav></div>`;
 };
 
 PAGES.config = () => Frame('config', {
@@ -6758,9 +6754,6 @@ PAGES.config = () => Frame('config', {
 
     <!-- ================= COLUMN B - BEHAVIOUR ================= -->
     <div class="${PANEL} px-4 pt-4">
-
-      ${Band('identity', `<div class="max-w-xs">${NumberField('Current user', 'stuart')}</div>
-        <p class="mt-1 text-[11px] text-neutral-600">Was <code>&lsquo;stuart&rsquo;</code> hardcoded in 14 places.</p>`)}
 
       ${Band('refresh', Table([['What', 'w-32'], ['How often', 'flex-1']],
         [['Prices', [['Daily', '+'], ['Weekly', ''], ['Manual', '']]],
