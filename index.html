@@ -6494,7 +6494,7 @@ PAGES.io = () => Frame('io', {
             ...rest.map(v => `<span class="font-mono tabular-nums ${v === '-' ? 'text-neutral-700' : 'text-emerald-400'}">${v}</span>`)];
         }),
         { foot: `Numbers are the column&rsquo;s <em>position</em> in that app&rsquo;s export &mdash; Archidekt maps positionally, so this fingerprints a file by shape even when the header text is unfamiliar. We alias-match headers first and fall back to this. Language lands on the printing, where the identity key already reads it: ${
-          carry('language')} of these ${COLS.length} exports carry it, and ${num(2634)} of ${num(107347)} catalogue printings are not English.` })}
+          carry('language')} of these ${COLS.length} exports carry it, and ${num(2634)} of ${num(107347)} catalogue printings are not English. Aliases are owned by <a href="#/config" class="text-neutral-300 underline">Config &middot; import / export map</a>; this is the fallback view.` })}
     </details>
   </div>`,
 });
@@ -6758,10 +6758,6 @@ PAGES.config = () => Frame('config', {
 
     <!-- ================= COLUMN B - BEHAVIOUR ================= -->
     <div class="${PANEL} px-4 pt-4">
-
-      ${Band('games', `<div class="flex gap-1.5">${chip('Magic','+')}${chip('Pok&eacute;mon','+')}</div>
-        <p class="mt-2 text-[11px] text-neutral-600">Which games <em>exist</em> &mdash; was <code>ENABLED_GAMES</code> &middot; src/games.ts:5. Disabling one hides it from the main; catalogue data is untouched either way. This is not the switcher: the game you&rsquo;re browsing changes on the <a href="#/home" class="text-neutral-400 underline">Card Collector main</a>.</p>`,
-        { note: 'enabled, not selected' })}
 
       ${Band('identity', `<div class="max-w-xs">${NumberField('Current user', 'stuart')}</div>
         <p class="mt-1 text-[11px] text-neutral-600">Was <code>&lsquo;stuart&rsquo;</code> hardcoded in 14 places.</p>`)}
