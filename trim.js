@@ -97,18 +97,24 @@ function trimPixels(d, w, h) {
   }
   // nothing non-bg found: default to the whole image, which is also no protection
   if (bx0 > bx1) { bx0 = 0; bx1 = w - 1; by0 = 0; by1 = h - 1; }
-  // shrink the bbox inward to the no-go rect. 20% of width and 10% of height,
-  // split equally per side: 10% in from each horizontal edge, 5% from each
-  // vertical. The strip between this and the original bbox stays opaque -
-  // that is the bit of wrapper the user wants to see, so the flood leaves it.
+  // shrink the bbox inward to the no-go rect. The strip between this and the
+  // original bbox is the bit of wrapper the user wants to see, so the flood
+  // leaves it; the no-go rect is the part of the pack itself, which is also
+  // left opaque. Per-side insets: 10% width (10/10) and 5% height (5/5).
   const sw = bx1 - bx0, sh = by1 - by0;
   const dx = Math.round(sw * 0.1), dy = Math.round(sh * 0.05);
   const sx0 = bx0 + dx, sx1 = bx1 - dx, sy0 = by0 + dy, sy1 = by1 - dy;
   const seen = new Uint8Array(w * h);
-  // mark the shrunken rect as off-limits to the flood
+  // mark the shrunken rect as off-limits to the flood, AND make its alpha
+  // explicitly opaque - the flood will not touch it, but a pre-existing low
+  // alpha (or a transit through a path that did) will otherwise leak through
+  // as visible transparency in the pack itself.
   for (let y = sy0; y <= sy1; y++) {
     const rowBase = y * w;
-    for (let x = sx0; x <= sx1; x++) seen[rowBase + x] = 1;
+    for (let x = sx0; x <= sx1; x++) {
+      seen[rowBase + x] = 1;
+      d[(rowBase + x) * 4 + 3] = 255;
+    }
   }
   const stack = ring.map(i => i / 4);
   let cleared = 0;
