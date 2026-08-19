@@ -6625,17 +6625,12 @@ const GenPacksBlock = () => {
   </div>`;
 };
 
-/* THE GAME PICKER SITS IN THE SAME SUB-HEADER SLOT THE OTHER PAGES USE
-   (the slot between TopNav and main that BrowsePage fills with the selector
-   and its stats). The whole config page re-renders when it changes, so each
-   game is a complete page in the same two-column layout. Picking here does
-   not move the game the rest of the app is browsing — see pickCfgGame. */
 const CfgSub = () => {
   if (P.cfgGame == null) P.cfgGame = P.game;
   return `<div class="shrink-0 border-b border-neutral-800 bg-neutral-900/60">
     <div class="flex items-center gap-4 px-6 py-2">
       <span class="shrink-0 text-xs font-semibold uppercase tracking-wide text-neutral-500">Config</span>
-      <span class="min-w-0 flex-1 truncate text-[11px] text-neutral-500">Two columns: where data comes from on the left, how the app behaves on the right. The source rows are live &mdash; sizes come from bytes-per-unit, the status chip from <code>serve.py</code> looking at the disk.</span>
+      <span class="ml-auto"></span>
       <span class="inline-flex shrink-0 rounded-lg border border-neutral-800 bg-neutral-950 p-0.5">
         ${Object.keys(GAMES).map(k => `<button onclick="pickCfgGame('${k}')"
           class="rounded-md px-3 py-1 text-xs font-medium transition ${k === P.cfgGame
@@ -6835,8 +6830,7 @@ const LangPicker = () => `
   <div class="shrink-0 border-b border-neutral-800 bg-neutral-900/60">
     <label class="flex min-w-0 items-center gap-4 px-6 py-2">
       <span class="shrink-0 text-xs font-semibold uppercase tracking-wide text-neutral-500">Language</span>
-      <span class="min-w-0 flex-1 truncate text-[11px] text-neutral-500">Search opens narrowed to it, an import files a row that carries no
-        language column under it, and the card page prefers a printing in it. Widen it any time from the top of the filter.</span>
+      <span class="ml-auto"></span>
       <select onchange="setLang(this.value)" class="${FIELD} shrink-0 py-1 text-xs">
         ${LANGS.map(l => `<option value="${l}"${l === P.lang ? ' selected' : ''}>${l} &middot; ${langName(l)}</option>`).join('')}
       </select>
