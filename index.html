@@ -6625,24 +6625,28 @@ const GenPacksBlock = () => {
   </div>`;
 };
 
-PAGES.config = () => Frame('config', {
-  desc: '<span class="text-neutral-200">Config.</span> Two columns: <span class="text-neutral-300">where data comes from and where it lives</span> on the left, <span class="text-neutral-300">how the app behaves</span> on the right. The source rows are live &mdash; the sizes are derived from bytes-per-unit rather than typed, and the status chip is <code>serve.py</code> looking at the actual disk. Everything on the right is still a constant that exists in the repo with no way to change it.',
-  body: `
-    <!-- THE GAME SUB-TAB SITS OUTSIDE THE COLUMNS. One tab per game, each tab
-         is a complete config page in the same layout — sources, schema map,
-         cache, files on the left, identity, refresh, defaults on the right.
-         Switching the sub-tab re-renders the whole body. The active game is
-         the default on arrival; otherwise the sub-tab carries the user's
-         choice between visits. The active game the rest of the app is browsing
-         does NOT move with this sub-tab — see pickCfgGame. -->
-    ${(() => {
-      if (P.cfgGame == null) P.cfgGame = P.game;
-      return `<div class="mb-4 inline-flex rounded-lg border border-neutral-800 bg-neutral-900 p-0.5">
+/* THE GAME PICKER SITS IN THE SAME SUB-HEADER SLOT THE OTHER PAGES USE
+   (the slot between TopNav and main that BrowsePage fills with the selector
+   and its stats). The whole config page re-renders when it changes, so each
+   game is a complete page in the same two-column layout. Picking here does
+   not move the game the rest of the app is browsing — see pickCfgGame. */
+const CfgSub = () => {
+  if (P.cfgGame == null) P.cfgGame = P.game;
+  return `<div class="shrink-0 border-b border-neutral-800 bg-neutral-900/60">
+    <div class="flex items-center gap-4 px-6 py-2">
+      <span class="shrink-0 text-xs font-semibold uppercase tracking-wide text-neutral-500">Config</span>
+      <span class="min-w-0 flex-1 truncate text-[11px] text-neutral-500">Two columns: where data comes from on the left, how the app behaves on the right. The source rows are live &mdash; sizes come from bytes-per-unit, the status chip from <code>serve.py</code> looking at the disk.</span>
+      <span class="inline-flex shrink-0 rounded-lg border border-neutral-800 bg-neutral-950 p-0.5">
         ${Object.keys(GAMES).map(k => `<button onclick="pickCfgGame('${k}')"
-          class="rounded-md px-4 py-1.5 text-sm transition ${k === P.cfgGame
+          class="rounded-md px-3 py-1 text-xs font-medium transition ${k === P.cfgGame
             ? 'bg-emerald-500/15 text-emerald-300' : 'text-neutral-400 hover:text-neutral-200'}">${GAMES[k].label}</button>`).join('')}
-      </div>`;
-    })()}
+      </span>
+    </div></div>`;
+};
+
+PAGES.config = () => Frame('config', {
+  sub: CfgSub(),
+  body: `
     <div class="grid items-start gap-5 xl:grid-cols-2">
 
     <!-- ================= COLUMN A - DATA ================= -->
@@ -6828,22 +6832,22 @@ function setLang(l) {
   render();
 }
 const LangPicker = () => `
-  <label class="flex flex-wrap items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-900/60 px-4 py-3">
-    <span class="text-sm font-medium text-neutral-200">Default language</span>
-    <select onchange="setLang(this.value)" class="${FIELD}">
-      ${LANGS.map(l => `<option value="${l}"${l === P.lang ? ' selected' : ''}>${l} &middot; ${langName(l)}</option>`).join('')}
-    </select>
-    <span class="min-w-0 flex-1 text-[11px] text-neutral-500">Search opens narrowed to it, an import files a row that carries no
-      language column under it, and the card page prefers a printing in it. Widen it any time from the top of the filter.</span>
-  </label>`;
+  <div class="shrink-0 border-b border-neutral-800 bg-neutral-900/60">
+    <label class="flex min-w-0 items-center gap-4 px-6 py-2">
+      <span class="shrink-0 text-xs font-semibold uppercase tracking-wide text-neutral-500">Language</span>
+      <span class="min-w-0 flex-1 truncate text-[11px] text-neutral-500">Search opens narrowed to it, an import files a row that carries no
+        language column under it, and the card page prefers a printing in it. Widen it any time from the top of the filter.</span>
+      <select onchange="setLang(this.value)" class="${FIELD} shrink-0 py-1 text-xs">
+        ${LANGS.map(l => `<option value="${l}"${l === P.lang ? ' selected' : ''}>${l} &middot; ${langName(l)}</option>`).join('')}
+      </select>
+    </label></div>`;
 
-PAGES.home = () => `${TopNav('home')}
+PAGES.home = () => `${TopNav('home')}${LangPicker()}
   <main class="min-h-0 flex-1 overflow-y-auto px-4 py-6">
     <p class="mb-5 text-sm text-neutral-400">Pick a game. It stays fixed while you navigate &mdash; come back here to change it.</p>
     <div class="grid gap-4 md:grid-cols-2">
       ${Object.entries(GAMES).map(([k, g]) => GameBanner(k, g)).join('')}
     </div>
-    <div class="mt-5 max-w-3xl">${LangPicker()}</div>
     <p class="mt-6 max-w-3xl text-[11px] text-neutral-600">Nothing else is preselected past this point &mdash; no sort you did not ask for,
       no display. The schema is per-game from here down, which is what makes adding a TCG a data change rather than a code change.</p>
   </main>`;
