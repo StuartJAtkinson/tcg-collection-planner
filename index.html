@@ -6627,7 +6627,23 @@ const GenPacksBlock = () => {
 
 PAGES.config = () => Frame('config', {
   desc: '<span class="text-neutral-200">Config.</span> Two columns: <span class="text-neutral-300">where data comes from and where it lives</span> on the left, <span class="text-neutral-300">how the app behaves</span> on the right. The source rows are live &mdash; the sizes are derived from bytes-per-unit rather than typed, and the status chip is <code>serve.py</code> looking at the actual disk. Everything on the right is still a constant that exists in the repo with no way to change it.',
-  body: `<div class="grid items-start gap-5 xl:grid-cols-2">
+  body: `
+    <!-- THE GAME SUB-TAB SITS OUTSIDE THE COLUMNS. One tab per game, each tab
+         is a complete config page in the same layout — sources, schema map,
+         cache, files on the left, identity, refresh, defaults on the right.
+         Switching the sub-tab re-renders the whole body. The active game is
+         the default on arrival; otherwise the sub-tab carries the user's
+         choice between visits. The active game the rest of the app is browsing
+         does NOT move with this sub-tab — see pickCfgGame. -->
+    ${(() => {
+      if (P.cfgGame == null) P.cfgGame = P.game;
+      return `<div class="mb-4 inline-flex rounded-lg border border-neutral-800 bg-neutral-900 p-0.5">
+        ${Object.keys(GAMES).map(k => `<button onclick="pickCfgGame('${k}')"
+          class="rounded-md px-4 py-1.5 text-sm transition ${k === P.cfgGame
+            ? 'bg-emerald-500/15 text-emerald-300' : 'text-neutral-400 hover:text-neutral-200'}">${GAMES[k].label}</button>`).join('')}
+      </div>`;
+    })()}
+    <div class="grid items-start gap-5 xl:grid-cols-2">
 
     <!-- ================= COLUMN A - DATA ================= -->
     <div class="${PANEL} px-4 pt-4">
@@ -6639,18 +6655,6 @@ PAGES.config = () => Frame('config', {
           to keep a copy on disk, <span class="text-neutral-300">Remove</span> to go back to the server,
           or <span class="text-neutral-300">Live</span> when the source has no local side. The page
           is static; downloads are a terminal job the button hints at with the command beneath it.</p>
-
-        <!-- THE GAME SUB-TAB. Only changes what config shows, not the active game
-             the rest of the app is browsing. The current game is the default,
-             so a Magic user lands on Magic and a Pokémon user on Pokémon. -->
-        ${(() => {
-          if (P.cfgGame == null) P.cfgGame = P.game;
-          return `<div class="mb-3 inline-flex rounded-lg border border-neutral-800 bg-neutral-950 p-0.5">
-            ${Object.keys(GAMES).map(k => `<button onclick="pickCfgGame('${k}')"
-              class="rounded-md px-3 py-1 text-xs transition ${k === P.cfgGame
-                ? 'bg-emerald-500/15 text-emerald-300' : 'text-neutral-400 hover:text-neutral-200'}">${GAMES[k].label}</button>`).join('')}
-          </div>`;
-        })()}
 
         <!-- THE THREE GROUPS, ONE PER DATA SHAPE. Images ride the bytes-per-unit
              figure, and range from no-image at the left to highest-resolution
@@ -6801,6 +6805,7 @@ PAGES.config = () => Frame('config', {
 
       <div class="pb-4"></div>
     </div>
+  </div>
   </div>
   ${ApplyBar(false, '<span class="ml-auto text-[10px] text-neutral-500">both columns, one Apply</span>')}`,
 });
