@@ -268,6 +268,11 @@ const langName = l => LANG_NAME[l] || l;
 
 const P = {
   game: null,
+  /* THE CONFIG TAB HOLDS ITS OWN GAME SELECTOR. The one on the main switches
+     the active game everywhere; the one here is just for browsing sources,
+     and switching it does not move the rest of the app. A Magic user who
+     wants to read off the Pokémon's data path is not a Pokemon user. */
+  cfgGame: null,
   /* THE DEFAULT LANGUAGE, chosen on the main page and read by everything
      downstream. It is one setting rather than a per-page one because it is a
      fact about YOU - which language you collect in - not about the tab you are
@@ -423,13 +428,19 @@ const SOURCES = {
     q: [['AllPrintings', 'every set', 178.1e6], ['Standard', 'Standard-legal sets', 16.4e6],
         ['Modern', 'Modern-legal sets', 93.6e6], ['Legacy', 'Legacy-legal sets', 151.1e6],
         ['psql', 'a Postgres dump', 220e6]] },
-  prices: { name: 'MTGJSON prices', gives: 'price history', kind: 'data', game: 'mtg',
+  prices: { name: 'MTGJSON prices', gives: 'price history', kind: 'live', game: 'mtg',
     def: ['local', 'AllPrices'], full: 'AllPrices', units: 1,
-    file: q => `data/${q}.json.gz`,
-    cmd: q => `curl -o data/${q}.json.gz https://mtgjson.com/api/v5/${q}.json.gz`,
+    file: q => q === 'none' ? '' : `data/${q}.json.gz`,
+    cmd: q => q === 'none' ? '' : `curl -o data/${q}.json.gz https://mtgjson.com/api/v5/${q}.json.gz`,
     local: 'republished nightly, so a local copy is a day old at worst',
     online: null, why: 'same source, same files',
-    q: [['AllPrices', '90 days', 149.3e6], ['AllPricesToday', 'today only', 5.5e6]] },
+    /* Live data is "none to frequent": no prices on the left, the 90-day file
+       on the right. The middle is the daily snapshot — the same shape as the
+       numbers, with the same freshness. Ordered ascending, the leftmost is
+       the smallest job. */
+    q: [['none', 'no prices', 0],
+        ['AllPricesToday', 'today only &mdash; refreshed nightly', 5.5e6],
+        ['AllPrices', '90 days of history', 149.3e6]] },
   /* The local side costs FOUR TIMES the online one and is still the better
      buy: the CDN's 26 KB is a JPEG on a white card, the 110 KB is a PNG that has
      already been cut out, white balanced, levelled and saturated. The difference
@@ -603,7 +614,14 @@ const OFFLINE_MODES = {
    way the decision does: the biggest thing you could put on this disk at the
    top, the smallest pull-it-when-you-need-it at the bottom. */
 const srcKeys = (kind) => Object.keys(SOURCES)
-  .filter(k => (!SOURCES[k].game || SOURCES[k].game === P.game) && (!kind || SOURCES[k].kind === kind))
+  .filter(k => {
+    // the config page picks its own game via its sub-tab; elsewhere (the
+    // sources the running app actually draws from) it is the active game.
+    // P.tab carries the last NAV tab, not the current route, so check the hash.
+    const onConfig = typeof location !== 'undefined' && location.hash === '#/config';
+    const g = onConfig ? P.cfgGame : P.game;
+    return (!SOURCES[k].game || SOURCES[k].game === g) && (!kind || SOURCES[k].kind === kind);
+  })
   .sort((a, b) => srcBytes(b, SOURCES[b].full) - srcBytes(a, SOURCES[a].full));
 /* Quality options, dearest first, for the same reason. The declarations are in
    whatever order they were written in - Scryfall's five run 24 MB, 78, 392, 37,
@@ -6511,52 +6529,66 @@ const DiskChip = (k, q = CFG.src[k].q) => {
     have.of ? `${num(have.n)} of ${num(have.of)}` : 'on disk'} &middot; ${bytes(have.bytes)}</span>`;
 };
 
-/* A SOURCE IS A HEADER AND ONE ROW PER SIZE IT OFFERS, DEAREST FIRST. It was a
-   card: a name, a status pill, two side chips, then a wrapped run of quality
-   chips and four prose lines. Everything was there and nothing was comparable -
-   you could not read down a column to see which sizes are on the disk, because
-   there were no columns, and the disk answer only ever described the ONE size
-   that happened to be selected.
-   The order is the decision: the top row is the biggest thing you could put on
-   this disk, the bottom is the smallest thing to pull when a page asks for it.
-   Picking a row picks that size; Local / Online is the source's own choice and
-   stays on the header, because it is one answer for all of them. */
-const QUALITY_COLS = [['', 'w-6'], ['size', 'w-24'], ['what it is', 'flex-1'],
-  ['cost', 'w-20 text-right'], ['on disk', 'w-32 text-right']];
+/* A SOURCE IS A NAME, A NAME OF WHAT IT GIVES, A STRIP OF QUALITY CHIPS LEFT
+   TO RIGHT SMALLEST TO BIGGEST, AND ONE ACTION BUTTON ON THE RIGHT. The chip
+   is the choice; the button is the local/online decision. Reading down a column
+   to compare sizes is reading a chip across two rows, which is what the row
+   layout used to deny: it gave every size its own row and the disk answer only
+   ever described the one that happened to be selected. The action is the chip
+   that used to read "Local" / "Online" - renamed to "Download" / "Remove" /
+   "Live" so it answers the question the source actually asks. */
+const QualityStrip = (k) => {
+  const s = SOURCES[k], c = CFG.src[k];
+  // ordered ASCENDING by bytes - the leftmost chip is the cheapest, the right-
+  // most is the largest thing you could put on this disk. Declarations are in
+  // whatever order they were written in, which is no order at all.
+  const qtys = [...s.q].sort((x, y) => x[2] - y[2]);
+  return `<div class="flex flex-wrap items-center gap-1.5">${qtys.map(([v, d, b]) => {
+    const on = c.q === v;
+    return `<button onclick="setQuality('${k}','${v}')"
+      title="${bytes(b * (s.units || 1))} &middot; ${esc(d)}"
+      class="rounded-md border px-2 py-1 text-[11px] transition ${
+        on ? 'border-emerald-500/40 bg-emerald-500/5 text-emerald-200'
+           : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200'}">
+      <span class="font-mono">${v}</span>
+      <span class="ml-1.5 tabular-nums text-[10px] ${on ? 'text-emerald-400/80' : 'text-neutral-600'}">${bytes(b * (s.units || 1))}</span></button>`;
+  }).join('')}</div>`;
+};
+/* THE ACTION BUTTON answers "is this on disk?" with the only operation that
+   makes sense at that answer. Three states: file on disk and the source is
+   using it (Remove to go back online), file not on disk and the source has a
+   local side (Download), and no local side at all (Live, no button). The
+   command the user actually runs to fill the disk is in `s.cmd` and shown
+   beside the button — the page is read-only, downloads are a terminal job. */
+const SourceAction = (k) => {
+  const s = SOURCES[k], c = CFG.src[k];
+  if (!s.local) return `<span class="text-[10px] text-sky-400/80">${s.online || ''}</span>`;
+  const have = onDisk(k, c.q);
+  const isLocal = c.at === 'local';
+  const isOnDisk = have && (!have.of || have.n >= have.of);
+  const verb = isLocal ? 'Remove' : 'Download';
+  const next = isLocal ? 'online' : 'local';
+  const clr = isLocal ? BTN_DANGER : BTN_PRIMARY;
+  return `<div class="flex shrink-0 flex-col items-end gap-1">
+    <button onclick="setSrc('${k}','${next}')" class="${clr}">
+      ${verb}${isLocal ? '' : ` &mdash; ${bytes(srcBytes(k))}`}</button>
+    <span class="text-[10px] ${isOnDisk ? 'text-emerald-400/80' : 'text-neutral-600'}">${
+      isOnDisk ? `${bytes(have.bytes)} on disk${have.of ? ` &middot; ${have.n}/${have.of}` : ''}`
+      : isLocal ? 'file not on disk &mdash; run the command to fetch'
+      : `download: ${esc(s.cmd(c.q) || '')}`}</span></div>`;
+};
 const SourceRow = (k) => {
-  const s = SOURCES[k], c = CFG.src[k], out = c.at === 'online';
-  const side = (at, label) => s[at]
-    ? `<span onclick="setSrc('${k}','${at}')">${chip(label, c.at === at ? '+' : '')}</span>`
-    : `<span class="${CHIP_NEUTRAL} cursor-default opacity-30" title="${esc(s.why)}">${label}</span>`;
-  const cmd = s.cmd(c.q);
-  const rows = srcQualities(k).map(([v, d, b]) => [
-    `<span class="${c.q === v ? 'text-emerald-400' : 'text-neutral-700'}">${c.q === v ? '&#9679;' : '&#9675;'}</span>`,
-    `<span class="font-mono ${c.q === v ? 'text-neutral-100' : 'text-neutral-400'}">${v}</span>`,
-    `<span class="text-neutral-500">${d || ''}</span>`,
-    `<span class="tabular-nums ${c.q === v ? 'text-neutral-200' : 'text-neutral-600'}">${bytes(b * (s.units || 1))}</span>`,
-    DiskChip(k, v),
-  ]);
-  return `<div class="mb-3 rounded-lg border ${out ? 'border-sky-900/70' : 'border-neutral-800'} overflow-hidden">
-    <div class="flex flex-wrap items-center gap-2 ${out ? 'bg-sky-950/20' : 'bg-neutral-900'} px-3 py-2 text-xs">
-      <span class="shrink-0 font-medium text-neutral-200">${s.name}</span>
-      <span class="min-w-0 flex-1 truncate text-[11px] text-neutral-500">${s.gives}</span>
-      <span class="flex shrink-0 gap-1.5">${side('local', 'Local')}${side('online', 'Online')}</span></div>
-    <div class="px-3 py-1 text-[10px] ${out ? 'text-sky-400/80' : 'text-neutral-500'}">${
-      out ? s.online : s.local}${s.units > 1 && !out ? ` &mdash; ${num(s.units)} files` : ''}</div>
-    ${Table(QUALITY_COLS, rows, {
-      frame: false,
-      rowCls: (_, i) => `cursor-pointer hover:bg-neutral-900/60 ${srcQualities(k)[i][0] === c.q ? 'bg-emerald-500/5' : ''}`,
-      rowAttrs: (_, i) => `onclick="setQuality('${k}','${srcQualities(k)[i][0]}')"`,
-    })}
-    <!-- The command, because this page is static and CANNOT download anything.
-         It used to carry a "Download & cache now" button that did nothing, which
-         is worse than no button: it says the job is one click away when it is
-         one paste away. -->
-    <div class="flex flex-wrap gap-x-2 border-t border-neutral-800 px-3 py-1.5 font-mono text-[10px]">
-      <span class="w-16 shrink-0 uppercase tracking-wide text-neutral-700">to fetch</span>
-      <span class="min-w-0 flex-1 ${cmd ? 'text-neutral-400' : 'text-neutral-700'}">${
-        cmd ? `<code>${esc(cmd)}</code>` : `&mdash; ${s.why_local || s.why}`}</span></div>
-    ${k === 'tcg' ? GenPacksBlock() : ''}
+  const s = SOURCES[k], c = CFG.src[k];
+  const out = c.at === 'online';
+  return `<div class="mb-3 rounded-lg border ${out ? 'border-sky-900/70' : 'border-emerald-900/50'} overflow-hidden bg-neutral-950">
+    <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-3 py-2">
+      <span class="shrink-0 text-sm font-medium text-neutral-200">${s.name}</span>
+      <span class="min-w-0 flex-1 text-[11px] text-neutral-500">${s.gives}</span>
+      ${SourceAction(k)}
+    </div>
+    <div class="border-t border-neutral-800 px-3 py-2">
+      ${QualityStrip(k)}
+    </div>
   </div>`;
 };
 /* THE GEN-PACKS BUTTON + PROGRESS BAR. Lives only on the TCGplayer row because
@@ -6601,50 +6633,48 @@ PAGES.config = () => Frame('config', {
     <div class="${PANEL} px-4 pt-4">
 
       ${Band('sources', `
-        <p class="mb-2 text-[11px] text-neutral-500">${srcKeys().length} sources, one shape, and only ${
-          game().label}&rsquo;s &mdash; a source declares which game it feeds and the others are not your problem right now. <span class="text-neutral-300">Local</span> is a file on this disk you can work from with the network off; <span class="text-neutral-300">Online</span> is somebody else&rsquo;s server answering per request. Where one of the two doesn&rsquo;t exist the chip says why rather than going missing. Every list runs <span class="text-neutral-300">dearest first</span>: the top row is the biggest thing you could put on this disk, the bottom is the smallest thing to pull when a page asks for it.${
-          P.game === 'mtg' ? ' The importer is <span class="text-neutral-300">MTGJSON-primary</span>: it streams AllPrintings and cross-references Scryfall by <code>identifiers.scryfallId</code>.' : ''}</p>
+        <p class="mb-3 text-[11px] text-neutral-500">One row per source. The chip strip is the choice &mdash;
+          leftmost is the smallest, rightmost is the biggest thing you could put on this disk &mdash;
+          and the button on the right is the one operation that matters: <span class="text-neutral-300">Download</span>
+          to keep a copy on disk, <span class="text-neutral-300">Remove</span> to go back to the server,
+          or <span class="text-neutral-300">Live</span> when the source has no local side. The page
+          is static; downloads are a terminal job the button hints at with the command beneath it.</p>
 
-        <!-- THE OFFLINE CONTROL, above the rows rather than below them: "can I
-             use this with the network off" is the question the whole band is
-             for, and it was previously answerable only by reading eight rows
-             and doing the arithmetic yourself. Two buttons because the two
-             answers are 140 GB apart and that is not a default anyone should
-             pick on your behalf. -->
-        <div class="mb-3 rounded-lg border border-neutral-800 bg-neutral-950 px-3 py-2.5">
-          <div class="flex flex-wrap items-center gap-2">
-            <span class="text-xs font-medium text-neutral-200">Work offline</span>
-            ${Object.entries(OFFLINE_MODES).map(([m, o]) => `
-              <button onclick="goOffline('${m}')" class="${BTN_SECONDARY}">${o.label}
-                <span class="ml-1 tabular-nums text-neutral-500">${bytes(offlineBytes(m))}</span></button>`).join('')}
-            <button onclick="goOnline()" class="${BTN_SECONDARY} ml-auto">Back to defaults</button>
-          </div>
-          <p class="mt-2 text-[11px] ${allLocal() ? 'text-emerald-400/90' : 'text-neutral-500'}">${
-            allLocal()
-              ? 'Every source that has a local side is set to it. Nothing on this page needs the network.'
-              : `<span class="text-neutral-300">${onlineNow().length} of ${canBeLocal().length} still online</span> &mdash; ${
-                  onlineNow().map(k => SOURCES[k].name).join(', ')}.${missingLocal().length
-                  ? ` ${missingLocal().map(k => SOURCES[k].name).join(' and ')} is not counted &mdash; it cannot go local at all: ${
-                      missingLocal().map(k => SOURCES[k].why_local).join('; ')}.` : ''}`}</p>
-          <p class="mt-1 text-[11px] text-neutral-600">Setting a size does not fetch it &mdash; this page is static and downloads nothing. Each source carries the command that does, and a file that was never fetched falls through to the CDN rather than breaking the picture.</p>
-        </div>
+        <!-- THE GAME SUB-TAB. Only changes what config shows, not the active game
+             the rest of the app is browsing. The current game is the default,
+             so a Magic user lands on Magic and a Pokémon user on Pokémon. -->
+        ${(() => {
+          if (P.cfgGame == null) P.cfgGame = P.game;
+          return `<div class="mb-3 inline-flex rounded-lg border border-neutral-800 bg-neutral-950 p-0.5">
+            ${Object.keys(GAMES).map(k => `<button onclick="pickCfgGame('${k}')"
+              class="rounded-md px-3 py-1 text-xs transition ${k === P.cfgGame
+                ? 'bg-emerald-500/15 text-emerald-300' : 'text-neutral-400 hover:text-neutral-200'}">${GAMES[k].label}</button>`).join('')}
+          </div>`;
+        })()}
 
-        ${['images', 'data'].map((kind) => {
+        <!-- THE THREE GROUPS, ONE PER DATA SHAPE. Images ride the bytes-per-unit
+             figure, and range from no-image at the left to highest-resolution
+             at the right. Text data is the catalogue and the printings;
+             live data is time series — prices — where the leftmost chip is
+             "none" and the rightmost is the most frequent update. -->
+        ${[
+          { kind: 'images', label: 'images', hint: 'left to right: text-only to highest resolution' },
+          { kind: 'data',   label: 'text data', hint: 'catalogues, printings, sealed products' },
+          { kind: 'live',   label: 'live data', hint: 'time series, left to right: none to frequent' },
+        ].map(({ kind, label, hint }) => {
           const ks = srcKeys(kind);
           if (!ks.length) return '';
-          return `
-          <div class="mb-1 flex items-baseline gap-2 px-1">
-            <span class="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">${
-              kind === 'data' ? 'catalogue data' : 'pictures'}</span>
-            <span class="text-[10px] text-neutral-600">${kind === 'data'
-              ? 'megabytes, and the app is wrong without them'
-              : 'gigabytes, and the app draws a frame without them'}</span>
-            <span class="ml-auto font-mono text-[10px] text-neutral-600">${
-              bytes(ks.reduce((n, k) => n + srcBytes(k), 0))} at the sizes set below</span>
-          </div>
-          ${ks.map(SourceRow).join('')}`;
+          return `<div class="mb-4">
+            <div class="mb-1 flex items-baseline gap-2 px-1">
+              <span class="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">${label}</span>
+              <span class="text-[10px] text-neutral-600">${hint}</span>
+              <span class="ml-auto font-mono text-[10px] text-neutral-600">${
+                bytes(ks.reduce((n, k) => n + srcBytes(k), 0))} at the chips set</span>
+            </div>
+            ${ks.map(SourceRow).join('')}
+          </div>`;
         }).join('')}`,
-        { note: `what ${game().label} draws from`, right: `<span class="font-mono text-[10px] ${
+        { note: `what ${GAMES[P.cfgGame].label} draws from`, right: `<span class="font-mono text-[10px] ${
           allLocal() ? 'text-emerald-400' : 'text-sky-400'}">${
           allLocal() ? 'offline ready' : `${onlineNow().length}/${canBeLocal().length} online`}</span>` })}
 
@@ -6670,7 +6700,7 @@ PAGES.config = () => Frame('config', {
         </div>`, { note: 'kept between reloads', right: `<span class="text-[10px] font-mono ${
           kb ? 'text-sky-400' : 'text-neutral-600'}">${kb < 1 ? 'empty' : `${kb.toFixed(0)} KB`}</span>` });
       })()}
-      ${P.game !== 'mtg' ? '' : Band('schema source map', (() => {
+      ${P.cfgGame !== 'mtg' ? '' : Band('schema source map', (() => {
         const rows = [['sets &mdash; base', '/sets', '&mdash;', 0],
            ['sets &mdash; block, parent, mtgo, arena, foil/online-only, languages', '&mdash;', 'AllPrintings', 0],
            ['cards &mdash; identity, images, artist', 'all_cards', '&mdash;', 1],
@@ -6828,8 +6858,15 @@ const GameBanner = (k, g) => `
 
 /* Picking a game is also the reset: a new game must not inherit the last
    one's filters, sort or display - MTG's colours mean nothing in Pokémon. */
+function pickCfgGame(k) {
+  // config-only: does not reset filters, does not switch the active game the
+  // rest of the app sees. Just changes which row-group the page is showing.
+  P.cfgGame = k;
+  render();
+}
 function pickGame(k) {
   P.game = k;
+  P.cfgGame = k;     // the config tab keeps the active game in step on arrival
   clearPicks();
   // back to the default filing, not to nothing: picking a game is arriving, and
   // arriving is the moment the default is for
