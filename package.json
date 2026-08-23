@@ -7,7 +7,7 @@
     "build": "node build.mjs",
     "check": "node check.mjs",
     "data": "node gen-data.mjs",
-    "gen": "node gen-cards.mjs && node gen-sets.mjs && node gen-boosters.mjs",
+    "gen": "node gen-cards.mjs && node gen-sets.mjs && node gen-boosters.mjs && node gen-schema.mjs",
     "art": "node gen-art.mjs",
     "packs": "node gen-packs.mjs",
     "gen-serve": "node gen-packs-server.mjs"

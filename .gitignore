@@ -18,6 +18,10 @@ packs/
 # sample page, 8.1 GB for the whole catalogue at art_crop, 132 GB at png.
 art/
 
-# screenshots dropped at the repo root while working. Only the root, so anything
-# deliberate under a folder still commits; no .png is tracked anywhere today.
+# screenshots dropped while working -- at the repo root, and in screenshots/
+# once they get tidied. No .png is tracked anywhere today.
 /*.png
+# ...and the same shots once they get tidied into a folder. 30 of them
+# (config-schema-v2..v15 and friends) are iteration snapshots nothing
+# references. Left on disk, out of history.
+/screenshots/

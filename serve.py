@@ -7,10 +7,11 @@ repo, so the default handler would happily serve .git/, data/ and any .env.
 """
 import json
 import re
-from http.server import SimpleHTTPRequestHandler, test
+import sys
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-ALLOWED = {'/', '/index.html', '/draft.css', '/sets.js', '/trim.js', '/anatomy.js',
+ALLOWED = {'/', '/index.html', '/draft.css', '/sets.js', '/schema.js', '/trim.js', '/anatomy.js',
            '/mana.woff2', '/cards.json.gz'}
 
 # Config's Local column used to be hand-typed strings -- "372 MB, pulled
@@ -133,4 +134,38 @@ class NoCache(SimpleHTTPRequestHandler):
         super().end_headers()
 
 
-test(NoCache, port=5255, bind='127.0.0.1')
+class SoleServer(ThreadingHTTPServer):
+    """Refuses to start if 5255 is already served.
+
+    http.server's own `test()` sets allow_reuse_address, so a second
+    `python serve.py` binds happily alongside the first and whichever process
+    wins a given connection decides what the page gets.  Four instances
+    accumulated that way once; the symptom was schema.js 404ing while plainly
+    in ALLOWED, because ALLOWED is read at import and the winning process was
+    running an older copy of this file.  Losing the reuse flag turns that
+    silent shadowing into a refusal to start.
+    """
+    allow_reuse_address = False
+
+
+if __name__ == '__main__':
+    try:
+        httpd = SoleServer(('127.0.0.1', 5255), NoCache)
+    except OSError as exc:
+        if exc.errno not in (98, 10048):        # EADDRINUSE (posix, win)
+            raise
+        sys.exit(
+            'port 5255 is already served -- another serve.py is still running.\n'
+            'It will keep answering with ITS copy of ALLOWED, so edits to this\n'
+            'file stay invisible until every instance is gone.\n\n'
+            '  Windows:  Get-NetTCPConnection -LocalPort 5255 | '
+            'Select-Object OwningProcess\n'
+            '            Stop-Process -Id <pid>\n'
+            '  POSIX:    lsof -ti :5255 | xargs kill\n\n'
+            'Re-run until it starts: killing one can surface another underneath.'
+        )
+    print('serving http://localhost:5255/  (Ctrl-C to stop)', flush=True)
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        httpd.shutdown()

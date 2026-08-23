@@ -18,6 +18,7 @@
 <div id="app" class="flex h-full flex-col"></div>
 
 <script src="sets.js"></script>
+<script src="schema.js"></script>
 <!-- Shared with the generators, loaded the same way sets.js is: the pack trim
      runs here live and in gen-packs.mjs on the way to disk, and SIDED/framable
      are read by gen-art.mjs to decide what to fetch. One copy, so they cannot
@@ -272,7 +273,6 @@ const P = {
      the active game everywhere; the one here is just for browsing sources,
      and switching it does not move the rest of the app. A Magic user who
      wants to read off the Pokémon's data path is not a Pokemon user. */
-  cfgGame: null,
   /* THE DEFAULT LANGUAGE, chosen on the main page and read by everything
      downstream. It is one setting rather than a per-page one because it is a
      fact about YOU - which language you collect in - not about the tab you are
@@ -421,13 +421,20 @@ const SOURCES = {
     q: [['svg', 'vector &mdash; one file per symbol, drawn at any size', 3e3]] },
   mtgjson: { name: 'MTGJSON', gives: 'printings &middot; booster collation &middot; sealed products', kind: 'data', game: 'mtg',
     def: ['local', 'AllPrintings'], full: 'AllPrintings', units: 1,
-    file: q => q === 'psql' ? 'data/AllPrintings.psql.gz' : `data/${q}.json.gz`,
+    file: q => `data/${q}.json.gz`,
     cmd: q => `curl -o data/${q}.json.gz https://mtgjson.com/api/v5/${q}.json.gz`,
     local: 'one published file &mdash; the whole point of this source',
     online: null, why: 'MTGJSON publishes files, not an API',
+    /* THE POSTGRES DUMP IS GONE, and it was the one pull no variable could
+       reach: 220 MB offered on a page that routes variables at files, with
+       nothing able to select it because there is no database on the other end.
+       docs/sources.md says so in as many words - the .sql/.psql/.sqlite shapes
+       "are irrelevant, the app is a static page" - and the Next.js + Postgres
+       surface it was for was deleted from this repo. A pack that cannot be
+       routed to is a download nothing can ever justify, and it was inflating
+       the offline total by the largest single number in the source. */
     q: [['AllPrintings', 'every set', 178.1e6], ['Standard', 'Standard-legal sets', 16.4e6],
-        ['Modern', 'Modern-legal sets', 93.6e6], ['Legacy', 'Legacy-legal sets', 151.1e6],
-        ['psql', 'a Postgres dump', 220e6]] },
+        ['Modern', 'Modern-legal sets', 93.6e6], ['Legacy', 'Legacy-legal sets', 151.1e6]] },
   prices: { name: 'MTGJSON prices', gives: 'price history', kind: 'live', game: 'mtg',
     def: ['local', 'AllPrices'], full: 'AllPrices', units: 1,
     file: q => q === 'none' ? '' : `data/${q}.json.gz`,
@@ -478,7 +485,316 @@ const SOURCES = {
     online: null, why: 'a font you serve is a font that always renders',
     q: [['woff2', 'the only build we ship', 187e3]] },
 };
-const CFG = { src: Object.fromEntries(Object.entries(SOURCES).map(([k, s]) => [k, { at: s.def[0], q: s.def[1] }])) };
+const CFG = { src: Object.fromEntries(Object.entries(SOURCES).map(([k, s]) => [k, { at: s.def[0], q: s.def[1] }])), elt: {} };
+/* PER-ELEMENT ROUTING. The sources Band is a per-SOURCE choice ("where do I
+   read Scryfall text from?"). The schema map is per-ELEMENT ("where do I read
+   the booster collation from?"). The two are the same decision viewed from
+   two sides - the element picks the source's pull, and the source is whatever
+   the element is routed to. CFG.elt is the element-side view; the schema map
+   writes it, and reads the current pick to mark the active chip. The
+   sources Band still owns the runtime values (artUrl, artQ etc. read
+   CFG.src), so the new affordance is additive: a click on the schema map
+   does not yet rewire the page. */
+/* EVERY DATA VARIABLE THE APP READS, AND EVERY ROUTE IT COULD READ IT BY.
+   Built from schema.js, which gen-schema.mjs derives from docs/schema-rows.json
+   and docs/schema-counts.json - 174 variables in 22 groups, counted off the
+   real bulk files.
+
+   THIS USED TO BE THIRTEEN HAND-WRITTEN ROWS, and thirteen rows is not this
+   app's schema, it is a summary of it: "card identity & rules" is one line
+   standing in for name, mana cost, type line, oracle text, layout, collector
+   number and the rest. The enumeration already existed in a document nothing
+   read, so the page could neither show the app's own shape nor notice when the
+   two disagreed. Routing at "card identity" granularity also cannot express the
+   thing the schema is for - printed name needs all_cards where oracle text does
+   not - so the summary was the reason the gear shift had no low gears.
+
+   THE BAND IS DERIVED, NEVER TYPED. A pull lands in the API column if its
+   source declares an `online` endpoint and in On-disk if it declares a `local`
+   side - both facts already live in SOURCES, verified against the vendors in
+   docs/sources.md. So MTGJSON has no API cell because MTGJSON publishes files
+   and not an API, and pokemontcg.io art has no disk cell because nothing
+   enumerates that catalogue yet. Sizes come from srcBytes() for the same
+   reason: a number a row DERIVES cannot drift from the thing it describes. */
+
+/* Which pulls of a source can serve a card-level variable. Scryfall publishes
+   five bulk files and they are not interchangeable - the doc is explicit that
+   `default_cards` is English only, so a localised field needs `all_cards` and
+   the rest is a choice about size. `rulings` carries rulings and nothing else,
+   so it is offered only to the rows that are rulings. */
+const SF_PULLS = ['default_cards', 'all_cards', 'oracle_cards', 'unique_artwork'];
+const MJ_PULLS = ['AllPrintings', 'Standard', 'Modern', 'Legacy'];
+const pullsForSource = (k, el, group) => {
+  if (k === 'scryfall') return /ruling/i.test(el) ? ['rulings', ...SF_PULLS] : SF_PULLS;
+  if (k === 'mtgjson') return MJ_PULLS;
+  if (k === 'prices') return ['AllPrices', 'AllPricesToday', 'none'];
+  if (k === 'sfart') return /art|illustration|crop/i.test(el) ? ['art_crop', 'small', 'normal', 'large', 'png']
+    : ['small', 'normal', 'large', 'png'];
+  return (SOURCES[k]?.q || []).map(q => q[0]);
+};
+const DOC_ELEMENTS = (typeof SCHEMA_ROWS === 'undefined' ? [] : SCHEMA_ROWS).map(([group, element, sf, mj, sfn, mjn, keys], gi) => ({
+  el: `${group}::${element}`,
+  label: element,
+  group,
+  gi,                                   // document order, the stable tiebreak
+  /* WHAT THE FIELD IS CALLED AT EACH VENDOR, which is the other half of the
+     question "where does this come from" - the schema table said which source
+     and never which field, so two variables that differ only in which column
+     they read looked identical. */
+  sf, mj, sfn, mjn,
+  pulls: (keys ? keys.split(' ') : []).flatMap(k =>
+    SOURCES[k] ? pullsForSource(k, element, group).filter(q => SOURCES[k].q.some(x => x[0] === q)).map(q => [k, q]) : []),
+}));
+/* WHAT THE DOCUMENT DOES NOT COVER, TAKEN FROM THE REGISTRY INSTEAD.
+   schema-rows.json enumerates the CARD AND SET fields, which leaves four real
+   sources with no variable at all: TCGplayer's pack art, the vendored mana
+   font, and both Pokemon sources - the Pokemon catalogue is not enumerated
+   anywhere yet, so on that game the doc contributes nothing and the page would
+   otherwise show sixteen app constants and call it a schema.
+
+   A source nobody can route to is worse than a missing row: it is a download
+   the plan can never account for. So any source this game declares that no
+   variable references gets a row built from its own declaration, and the group
+   name says where it came from. When the document grows to cover one, its row
+   here disappears on its own - the set is computed, not listed. */
+const SOURCE_ELEMENTS = (() => {
+  const covered = new Set(DOC_ELEMENTS.flatMap(e => e.pulls.map(([k]) => k)));
+  return Object.keys(SOURCES).filter(k => !covered.has(k)).map((k, i) => ({
+    el: `source::${k}`,
+    label: SOURCES[k].gives,
+    group: 'not in the schema document',
+    gi: 1e4 + i,
+    sf: '', mj: '', sfn: null, mjn: null,
+    pulls: SOURCES[k].q.map(q => [k, q[0]]),
+  }));
+})();
+/* ================== HOLDINGS: THE VARIABLES THAT ARE YOURS ==================
+   The other 172 variables are facts about a CARD and every one of them can be
+   re-fetched from a vendor. These cannot: a quantity is not published anywhere,
+   it is the thing you told the app. They were missing from the schema entirely,
+   which made the schema a map of the catalogue rather than of the app - and it
+   is the holdings that the whole collection is actually made of.
+
+   `store` is the key on a stored holding (see slimHold). The four identity keys
+   are kept BECAUSE the catalogue cannot always answer: `default_cards` is one
+   row per printing preferring English, so a Japanese copy of a card that also
+   exists in English has no catalogue row of its own and its language has
+   nowhere to live but the holding. Everything else about the card is
+   re-supplied on load, which is why an import is ~110 KB and not 1.4 MB.
+
+   CONDITION IS THE GAP AND THE ROW SAYS SO: the importer accepts a condition
+   column and `slimHold` drops it, so it is read from your file every time and
+   stored never. A schema that listed only what is kept would hide that. */
+const HOLDING_VARS = [
+  ['quantity',         'qty',  'how many you have',                                    'holdings.quantity'],
+  ['finish / foil',    'foil', 'nonfoil, foil, etched',                                'holdings.finish'],
+  /* THE ONE REAL GAP, and the reason this group is worth drawing: the importer
+     matches a condition column and slimHold does not carry it, so it is read
+     from your file on every import and kept never. */
+  ['condition',        null,   'read on import, never stored &mdash; the value is dropped', 'holdings.condition', true],
+  ['card name',        'n',    'kept so a holding the catalogue cannot match is still a card', 'cards.name'],
+  ['set code',         'set',  'identity key',                                         'sets.code'],
+  ['collector number', 'num',  'identity key',                                         'cards.collector_number'],
+  ['language',         'lang', 'identity key &mdash; a foreign copy has no catalogue row of its own', 'language'],
+  /* NOT A GAP. A grouping is not a field on a holding, it IS which list the
+     holding is in - so it is stored by the container rather than lost. */
+  ['grouping',         'the binder or deck it sits in', 'one container per portfolio in the file', 'containers'],
+];
+const HOLDING_ELEMENTS = HOLDING_VARS.map(([label, store, note, canon, gap], i) => ({
+  el: `holdings::${label}`,
+  label, group: 'holdings', gi: 2e4 + i,
+  origin: 'you', store, note, canon, gap: !!gap,
+  sf: '', mj: '', sfn: null, mjn: null,
+  pulls: [],
+}));
+const ELEMENTS = [...DOC_ELEMENTS, ...SOURCE_ELEMENTS, ...HOLDING_ELEMENTS];
+/* WHICH COLUMNS A PULL CAN SIT IN. Read off the source, so the table cannot
+   claim a route the vendor does not offer. */
+const pullBands = (k) => {
+  const s = SOURCES[k]; if (!s) return [];
+  const out = [];
+  if (s.online) out.push('api');
+  if (s.local && !s.noLocalYet) out.push('disk');
+  return out;
+};
+/* A pull that is already in the repo costs nothing to "download" - the font is
+   vendored. `cmd` returning null is the source's own way of saying so. */
+const packVendored = (k, q) => { try { return SOURCES[k].cmd(q) == null; } catch { return true; } };
+/* ================= WHAT A PACK CARRIES BEYOND ENGLISH ==================
+   The most expensive fact on this page and the only one it did not state.
+   docs/sources.md is explicit: `all_cards` is the ONLY Scryfall file with
+   languages and `default_cards` is English-only - and default_cards is 78 MB
+   against all_cards' 392 MB, so the cheap route is cheap precisely BECAUSE it
+   drops every other language. Routed to it, a Japanese card silently does not
+   exist; the table said 78 MB and nothing about what the 314 MB buys.
+
+   The counts bear it out: 2,576 printed names off Scryfall's English file
+   against MTGJSON's 10,437, and 65,783 rows of foreignData.
+
+   Returns 'all' (every language), 'foreign' (localised text, MTGJSON's
+   foreignData), 'en' (English only), or null where language is not a property
+   of the thing - an illustration and a price are the same in every language. */
+const packLangs = (k, q) => {
+  if (k === 'scryfall') return q === 'all_cards' ? 'all' : 'en';
+  if (k === 'mtgjson') return 'foreign';
+  return null;
+};
+// the cheapest pull for this variable that carries more than English
+const langRank = (e) => {
+  const c = eltPick(e.el);
+  if (!e.pulls.length || !c || !c.at) return 3;
+  return ({ all: 0, foreign: 1, en: 2 })[packLangs(c.source, c.pull)] ?? 3;
+};
+/* TEXT / IMAGES / LIVE, DERIVED FROM THE SOURCES A VARIABLE CAN USE. Every
+   source already declares its `kind`, so the row group is read off the same
+   registry as the columns rather than being a second list to keep in step.
+   The 22 document groups are still on each row as a tag - they say what a
+   variable IS, where the kind says what shape of thing it costs to fetch,
+   and it is the second one the routing decision turns on. */
+const eltKind = (e) => {
+  if (e.origin === 'you') return 'holdings';
+  const ks = new Set(e.pulls.map(([k]) => SOURCES[k]?.kind));
+  if (ks.has('images')) return 'images';
+  if (ks.has('live')) return 'live';
+  return 'text';
+};
+const KINDS = [['text', 'Text data'], ['images', 'Images'], ['live', 'Live data'],
+               ['holdings', 'Holdings &mdash; yours, and not re-fetchable']];
+/* ============ THE IMPORTER'S NAMES FOR A VARIABLE, ON THE VARIABLE ============
+   Nine apps each call the same field something different, and until now that
+   knowledge sat in its own table at the bottom of Config as SEVEN HAND-TYPED
+   ROWS - while `HEADER_ALIAS` two thousand lines away held ten entries and was
+   the thing actually doing the matching. Two lists of the same fact, one of
+   them wired to nothing.
+
+   Read off HEADER_ALIAS itself now, and attached to the variable the column
+   maps onto, because "what is this called in a Moxfield export" is a property
+   of the variable rather than a separate subject. A regex is turned back into
+   the words it accepts: /^(quantity|qty|count|amount)$/ reads "quantity, qty,
+   count, amount".
+
+   Lazy rather than folded into ELEMENTS: HEADER_ALIAS is declared far below
+   this point, so building it in at load would read an undefined binding. */
+const CANON_TO_VAR = {
+  'cards.name': 'Identity::Card name',
+  'cards.collector_number': 'Identity::Collector number',
+  'sets.code': 'Sets::Set code (on the set)',
+  'sets.name': 'Sets::Set name (on the set)',
+  'language': 'Identity::Language',
+};
+const aliasWords = (re) => re.source
+  .replace(/^\^/, '').replace(/\$$/, '')
+  .replace(/^\((.*)\)$/, '$1')
+  .split('|')
+  .map(s => s.replace(/\\/g, '').replace(/\?/g, '').replace(/\s+/g, ' ').trim())
+  .filter(Boolean);
+const importAliases = (e) => {
+  if (typeof HEADER_ALIAS === 'undefined') return [];
+  // a holdings row names its canonical field directly; a card/set variable is
+  // reached through the CANON target that points at it
+  const canon = e.canon ? Object.keys(HEADER_ALIAS).find(k =>
+        k === e.label || (typeof CANON !== 'undefined' && CANON.some(c => c[0] === k && c[1] === e.canon)))
+    : Object.entries(CANON_TO_VAR).find(([, v]) => v === e.el)?.[0]
+      && Object.keys(HEADER_ALIAS).find(k => (typeof CANON !== 'undefined'
+        && CANON.some(c => c[0] === k && c[1] === Object.entries(CANON_TO_VAR).find(([, v]) => v === e.el)[0])));
+  if (!canon || !HEADER_ALIAS[canon]) return [];
+  return [...new Set(HEADER_ALIAS[canon].flatMap(aliasWords))];
+};
+/* None sorts before API sorts before On-disk - left to right across the table,
+   so sorting on the route column reads the way the columns do. */
+const routeRank = (e) => { const c = eltPick(e.el); return !c || !c.at ? 0 : c.at === 'api' ? 1 : 2; };
+function sortSchema(by) {
+  const s = P.schemaSort;
+  P.schemaSort = s && s.by === by ? { by, dir: -s.dir } : { by, dir: 1 };
+  render();
+}
+const schemaSorted = (rows) => {
+  const s = P.schemaSort || { by: 'group', dir: 1 };
+  const key = ({
+    name:  e => (e.label || e.el).toLowerCase(),
+    route: e => routeRank(e),
+    group: e => e.gi,
+    size:  e => { const c = eltPick(e.el); return c && c.at === 'disk' ? srcBytes(c.source, c.pull) : -1; },
+    lang:  e => langRank(e),
+  })[s.by] || (e => e.gi);
+  return [...rows].sort((a, b) => {
+    const x = key(a), y = key(b);
+    return ((x < y ? -1 : x > y ? 1 : 0) * s.dir) || (a.gi - b.gi);
+  });
+};
+/* WHICH GAME A VARIABLE BELONGS TO. Normally the source says - a variable that
+   can only come from pokemontcg.io is Pokemon's. An APP-DERIVED variable has no
+   source to ask, so the document's own naming answers instead: it writes
+   `DEFAULT_AIM (mtg)`, `FORMAT_LIST (pokemon)`, `MTG_BUCKETS`. Without this the
+   sixteen constants showed on both games, and Pokemon's schema listed
+   MTG_RARITY_TIER. A constant named for neither is genuinely shared and shows
+   on both, which is what `null` means here. */
+const eltGame = (e) => {
+  const n = String(e.label || '');
+  if (/\(pokemon\)/i.test(n) || /^POKEMON_/.test(n)) return 'pokemon';
+  if (/\(mtg\)/i.test(n) || /^MTG_/.test(n)) return 'mtg';
+  return e.pulls.map(([k]) => SOURCES[k]?.game).find(g => g) || null;
+};
+const eltRows = () => {
+  const g = P.game;
+  return ELEMENTS.filter(e => { const eg = eltGame(e); return !eg || eg === g; });
+};
+/* THE DEFAULT ROUTE IS THE ONE THE IMPORTER ACTUALLY TAKES. docs/sources.md:
+   the pipeline is MTGJSON-primary and cross-references Scryfall, so a variable
+   MTGJSON carries defaults to AllPrintings and the rest fall to Scryfall's
+   default_cards. Images default online, which is what those sources declare.
+   A variable no vendor supplies defaults to None, because that is true. */
+const eltDefault = (e) => {
+  if (!e.pulls.length) return { source: null, pull: null, at: null };
+  const pick = e.pulls.find(([k]) => k === 'mtgjson') && e.mj ? e.pulls.find(([k, q]) => k === 'mtgjson' && q === 'AllPrintings')
+    : null;
+  const first = pick || e.pulls.find(([k, q]) => k === 'scryfall' && q === 'default_cards') || e.pulls[0];
+  const bands = pullBands(first[0]);
+  const want = SOURCES[first[0]]?.def[0] === 'local' ? 'disk' : 'api';
+  return { source: first[0], pull: first[1], at: bands.includes(want) ? want : bands[0] || null };
+};
+const eltPick = (name) => {
+  if (!CFG.elt[name]) {
+    const e = ELEMENTS.find(x => x.el === name);
+    if (e) CFG.elt[name] = eltDefault(e);
+  }
+  return CFG.elt[name] || null;
+};
+/* ============ THE SCHEMA IS THE OWNER; CFG.src IS ITS PROJECTION ============
+   These were two models of one decision. The schema wrote CFG.elt and the app
+   read CFG.src, so moving a chip changed a table and nothing else - 180 rows of
+   routing UI that controlled nothing, and a saveState that persisted only the
+   half nobody was editing.
+
+   Rather than keep both, CFG.elt owns the decision and this projects it onto
+   the per-source pair the runtime actually reads (artUrl, setIconUrl, packUrl,
+   onDisk all ask "where is source k, and at which pull"). A source is local if
+   ANY variable routed to it is on disk, and takes the dearest pull asked of it,
+   because a bigger bulk file answers every smaller need of the same source.
+
+   IMAGE SOURCES KEEP THEIR OWN `q` AND THAT IS DELIBERATE. For sfart, `q` is
+   not "which file did you choose", it is the size the FRAME draws - art_crop -
+   while the whole-card sizes are picked per call site through cardQ. Projecting
+   the dearest routed pull onto it would make routing `Default size` to png
+   re-point every frame's art window at a 132 GB pull. So images project their
+   local/online side, which is the routing decision, and leave the size to the
+   call site that knows which picture it is asking for. */
+function syncSrc() {
+  for (const k of Object.keys(CFG.src)) {
+    const routed = ELEMENTS
+      .filter(e => { const c = CFG.elt[e.el]; return c && c.at && c.source === k; })
+      .map(e => CFG.elt[e.el]);
+    if (!routed.length) continue;
+    CFG.src[k].at = routed.some(c => c.at === 'disk') ? 'local' : 'online';
+    if (SOURCES[k].kind === 'images') continue;           // see the note above
+    const dearest = [...routed].sort((a, b) => srcBytes(k, b.pull) - srcBytes(k, a.pull))[0];
+    if (dearest && SOURCES[k].q.some(q => q[0] === dearest.pull)) CFG.src[k].q = dearest.pull;
+  }
+}
+const setElt = (name, source, pull, at = null) => {
+  CFG.elt[name] = { source, pull, at };
+  syncSrc(); saveState(); render();
+};
 
 /* PERSISTENCE - localStorage, for the two things the page can actually create.
    It stays read-only on the server side, which matters: serve.py is what exposes
@@ -525,7 +841,7 @@ function saveState() {
     localStorage.setItem(STORE, JSON.stringify({
       // cols is a choice you made, like the source and the language beside it -
       // it was the one that did not survive a reload: set 7 across, come back, get 6
-      v: 1, src: CFG.src, lang: P.lang, cols: P.cols,
+      v: 1, src: CFG.src, elt: CFG.elt, lang: P.lang, cols: P.cols,
       decks: LISTS.decks.map(slimList), binders: LISTS.binders.map(slimList),
     }));
   } catch { /* quota, or a browser with storage off: the app runs, it just forgets */ }
@@ -539,6 +855,14 @@ function loadState() {
      after something was saved has to keep its new default, and one removed since
      must not come back as a key nothing reads. */
   for (const k of Object.keys(CFG.src)) if (s.src?.[k]) Object.assign(CFG.src[k], s.src[k]);
+  /* THE SCHEMA IS RESTORED AND THEN RE-PROJECTED. Per known variable for the
+     same reason the sources are merged per known key: a variable the document
+     has since dropped must not come back as a route nothing reads, and one
+     added since has to keep its new default. syncSrc runs after, so a restored
+     route reaches the runtime rather than only the table - which is the whole
+     defect this pair of stores had, saved on one side and read on the other. */
+  if (s.elt) for (const e of ELEMENTS) if (s.elt[e.el]) CFG.elt[e.el] = s.elt[e.el];
+  syncSrc();
   if (LANGS.includes(s.lang)) P.lang = s.lang;
   // per known view, and clamped by that view's own range: a saved 7 must not
   // outlive a layout whose maximum has since dropped to 5
@@ -557,8 +881,6 @@ function forgetState() {
   location.reload();                      // the defaults live in the declarations above
 }
 // a side that doesn't exist can't be selected - the chip says why instead
-const setSrc = (k, at) => { if (SOURCES[k][at]) CFG.src[k].at = at; render(); };
-const setQuality = (k, q) => { CFG.src[k].q = q; render(); };
 
 /* WHAT A SOURCE COSTS, at whatever quality it is set to. One function, so the
    row, the group subtotal and the two offline buttons cannot disagree. */
@@ -601,10 +923,6 @@ const ago = (mtime) => {
    arithmetic, so it is now a button - and there are two of them because the
    difference between them is 140 GB and that is the user's call, not a default.
    Sources with no local side are skipped rather than silently failed. */
-const OFFLINE_MODES = {
-  drawn: { label: 'as the app draws it', q: k => SOURCES[k].def[1] },
-  full: { label: 'at the fullest size each offers', q: k => SOURCES[k].full },
-};
 /* THE SOURCES THIS GAME ACTUALLY USES. Config listed all eight whichever game
    you were browsing, so a Magic session was asked to reason about pokemontcg.io
    and a Pokemon one about MTGJSON's booster collation - and the "6 of 8 online"
@@ -618,31 +936,25 @@ const srcKeys = (kind) => Object.keys(SOURCES)
     // the config page picks its own game via its sub-tab; elsewhere (the
     // sources the running app actually draws from) it is the active game.
     // P.tab carries the last NAV tab, not the current route, so check the hash.
-    const onConfig = typeof location !== 'undefined' && location.hash === '#/config';
-    const g = onConfig ? P.cfgGame : P.game;
+    const g = P.game;
     return (!SOURCES[k].game || SOURCES[k].game === g) && (!kind || SOURCES[k].kind === kind);
   })
   .sort((a, b) => srcBytes(b, SOURCES[b].full) - srcBytes(a, SOURCES[a].full));
 /* Quality options, dearest first, for the same reason. The declarations are in
    whatever order they were written in - Scryfall's five run 24 MB, 78, 392, 37,
    5 - which reads as no order at all. */
-const srcQualities = k => [...SOURCES[k].q].sort((x, y) => y[2] - x[2]);
 /* A source with no local side can never be switched to one, so it is NAMED
    rather than counted. "6 of 8 offline" with no way to reach 8 is a broken
    promise, and flipping such a row to Local anyway would be worse: it would
    read as done while every request still went to the network. */
-const canBeLocal = () => srcKeys().filter(k => SOURCES[k].local && !SOURCES[k].noLocalYet);
-const missingLocal = () => srcKeys().filter(k => SOURCES[k].noLocalYet);
-const offlineBytes = mode => canBeLocal().reduce((n, k) => n + srcBytes(k, OFFLINE_MODES[mode].q(k)), 0);
-function goOffline(mode) {
-  for (const k of canBeLocal()) { CFG.src[k].at = 'local'; CFG.src[k].q = OFFLINE_MODES[mode].q(k); }
-  render();
-}
-// the inverse, for getting back to the defaults without reloading
-function goOnline() {
-  for (const k of srcKeys()) { CFG.src[k].at = SOURCES[k].def[0]; CFG.src[k].q = SOURCES[k].def[1]; }
-  render();
-}
+/* THE OFFLINE-MODE SUBSYSTEM IS GONE. `Work offline` was one button that set
+   every source local at a chosen size, plus the five helpers behind it -
+   canBeLocal, missingLocal, offlineBytes, goOffline, goOnline. The button was
+   removed when the schema table replaced the sources band, and nothing has
+   called any of them since except the assertions written for them.
+   The question it answered is now answered better and per-variable: the
+   download plan totals exactly what the current routes cost, and `Everything
+   on disk` is the same lever with a number attached. */
 /* GEN-PACKS, FROM A BUTTON ON THE TCGPLAYER ROW. The button POSTs to a local
    Node server (gen-packs-server.mjs on localhost:5245, started by `npm run
    gen-serve`) which spawns gen-packs.mjs and streams its stdout back as SSE.
@@ -689,9 +1001,135 @@ const genPacksStart = async () => {
     render();
   };
 };
-const onlineNow = () => canBeLocal().filter(k => CFG.src[k].at === 'online');
-const allLocal = () => onlineNow().length === 0;
-let DEBUG = false;
+
+/* ============== THE DOWNLOAD PLAN, DERIVED FROM THE ROUTING ==============
+   There is no per-source Download button any more, and there should never have
+   been: a download is not a property of a source, it is the CONSEQUENCE of
+   having routed some variable to disk. Eight buttons made the same decision
+   eight times and none of them could see the others, so the one number that
+   matters - what does this configuration actually cost - existed nowhere.
+
+   A pack is one (source, pull) pair. It is needed if any variable is routed to
+   it, and its size is srcBytes(), which is bytes-per-unit times units. Nothing
+   here is typed; change a route and every number below moves with it. */
+const packsNeeded = () => {
+  const m = new Map();
+  for (const e of eltRows()) {
+    const c = eltPick(e.el);
+    if (!c || c.at !== 'disk' || !c.source) continue;
+    const key = `${c.source}/${c.pull}`;
+    if (!m.has(key)) m.set(key, { k: c.source, q: c.pull, els: [] });
+    m.get(key).els.push(e.label || e.el);
+  }
+  return [...m.values()].sort((a, b) => srcBytes(b.k, b.q) - srcBytes(a.k, a.q));
+};
+/* Everything this game could put on the disk, so "unused" can be answered
+   about files that are actually there rather than about the whole registry. */
+const packsAll = () => srcKeys().flatMap(k => SOURCES[k].local && !SOURCES[k].noLocalYet
+  ? SOURCES[k].q.map(([q]) => ({ k, q })) : []);
+/* ON DISK AND ROUTED TO NOTHING. This is what "set the whole app to API and it
+   should delete the unused downloads" asks for - and the page cannot delete
+   anything, so it names the files and the command instead. serve.py is
+   read-only by design and a Delete button that deleted nothing would be the
+   same lie the old "Download & cache now" button was. */
+const packsUnused = () => {
+  const need = new Set(packsNeeded().map(p => `${p.k}/${p.q}`));
+  return packsAll().filter(p => !need.has(`${p.k}/${p.q}`) && onDisk(p.k, p.q))
+    .sort((a, b) => srcBytes(b.k, b.q) - srcBytes(a.k, a.q));
+};
+const packHere = (k, q) => { const h = onDisk(k, q); return !!(h && (!h.of || h.n >= h.of)); };
+// what this configuration still has to fetch: needed, not vendored, not here
+const packsToFetch = () => packsNeeded().filter(p => !packVendored(p.k, p.q) && !packHere(p.k, p.q));
+const planBytes = () => packsToFetch().reduce((n, p) => n + srcBytes(p.k, p.q), 0);
+const unusedBytes = () => packsUnused().reduce((n, p) => {
+  const h = onDisk(p.k, p.q); return n + (h && h.bytes || 0);
+}, 0);
+/* THE RECOMMENDATION. A pack already coming down for one variable can feed
+   every other variable that lists it, at no extra byte - which is the single
+   most useful thing this page can tell you and the one thing a per-source
+   button could never work out. Only offered where the saving is real: the pack
+   is already needed, and there are variables on the API route that could read
+   it instead. */
+const routeAdvice = () => {
+  const need = packsNeeded();
+  /* Which already-needed packs could serve each variable that is still on the
+     API route. A variable often has several - card identity is in all_cards,
+     AllPrintings and default_cards - and offering it three times is three ways
+     to say one thing. */
+  const open = new Map();
+  for (const e of eltRows()) {
+    const c = eltPick(e.el);
+    if (!c || c.at !== 'api') continue;
+    const opts = need.filter(p => e.pulls.some(([k, q]) => k === p.k && q === p.q));
+    if (opts.length) open.set(e.label || e.el, opts);
+  }
+  /* Greedy cover: take the pack that settles the most outstanding variables,
+     preferring one already fully on disk and then the smaller file, and drop
+     the variables it covers. So each variable is offered exactly once, by the
+     pack that is the best answer for it. */
+  const out = [];
+  while (open.size) {
+    const score = new Map();
+    for (const [el, opts] of open) for (const p of opts) {
+      const key = `${p.k}/${p.q}`;
+      if (!score.has(key)) score.set(key, { k: p.k, q: p.q, gain: [] });
+      score.get(key).gain.push(el);
+    }
+    const best = [...score.values()].sort((a, b) => b.gain.length - a.gain.length
+      || (packHere(b.k, b.q) ? 1 : 0) - (packHere(a.k, a.q) ? 1 : 0)
+      || srcBytes(a.k, a.q) - srcBytes(b.k, b.q))[0];
+    if (!best) break;
+    out.push(best);
+    for (const el of best.gain) open.delete(el);
+  }
+  return out;
+};
+/* THE GEAR SHIFT. One lever for the whole app: every variable that can take
+   the band goes to it. A variable whose only route is the other band keeps
+   what it has rather than being cleared - "all to API" cannot make MTGJSON
+   serve an API, and pretending otherwise is how a setting comes to read as
+   done while the page still reads a file. */
+function routeAll(at) {
+  for (const e of eltRows()) {
+    const cur = eltPick(e.el);
+    const hit = e.pulls.find(([k]) => pullBands(k).includes(at));
+    if (!hit) continue;
+    // keep the pull you already chose if it can serve this band
+    const keep = cur && e.pulls.some(([k, q]) => k === cur.source && q === cur.pull)
+      && pullBands(cur.source).includes(at) ? [cur.source, cur.pull] : hit;
+    CFG.elt[e.el] = { source: keep[0], pull: keep[1], at };
+  }
+  syncSrc(); saveState(); render();
+}
+// take one recommendation: everything that can read this pack now does
+function routePack(k, q) {
+  for (const e of eltRows())
+    if (e.pulls.some(([a, b]) => a === k && b === q)) CFG.elt[e.el] = { source: k, pull: q, at: 'disk' };
+  syncSrc(); saveState(); render();
+}
+/* MAKE LOCAL. Wherever a pack is already being fetched for one variable, every
+   other variable that could read it now does. This is the free move and the
+   one a per-source button could never see: the file is coming down regardless,
+   so a variable left on the API is paying a network round-trip for bytes that
+   are already on the disk.
+
+   It takes every outstanding recommendation at once rather than one at a time,
+   and repeats, because settling one pack can make another worth taking - the
+   set of needed packs is what the advice is computed from, and routing to a
+   pack adds it to that set. Bounded rather than `while (true)`: the loop is
+   monotone (a variable only ever moves API -> disk) so it must terminate, and
+   a cap means a future change that breaks that assumption stalls a render
+   instead of hanging the tab. */
+function makeLocal() {
+  for (let pass = 0; pass < 24; pass++) {
+    const advice = routeAdvice();
+    if (!advice.length) break;
+    for (const p of advice)
+      for (const e of eltRows())
+        if (e.pulls.some(([a, b]) => a === p.k && b === p.q)) CFG.elt[e.el] = { source: p.k, pull: p.q, at: 'disk' };
+  }
+  syncSrc(); saveState(); render();
+}
 const game = () => GAMES[P.game] || GAMES.mtg;
 const tab = () => TABS[P.tab] || TABS.search;
 const picked = () => P.pick[P.tab] || null;
@@ -2565,22 +3003,42 @@ const TopNav = (section, stats = '') => `
       ${!P.game ? '' : `<a href="#/io" title="Import" class="flex shrink-0 items-center gap-1.5 rounded-full px-2 py-1 text-sm font-medium ${
         section === 'io' ? 'bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500' : 'text-neutral-400 hover:bg-neutral-800 hover:text-white'}">Import${
         UNRESOLVED.length ? `<span class="rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-neutral-950">${UNRESOLVED.length}</span>` : ''}</a>`}
-      <a href="#/config" title="Config" aria-label="Config"
+      ${/* THE COG IS GATED LIKE EVERY OTHER NAV ITEM. Config is per-game now, so
+             with no game picked it has nothing to show and the router sends
+             #/config straight back to home - a control whose only outcome is
+             "nothing visibly happened" is worse than no control. The nav links
+             and Import were already gated on P.game; the cog was the one that
+             was not, which is what left it on the game picker. */''}
+      ${!P.game ? '' : `<a href="#/config" title="Config" aria-label="Config"
          class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-lg
-                ${section === 'config' ? 'bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500' : 'text-neutral-400 hover:bg-neutral-800 hover:text-white'}">⚙</a>
+                ${section === 'config' ? 'bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500' : 'text-neutral-400 hover:bg-neutral-800 hover:text-white'}">⚙</a>`}
     </nav></header>`;
 
-const DebugBand = () => !DEBUG ? '' : `
-  <pre class="mt-6 overflow-x-auto rounded-xl border border-sky-900/60 bg-sky-950/20 p-4 text-[11px] leading-relaxed text-sky-200">
-<span class="text-sky-500">tab</span>      ${P.tab}   <span class="text-sky-500">game</span> ${P.game}
-<span class="text-sky-500">scope</span>    ${esc(scopeLabel())}   <span class="text-sky-500">selector</span> ${selectorOpen() ? 'open' : 'collapsed'}
-<span class="text-sky-500">sort</span>     ${esc(P.sort.map(t => t.f === 'BREAK' ? '--BREAK--' : t.f + (t.d === 'a' ? ' asc' : ' desc')).join(', ')) || '(none)'}
-<span class="text-sky-500">grouping</span> ${esc(grouping().map(t => t.f).join(', ') || '(none)')}
-<span class="text-sky-500">view</span>     ${P.view ?? '(none)'}   <span class="text-sky-500">rows</span> ${keyed() ? 'identity key' : 'card'}
-<span class="text-sky-500">sql</span>      select c.set_id, c.collector_number, h.finish, h.quantity, c.name
-         from cards c join holdings h on h.card_id = c.id
-         where h.container_id = $1
-         order by cc.value asc, c.rarity_tier desc, c.name asc</pre>`;
+/* PER-PAGE ERROR LOG. The old Debug button was a static state dump you had to
+   remember to enable, and it never told you anything was wrong. The new affordance
+   is the inverse: hidden by default, surfaces only when a page hits an error.
+   Pages that catch a failure call `logErr(section, msg)` with a descriptive
+   sentence; the strip then renders at the bottom of the page until cleared.
+   Showing the most recent few keeps the strip small even after many errors. */
+const PAGE_LOG = {};
+const logErr = (k, msg) => {
+  (PAGE_LOG[k] = PAGE_LOG[k] || []).push({ msg, at: Date.now() });
+  render();
+};
+const clearErr = (k) => { delete PAGE_LOG[k]; render(); };
+const PageLog = (k) => {
+  const e = PAGE_LOG[k];
+  if (!e || !e.length) return '';
+  return `<div class="mt-6 rounded-xl border border-rose-900/60 bg-rose-950/20 p-4 text-xs text-rose-200">
+    <div class="mb-2 flex items-baseline gap-2">
+      <span class="text-rose-400">errors</span>
+      <span class="text-rose-500">${e.length}</span>
+      <button onclick="clearErr('${k}')" type="button"
+        class="ml-auto text-[10px] text-rose-400 hover:text-rose-200">clear</button>
+    </div>
+    ${e.slice(-3).map(x => `<p class="font-mono text-[11px]">${esc(x.msg)}</p>`).join('')}
+  </div>`;
+};
 
 /* The app is a flex column filling the viewport: header, subheader, then one
    scrolling pane. Whoever is active owns the scrollbar - which is why an open
@@ -2590,8 +3048,7 @@ const Frame = (section, { desc = '', stats = '', sub = '', body }) => `${TopNav(
   <main data-scroll="pane" class="min-h-0 flex-1 overflow-y-auto px-6 py-5">
     ${desc ? `<p class="mb-4 max-w-3xl text-sm text-neutral-400">${desc}</p>` : ''}
     ${body}
-    ${DebugBand()}
-    <button onclick="DEBUG=!DEBUG;render()" class="${BTN_SECONDARY} mt-4">${DEBUG ? 'Hide' : 'Show'} debug</button>
+    ${PageLog(section)}
   </main>`;
 
 /* ======================= THE SELECTOR =================================
@@ -2664,11 +3121,13 @@ const EditInline = () => `
 
 // A select, not chips: there are ten formats (docs/import-formats.md) and the
 // bar has to stay one line tall next to the name, its numbers and Clear.
-const ExportInline = () => `
-  <span class="flex shrink-0 items-center gap-1.5">
-    <span class="text-[10px] font-semibold uppercase tracking-wide text-neutral-600">Export</span>
-    <select class="${FIELD} py-0.5 text-xs">${['CSV', ...EXPORTERS].map(f => `<option>${f}</option>`).join('')}</select>
-    <button class="${BTN_PRIMARY}">Download</button></span>`;
+/* THE EXPORT CONTROLS ARE GONE UNTIL EXPORT EXISTS. A <select> with no
+   onchange and a Download button with no onclick: eleven formats offered and
+   nothing behind any of them. This is the same defect ISSUES.md recorded when
+   it deleted the Import page's Source dropdown - "the third inert control on
+   that screen to go" - which survived here because it is on the other side of
+   the bar. Offering a choice that does nothing is worse than offering none. */
+const ExportInline = () => '';
 
 /* Only the NAME toggles the selector - it can't be one big <button> wrapping
    everything, because a <button>/<select> inside a <button> is invalid and the
@@ -6017,7 +6476,6 @@ PAGES.search = PAGES.printings = PAGES.binders = PAGES.decks = () => BrowsePage(
    One alias table, not nine parsers. Export runs the same map backwards. */
 // the apps whose exports we read - a different thing from SOURCES, which is
 // where the catalogue itself comes from
-const EXPORTERS = ['Moxfield','Deckbox','Dragonshield','ManaBox','Cardsphere','Delver Lens','Helvault','Archidekt','Collectr','Deckstats'];
 /* Verified from Archidekt's own importer bundle - see docs/import-formats.md.
    Numbers are the column's position in that app's export; '-' means absent. */
 /* LANGUAGE HAS A COLUMN, and this said otherwise for as long as the row has
@@ -6044,18 +6502,26 @@ const EXPORTERS = ['Moxfield','Deckbox','Dragonshield','ManaBox','Cardsphere','D
      - it carries NO language column, in a table where five of the other six do.
    It also blanks the collector number on 936 of those 2,796 rows, which is why
    `set name + product name` has to be a workable match on its own. */
+/* CANONICAL IMPORT FIELD -> WHAT IT LANDS ON. Two columns, because two columns
+   is what anything reads. It used to carry seven more - each app's column
+   POSITION for that field - under a footer claiming readImport fell back to
+   them when the header text was unfamiliar. `mapColumns` never referenced them
+   once: matching is header-regex only, and it lands 139/139 on the sample and
+   2,453/2,607 on the real export without them. A fingerprint nothing
+   fingerprints is a table you have to keep current for nothing.
+   The remaining pair is live - the schema table reads it to hang each
+   variable's accepted header names off the variable itself. */
 const CANON = [
-  ['quantity',         'holdings.quantity',        '1','1','1','7','1','1','11',  1],
-  ['card name',        'cards.name',               '3','3','2','1','3','2','4',   1],
-  ['set code',         'sets.code',                '4','5','4','2','-','-','-',   1],
-  ['set name',         'sets.name',                '-','4','5','3','4','3','3',   1],
-  ['collector number', 'cards.collector_number',   '10','6','3','4','-','5','5',  1],
-  ['finish / variant', 'holdings.finish',          '7','9','7','5','7','4','7',   1],
-  ['condition',        'holdings.condition',       '5','7','8','14','5','-','9',  1],
-  ['language',         'language',                  '6','8','9','15','6','-','-',  1],
-  ['grouping / tags',  'containers',               '-','18','-','-','-','-','1',  1],
+  ['quantity',         'holdings.quantity'],
+  ['card name',        'cards.name'],
+  ['set code',         'sets.code'],
+  ['set name',         'sets.name'],
+  ['collector number', 'cards.collector_number'],
+  ['finish / variant', 'holdings.finish'],
+  ['condition',        'holdings.condition'],
+  ['language',         'language'],
+  ['grouping / tags',  'containers'],
 ];
-const COLS = ['Moxfield','Deckbox','DragShield','ManaBox','Cardsphere','Delver','Collectr'];
 /* WHAT AN IMPORT LEFT UNDECIDED. Empty, because nothing has been imported --
    and that is the whole point of it being a list rather than the literal 3 that
    used to be painted into the nav badge, the IO tab's stat and the heading of
@@ -6381,7 +6847,6 @@ function applyImport() {
 }
 // counted off the table rather than typed beside it: the old note said "seven of
 // nine formats carry it" against six columns, five of which do
-const carry = f => CANON.find(r => r[0] === f).slice(2, 2 + COLS.length).filter(v => v !== '-').length;
 
 PAGES.io = () => Frame('io', {
   stats: Stats([[String(UNRESOLVED.length), 'unresolved']]),
@@ -6476,25 +6941,14 @@ PAGES.io = () => Frame('io', {
         : 'nothing read yet'}</span>
     </div>`}
 
-    <details class="mt-6 rounded-lg border border-neutral-800 bg-neutral-900/40 p-3">
-      <summary class="cursor-pointer text-[11px] uppercase tracking-wide text-neutral-400">
-        Column map &middot; ${COLS.length} sources &middot; the fingerprint readImport falls back to
-      </summary>
-      ${/* The same Table the config page's five lists use. This was the fourth
-              hand-rolled one and the widest, and its header row was declared with
-              w-36/w-44 against cells that carried the same widths a second time -
-              change one and the columns silently stop lining up. */''}
-      ${Table([['Canonical field', 'w-36'], ['Our column', 'w-44'],
-               ...COLS.map(c => [c, 'w-16 text-center'])],
-        CANON.map((r) => {
-          const [f, ours, ...rest] = [...r]; const ok = rest.pop();
-          return [`<span class="${ok ? 'text-neutral-200' : 'text-amber-400'}">${f}</span>`,
-            `<span class="font-mono text-[10px] ${ours.startsWith('NO') ? 'text-amber-400' : 'text-neutral-500'}">${ours}</span>`,
-            ...rest.map(v => `<span class="font-mono tabular-nums ${v === '-' ? 'text-neutral-700' : 'text-emerald-400'}">${v}</span>`)];
-        }),
-        { foot: `Numbers are the column&rsquo;s <em>position</em> in that app&rsquo;s export &mdash; Archidekt maps positionally, so this fingerprints a file by shape even when the header text is unfamiliar. We alias-match headers first and fall back to this. Language lands on the printing, where the identity key already reads it: ${
-          carry('language')} of these ${COLS.length} exports carry it, and ${num(2634)} of ${num(107347)} catalogue printings are not English. Aliases are owned by <a href="#/config" class="text-neutral-300 underline">Config &middot; import / export map</a>; this is the fallback view.` })}
-    </details>
+    ${/* THE COLUMN MAP TABLE IS GONE, and with it a claim that was not true.
+           Its footer said "we alias-match headers first and fall back to this" -
+           mapColumns contains ZERO references to CANON's positions, so the
+           fallback was never implemented and the grid documented a mechanism
+           that does not exist. Header matching alone lands 139/139 on the
+           sample and 2,453/2,607 on the real export; the positions were a
+           fingerprint nothing fingerprinted. The alias -> variable link CANON
+           still provides is read by the schema table. */''}
   </div>`,
 });
 
@@ -6515,18 +6969,6 @@ PAGES.io = () => Frame('io', {
    made a directory holding 107k crops read "not fetched" - true of png,
    useless as an answer, and it hid the one thing the row is for: which of these
    five have I actually got. onDisk already took a quality; nothing asked it. */
-const DiskChip = (k, q = CFG.src[k].q) => {
-  const s = SOURCES[k], have = onDisk(k, q);
-  if (have === null) return `<span class="text-neutral-600"
-    title="serve.py answers this; run it, or this is check.mjs with no server">not checked</span>`;
-  if (!have) return `<span class="text-neutral-700" title="${esc(s.file(q))}">&mdash;</span>`;
-  // a directory that holds a tenth of what it should is not "on disk", and
-  // saying so is the whole reason the count is carried through from serve.py
-  const part = have.of && have.n < have.of;
-  return `<span class="${part ? 'text-amber-500/90' : 'text-emerald-400/90'}"
-    title="${esc(s.file(q))} &mdash; ${bytes(have.bytes)}, ${ago(have.mtime)}">${
-    have.of ? `${num(have.n)} of ${num(have.of)}` : 'on disk'} &middot; ${bytes(have.bytes)}</span>`;
-};
 
 /* A SOURCE IS A NAME, A NAME OF WHAT IT GIVES, A STRIP OF QUALITY CHIPS LEFT
    TO RIGHT SMALLEST TO BIGGEST, AND ONE ACTION BUTTON ON THE RIGHT. The chip
@@ -6536,60 +6978,16 @@ const DiskChip = (k, q = CFG.src[k].q) => {
    ever described the one that happened to be selected. The action is the chip
    that used to read "Local" / "Online" - renamed to "Download" / "Remove" /
    "Live" so it answers the question the source actually asks. */
-const QualityStrip = (k) => {
-  const s = SOURCES[k], c = CFG.src[k];
-  // ordered ASCENDING by bytes - the leftmost chip is the cheapest, the right-
-  // most is the largest thing you could put on this disk. Declarations are in
-  // whatever order they were written in, which is no order at all.
-  const qtys = [...s.q].sort((x, y) => x[2] - y[2]);
-  return `<div class="flex flex-wrap items-center gap-1.5">${qtys.map(([v, d, b]) => {
-    const on = c.q === v;
-    return `<button onclick="setQuality('${k}','${v}')"
-      title="${bytes(b * (s.units || 1))} &middot; ${esc(d)}"
-      class="rounded-md border px-2 py-1 text-[11px] transition ${
-        on ? 'border-emerald-500/40 bg-emerald-500/5 text-emerald-200'
-           : 'border-neutral-800 bg-neutral-900 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200'}">
-      <span class="font-mono">${v}</span>
-      <span class="ml-1.5 tabular-nums text-[10px] ${on ? 'text-emerald-400/80' : 'text-neutral-600'}">${bytes(b * (s.units || 1))}</span></button>`;
-  }).join('')}</div>`;
-};
 /* THE ACTION BUTTON answers "is this on disk?" with the only operation that
    makes sense at that answer. Three states: file on disk and the source is
    using it (Remove to go back online), file not on disk and the source has a
    local side (Download), and no local side at all (Live, no button). The
    command the user actually runs to fill the disk is in `s.cmd` and shown
    beside the button — the page is read-only, downloads are a terminal job. */
-const SourceAction = (k) => {
-  const s = SOURCES[k], c = CFG.src[k];
-  if (!s.local) return `<span class="text-[10px] text-sky-400/80">${s.online || ''}</span>`;
-  const have = onDisk(k, c.q);
-  const isLocal = c.at === 'local';
-  const isOnDisk = have && (!have.of || have.n >= have.of);
-  const verb = isLocal ? 'Remove' : 'Download';
-  const next = isLocal ? 'online' : 'local';
-  const clr = isLocal ? BTN_DANGER : BTN_PRIMARY;
-  return `<div class="flex shrink-0 flex-col items-end gap-1">
-    <button onclick="setSrc('${k}','${next}')" class="${clr}">
-      ${verb}${isLocal ? '' : ` &mdash; ${bytes(srcBytes(k))}`}</button>
-    <span class="text-[10px] ${isOnDisk ? 'text-emerald-400/80' : 'text-neutral-600'}">${
-      isOnDisk ? `${bytes(have.bytes)} on disk${have.of ? ` &middot; ${have.n}/${have.of}` : ''}`
-      : isLocal ? 'file not on disk &mdash; run the command to fetch'
-      : `download: ${esc(s.cmd(c.q) || '')}`}</span></div>`;
-};
-const SourceRow = (k) => {
-  const s = SOURCES[k], c = CFG.src[k];
-  const out = c.at === 'online';
-  return `<div class="mb-3 rounded-lg border ${out ? 'border-sky-900/70' : 'border-emerald-900/50'} overflow-hidden bg-neutral-950">
-    <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-3 py-2">
-      <span class="shrink-0 text-sm font-medium text-neutral-200">${s.name}</span>
-      <span class="min-w-0 flex-1 text-[11px] text-neutral-500">${s.gives}</span>
-      ${SourceAction(k)}
-    </div>
-    <div class="border-t border-neutral-800 px-3 py-2">
-      ${QualityStrip(k)}
-    </div>
-  </div>`;
-};
+/* TABLE-FORMAT SOURCE ROW. One <tr> per source, with the source name + purpose in
+   the label cell and the action/quality split across the API and On-disk cells.
+   None is empty: sources are never "no pull" — clearing a source means setting
+   it offline, which is the Download/Remove button on the right. */
 /* THE GEN-PACKS BUTTON + PROGRESS BAR. Lives only on the TCGplayer row because
    that is the one source whose `cmd` runs gen-packs.mjs. The bar shows
    current/total plus the booster being processed, and a small log pane for
@@ -6624,179 +7022,472 @@ const GenPacksBlock = () => {
   </div>`;
 };
 
-const CfgSub = () => {
-  if (P.cfgGame == null) P.cfgGame = P.game;
-  return `<div class="shrink-0 border-b border-neutral-800 bg-neutral-900/80">
+/* NO GAME PICKER ON CONFIG. It grew one while the schema table was the only
+   thing on the page that differed by game, and it made Config the one screen
+   with TWO answers to "which game am I looking at" - the app's, in the nav, and
+   its own, in a tab strip that could disagree with it. Every other page reads
+   P.game and Config does now too: pick the game once on the home screen and
+   Config shows that game's schema, like Printings shows that game's printings. */
+/* SECOND SUB-HEADER. The schema/anatomy split is the first of what is likely to
+   be more (refresh cadence, import/export map, defaults all currently live in
+   one body) — a tab strip below the game tabs is the cheap place to grow the
+   split without redoing the page frame. */
+const pickCfgSection = (k) => { P.cfgSection = k; render(); };
+const CfgSub2 = () => {
+  if (P.cfgSection == null) P.cfgSection = 'schema';
+  /* THREE SUB-TABS. Defaults moved off Schema because it isn't routing — it's
+     numbers the app reads. Sources and Refresh stay with Schema because the
+     schema table needs them in the same conversation as the routing choices. */
+  const tabs = [['schema', 'Schema'], ['defaults', 'Defaults'], ['anatomy', 'Anatomy &amp; kit']];
+  return `<div class="shrink-0 border-b border-neutral-800 bg-neutral-900/60">
     <nav class="flex items-center gap-4 px-4">
-      <span class="border-b-2 border-transparent px-1 py-3 text-sm font-medium text-neutral-500">Config</span>
-      ${Object.keys(GAMES).map(k => `<button onclick="pickCfgGame('${k}')"
-        class="border-b-2 px-1 py-3 text-sm font-medium transition ${k === P.cfgGame
-          ? 'border-emerald-500 text-white' : 'border-transparent text-neutral-300 hover:text-white'}">${GAMES[k].label}</button>`).join('')}
+      ${tabs.map(([k, l]) => `<button onclick="pickCfgSection('${k}')"
+        class="border-b-2 px-1 py-2 text-xs font-medium transition ${k === P.cfgSection
+          ? 'border-emerald-500 text-white' : 'border-transparent text-neutral-400 hover:text-white'}">${l}</button>`).join('')}
     </nav></div>`;
+};
+/* ANATOMY & KIT, INLINE. The two demo pages were reachable only from Config's
+   debug band, with their own Frame and their own hash. They are the two
+   references the pages are checked against, and bringing them onto Config as
+   a sub-tab makes them part of the same surface the choices live on. The
+   individual routes still exist for sharing a link. */
+const CfgAnatomyBody = () => {
+  /* KIT BLOCK — every control rendered once. Inline rather than routed so the
+     bands can sit next to the schema table without losing the place. */
+  const kit = `<div class="${PANEL} mb-4 px-4 py-4">
+    ${SectionHeader('Chips')}<div class="mb-5 flex gap-1.5">${chip('Neutral','')}${chip('Include','+')}${chip('Exclude','-')}${chip('With count','',count(42))}</div>
+    ${SectionHeader('Buttons')}<div class="mb-5 flex gap-1.5"><button class="${BTN_PRIMARY}">Primary</button>
+      <button class="${BTN_SECONDARY}">Secondary</button><button class="${BTN_DANGER}">Danger</button></div>
+    ${SectionHeader('Sort row, with break')}<div class="mb-5">${SortRow()}</div>
+    ${SectionHeader('Identity row')}<div class="mb-5 max-w-3xl rounded-lg border border-neutral-800">${CARDS().slice(0, 3).map(c => KeyRow(c)).join('')}</div>
+    ${SectionHeader('Card frame')}<div class="mb-1 grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(224px,1fr))]">${
+      CARDS().slice(0, 6).map(c => MockCard(c)).join('')}</div>
+    <p class="mb-5 text-[11px] text-neutral-600">The same component the grid, the card page and the binder draw &mdash; a mock only the kit renders is a mock of a mock. Ink is picked from the plate&rsquo;s luminance, so no frame colour has to be listed as &ldquo;dark&rdquo;.</p>
+    ${SectionHeader('Fields')}<div class="mb-5 max-w-md">${RangeField('Range', 2, 5)}${NumberField('Number', 60, 'cards')}
+      <input class="${FIELD} w-full" placeholder="Text field"></div>
+    ${SectionHeader('Completion bar')}<div class="mb-5 flex max-w-md items-center gap-3">${CompletionBar(62, 84)}
+      <span class="text-xs text-neutral-400">62%</span></div>
+    ${SectionHeader('Colours')}<div class="mb-2 flex gap-1.5">${['W','U','B','R','G','C'].map(c => pips(c)).join('')}</div>
+    <p class="text-[11px] text-neutral-600">Validated for colour-vision deficiency against the dark surface; every swatch carries its letter.</p>
+  </div>`;
+  /* ANATOMY BLOCK — pulled out of PAGES.anatomy by hand. The two share their
+     helpers (anatomyClasses, AnatomySample) so the body is the same; only the
+     Frame and the desc paragraph were skipped. The hash routes still work. */
+  let anatomy = '';
+  if (P.game === 'mtg') {
+    const classes = anatomyClasses();
+    const live = CATALOGUE && P.game === 'mtg';
+    const six = classes.filter(c => c.n >= ANATOMY_SAMPLES).length;
+    anatomy = `<div class="${PANEL} mb-4 px-4 py-3 text-xs text-neutral-400">
+      ${live ? `<p><span class="font-mono text-neutral-200">${classes.length}</span> classes over
+        <span class="font-mono text-neutral-200">${num(ALL().length)}</span> printings &mdash;
+        <span class="font-mono text-neutral-200">${six}</span> of them have ${ANATOMY_SAMPLES} printings or more,
+        the rest show every printing they have.</p>`
+        : `<p class="text-amber-400/90">The catalogue has not loaded, so this is the ${classes.length}-class
+           view of the mock rows. Run <code>node gen-cards.mjs</code> and reload for the real ${'≈'}66.</p>`}
+      <p class="mt-1.5 text-[11px] text-neutral-600">A card with two sides draws both and shows one &mdash;
+        the <span class="text-neutral-400">&#8635;</span> in its top corner turns it over. Cards are strided across
+        their class, not taken off the front, so six samples are six different sets rather than six from one.</p>
+      <div class="mt-2 flex flex-wrap items-center gap-2">
+        <span class="text-xs text-neutral-400">Show</span>
+        <span onclick="setCompare(false)">${chip('drawn only', P.compare ? '' : '+')}</span>
+        <span onclick="setCompare(true)">${chip('beside the printed card', P.compare ? '+' : '')}</span>
+        <span class="text-[11px] text-neutral-600">${P.compare
+          ? 'Left is this app, right is Scryfall&rsquo;s scan of the same printing. A two-sided card is shown a side at a time, both pairs stacked.'
+          : `Needs the whole-card images: <code>node gen-art.mjs normal --anatomy</code> &mdash; 411 files, 41 MB.`}</span>
+      </div>
+    </div>
+    ${classes.map(a => `
+      <section class="${PANEL} mb-3 px-4 py-3">
+        <div class="mb-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <span class="font-mono text-sm font-semibold text-neutral-100">${a.layout}</span>
+          <span class="text-neutral-700">&times;</span>
+          <span class="font-mono text-sm ${a.treat === 'framed' ? 'text-neutral-400' : 'text-sky-300'}">${a.treat}</span>
+          <span class="text-xs tabular-nums text-neutral-500">${num(a.n)} printing${a.n === 1 ? '' : 's'}</span>
+          ${a.s.length < ANATOMY_SAMPLES
+            ? `<span class="text-[10px] text-amber-500/80">only ${a.s.length} exist${a.s.length === 1 ? 's' : ''}</span>` : ''}
+          ${!a.nf ? '' : `<span class="rounded bg-fuchsia-500/15 px-1.5 py-0.5 text-[10px] text-fuchsia-300">${
+            a.nf === a.n ? 'no frame to draw' : `${num(a.nf)} of ${num(a.n)} have no frame to draw`
+            } &mdash; printed card shown</span>`}
+        </div>
+        <p class="mb-2.5 text-[11px] text-neutral-500">${LAYOUT_NOTE[a.layout] || 'no note written for this layout yet'}
+          <span class="text-neutral-700"> &middot; </span>${TREAT_NOTE[a.treat] || a.treat}</p>
+        <div class="grid gap-3 ${P.compare ? GRID[3] : GRID[ANATOMY_SAMPLES]}">
+          ${a.s.map(c => `<div>
+            ${AnatomySample(c)}
+            <div class="mt-1 truncate text-[10px] text-neutral-600" title="${jsArg(c.n)}">${
+              c.set} ${c.num} &middot; ${esc(c.n)}</div></div>`).join('')}
+        </div>
+      </section>`).join('')}`;
+  }
+  return `<div class="px-4 py-4">${kit}${anatomy}</div>`;
 };
 
 PAGES.config = () => Frame('config', {
-  sub: CfgSub(),
-  body: `
-    <div class="grid items-start gap-5 xl:grid-cols-2">
+  sub: CfgSub2(),
+  body: CfgBody(),
+});
 
-    <!-- ================= COLUMN A - DATA ================= -->
-    <div class="${PANEL} px-4 pt-4">
+/* TWO-AXIS SCHEMA TABLE. Rows are app-element kind; columns are pull method × size
+   (None | API | On-disk). Source identity is incidental, shown on the button face,
+   not the column. Each cell holds every candidate pull as a chip, all visible inline
+   the live pick carries +; the rest are clickable fallbacks. None is itself a chip
+   sized to its label, so the user can clear an element's pick.
 
-      ${Band('sources', `
-        <p class="mb-3 text-[11px] text-neutral-500">One row per source. The chip strip is the choice &mdash;
-          leftmost is the smallest, rightmost is the biggest thing you could put on this disk &mdash;
-          and the button on the right is the one operation that matters: <span class="text-neutral-300">Download</span>
-          to keep a copy on disk, <span class="text-neutral-300">Remove</span> to go back to the server,
-          or <span class="text-neutral-300">Live</span> when the source has no local side. The page
-          is static; downloads are a terminal job the button hints at with the command beneath it.</p>
+   API = live HTTP call returning one resource (Scryfall /sets, /cards/{id}, TCGplayer CDN).
+   ON-DISK = bulk file generated by a gen-*.mjs script and stored under data/
+   (Scryfall bulk: default_cards, all_cards, oracle_cards, unique_artwork; MTGJSON:
+   AllPrintings, Standard/Modern/Legacy, AllPricesToday, AllPrices; sfart: art_crop,
+   border_crop, png; sfsym: svg; ptcg: sets.json, cards.json; user file: holdings.json).
+   tcg pack art appears in BOTH columns because the same image is available via
+   TCGplayer's CDN (live) and pre-downloaded under data/packs/ (on-disk).
 
-        <!-- THE THREE GROUPS, ONE PER DATA SHAPE. Images ride the bytes-per-unit
-             figure, and range from no-image at the left to highest-resolution
-             at the right. Text data is the catalogue and the printings;
-             live data is time series — prices — where the leftmost chip is
-             "none" and the rightmost is the most frequent update. -->
-        ${[
-          { kind: 'images', label: 'images', hint: 'left to right: text-only to highest resolution' },
-          { kind: 'data',   label: 'text data', hint: 'catalogues, printings, sealed products' },
-          { kind: 'live',   label: 'live data', hint: 'time series, left to right: none to frequent' },
-        ].map(({ kind, label, hint }) => {
-          const ks = srcKeys(kind);
-          if (!ks.length) return '';
-          return `<div class="mb-4">
-            <div class="mb-1 flex items-baseline gap-2 px-1">
-              <span class="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">${label}</span>
-              <span class="text-[10px] text-neutral-600">${hint}</span>
-              <span class="ml-auto font-mono text-[10px] text-neutral-600">${
-                bytes(ks.reduce((n, k) => n + srcBytes(k), 0))} at the chips set</span>
-            </div>
-            ${ks.map(SourceRow).join('')}
-          </div>`;
-        }).join('')}`,
-        { note: `what ${GAMES[P.cfgGame].label} draws from`, right: `<span class="font-mono text-[10px] ${
-          allLocal() ? 'text-emerald-400' : 'text-sky-400'}">${
-          allLocal() ? 'offline ready' : `${onlineNow().length}/${canBeLocal().length} online`}</span>` })}
+   HOLDINGS RECORDS IS A REAL ROW. It sits in the ephemeral band with one on-disk source
+   (a user file) so the row reads as a missing implementation, not a missing schema. */
+/* THE SCHEMA MAP, AS TABLE ROWS. Same data as before, but now each element is
+   a `<tr>` with four `<td>`s (label / none / api / disk) so it slots into the
+   same `<table>` as everything else on the page. No second panel. */
+/* THE SCHEMA, AS TABLE ROWS. One <tr> per data variable, four <td>s: what it
+   is, then None / API / On-disk. The chips in a band are the pulls that band
+   can actually serve, read off SOURCES - so a cell is empty because the vendor
+   offers nothing there, and its title says which reason. The size on a disk
+   chip is srcBytes(), the same arithmetic the plan above totals. */
+const CfgSchemaRow = (e) => {
+  const cur = eltPick(e.el);
+  const key = e.el.replace(/'/g, "\\'");
+  /* FOUR ROUTE COLUMNS: None, API, On-disk, non-en. The last two are both
+     on-disk routes split by what they carry - On-disk holds the English-only
+     packs and NON-EN holds the ones that carry other languages, because the
+     multilingual pack is always the dear one (default_cards 78 MB against
+     all_cards' 392 MB) and mixing them put a 5x price step in the middle of a
+     row with nothing marking it. Both write `at: 'disk'`; the column is a
+     presentation split, not a third state. */
+  const inBand = (band) => {
+    if (band === 'api') return e.pulls.filter(([k]) => pullBands(k).includes('api'));
+    const disk = e.pulls.filter(([k]) => pullBands(k).includes('disk'));
+    const multi = ([k, q]) => packLangs(k, q) === 'all' || packLangs(k, q) === 'foreign';
+    return band === 'nonen' ? disk.filter(multi) : disk.filter(p => !multi(p));
+  };
+  const cell = (band) => {
+    if (band === 'none')
+      return chip('none', cur && !cur.at ? '+' : '', '', `setElt('${key}',null,null,null)`);
+    /* SMALLEST TO LARGEST, left to right. Declarations are in whatever order
+       they were written - Scryfall's five run 24 MB, 78, 392, 37, 5 - which is
+       no order at all, and reading a row to compare cost meant reading the
+       numbers rather than the shape. The quality strip has sorted this way for
+       the same reason since it was written. */
+    const here = [...inBand(band)].sort((x, y) => srcBytes(x[0], x[1]) - srcBytes(y[0], y[1]));
+    if (!here.length) {
+      /* NO PULLS AT ALL is a different answer from "no pull in this band", and
+         the app-derived variables are the ones that have it: a WUBRG order or a
+         default page size is computed here and has no vendor to route to.
+         Saying so is the point of the row - a schema that listed only what can
+         be downloaded would be a download list, not a schema. */
+      if (!e.pulls.length) {
+        if (band !== 'api') return '';
+        /* A HOLDING COMES FROM YOU, which is a third answer to "where does this
+           come from" and not the same as "the app computed it". Neither is a
+           route, so neither offers a chip - but saying which one it is, is the
+           whole reason the row exists. */
+        return e.origin === 'you'
+          ? `<span class="text-[10px] text-sky-400/80" title="read from the file you import; no vendor publishes it">your import${
+              e.store ? ` &middot; stored as <span class="font-mono">${e.store}</span>` : ''}</span>`
+          : `<span class="text-[10px] text-neutral-600">computed by the app</span>`;
+      }
+      const s0 = SOURCES[e.pulls[0][0]] || {};
+      const why = band === 'api' ? (s0.why || 'no API for this')
+        : band === 'nonen' ? 'no pull for this variable carries another language'
+        : (s0.why_local || 'no local side yet');
+      return `<span class="font-mono text-neutral-700" title="${esc(why)}">&mdash;</span>`;
+    }
+    const at = band === 'api' ? 'api' : 'disk';
+    return `<div class="flex flex-wrap gap-1">${here.map(([k, q]) => {
+      const on = cur && cur.source === k && cur.pull === q && cur.at === at;
+      const size = band === 'api' ? 'live' : packVendored(k, q) ? 'vendored' : bytes(srcBytes(k, q));
+      return chip(`${k} &middot; ${q}`, on ? '+' : '',
+        `<span class="ml-1 tabular-nums text-[10px] ${on ? 'text-emerald-400/80' : 'text-neutral-600'}">${size}</span>`,
+        `setElt('${key}','${k}','${q.replace(/'/g, "\\'")}','${at}')`);
+    }).join('')}</div>`;
+  };
+  /* THE VENDOR FIELD NAMES, under the variable. "Which source" was the only
+     thing the old table said, and two variables that differ only in which
+     column they read looked identical because of it. The counts are how many
+     rows actually carry the field, measured off the bulk files - a field one
+     vendor has for 350 rows and the other for 65,783 is a routing decision
+     with a number on it rather than a coin toss. */
+  /* A COUNT NEEDS ITS DENOMINATOR: 65,783 rows means nothing until you know
+     the file holds 116,568, and the totals are measured alongside the counts
+     rather than assumed equal between the two vendors. */
+  const of = { sf: SCHEMA_TOTALS.scryfall, mj: SCHEMA_TOTALS.mtgjson };
+  const vendor = (label, field, n, tone) => field
+    ? `<span class="${tone}" title="${esc(field)}${n != null ? ` &mdash; ${n.toLocaleString('en-GB')} of ${
+        of[label].toLocaleString('en-GB')} rows carry it (${Math.round(n / of[label] * 100)}%)` : ''}">${
+        label} <span class="font-mono">${esc(String(field).slice(0, 34))}</span>${
+        n != null ? ` <span class="tabular-nums text-neutral-700">${num(n)}</span>` : ''}</span>`
+    : '';
+  return `<tr class="border-t border-neutral-800/60">
+    <td class="py-1.5 pr-3 align-top">
+      <div class="flex items-baseline gap-2">
+        <span class="text-neutral-300">${e.label || e.el}</span>
+        <span class="shrink-0 text-[9px] uppercase tracking-wide text-neutral-700"
+          title="the document group this variable belongs to">${esc(e.group)}</span>
+      </div>
+      <div class="flex flex-wrap gap-x-2 text-[10px] text-neutral-600">
+        ${vendor('sf', e.sf, e.sfn, 'text-neutral-600')}
+        ${vendor('mj', e.mj, e.mjn, 'text-neutral-600')}
+        ${e.note ? `<span class="${e.gap ? 'text-amber-500/80' : 'text-neutral-600'}">${e.note}</span>` : ''}
+      </div>
+      ${(() => { const a = importAliases(e); return a.length
+        ? `<div class="mt-0.5 text-[10px] text-neutral-700" title="header names the importer accepts for this variable">
+             <span class="text-neutral-600">imports as</span> <span class="font-mono">${a.map(esc).join(', ')}</span></div>`
+        : ''; })()}
+    </td>
+    ${['none', 'api', 'disk', 'nonen'].map(b => `<td class="py-1.5 align-top">${cell(b)}</td>`).join('')}
+  </tr>`;
+};
+/* THE LAST COLUMN: what the CHOSEN route carries beyond English, and what the
+   cheapest fix would cost. It reports the route rather than the field, because
+   that is the decision being made - a name is localisable whatever file you
+   read it from, and it is the file that decides whether you get the Japanese
+   one. Where the answer is "English only" the upgrade is offered as a chip
+   with the DELTA, not the total: the question is never "is all_cards 392 MB",
+   it is "what does every language cost me from here". */
+/* GROUPED BY KIND - text, images, live - because that is the axis the routing
+   decision actually turns on: every image variable shares one cost model (bytes
+   per card, times a hundred thousand cards) and every live one shares another
+   (small, and stale within a day). Sorting the 22 document groups by name put
+   Faces next to Facets and split the pictures across four of them.
+   Within a group the order is the sort you picked; the document's own order is
+   the default and the tiebreak, so an unsorted table reads as the doc reads. */
+const CfgSchemaSections = () => {
+  const rows = eltRows();
+  return KINDS.map(([k, label]) => {
+    const inKind = schemaSorted(rows.filter(e => eltKind(e) === k));
+    if (!inKind.length) return '';
+    const routable = inKind.filter(e => e.pulls.length).length;
+    const onDiskNow = inKind.filter(e => routeRank(e) === 2).length;
+    return `<tr><td colspan="5" class="border-t border-neutral-800 pt-3 pb-1">
+        <span class="text-[10px] font-semibold uppercase tracking-wide text-neutral-400">${label}</span>
+        <span class="ml-2 text-[10px] text-neutral-600">${inKind.length} variable${inKind.length === 1 ? '' : 's'}${
+          k === 'holdings'
+            /* holdings are neither downloaded nor computed - counting them as
+               either was the section header describing the wrong thing */
+            ? ` &middot; ${inKind.filter(e => e.store).length} stored on the holding${
+                inKind.some(e => e.gap) ? ` &middot; ${inKind.filter(e => e.gap).length} read but dropped` : ''}`
+            : ` &middot; ${onDiskNow} on disk${routable < inKind.length
+                ? ` &middot; ${inKind.length - routable} computed here` : ''}`}</span>
+      </td></tr>${inKind.map(CfgSchemaRow).join('')}`;
+  }).join('');
+};
+/* A COLUMN HEADER THAT SORTS. The arrow marks the live one and its direction;
+   clicking the same header again reverses it. */
+const SchemaHead = (by, label, sub = '') => {
+  const s = P.schemaSort || { by: 'group', dir: 1 };
+  const on = s.by === by;
+  return `<th class="pb-1 pr-3 text-left font-normal">
+    <button onclick="sortSchema('${by}')" class="group inline-flex items-baseline gap-1 hover:text-neutral-300 ${
+      on ? 'text-neutral-300' : ''}" title="Sort by ${esc(label)}">
+      <span>${label}</span>${sub ? `<span class="text-neutral-700">${sub}</span>` : ''}
+      <span class="${on ? 'text-emerald-400' : 'text-neutral-700 opacity-0 group-hover:opacity-100'}">${
+        on && s.dir < 0 ? '&uarr;' : '&darr;'}</span>
+    </button></th>`;
+};
 
-      ${(() => {
-        /* WHAT THIS BROWSER IS REMEMBERING, and the way to stop it. A store with
-           no way out is a trap: a kept draft has no delete anywhere else on the
-           page, so without this row the only cure for one you did not want is
-           devtools. Stated in kilobytes against the ~5 MB a browser gives, so
-           "how many drafts can I keep" has a number rather than a shrug. */
-        const kb = savedBytes() / 1024;
-        const kept = LISTS.decks.filter(d => d[4]).length;
-        return Band('saved on this device', `
-        <p class="text-[11px] text-neutral-500">Config&rsquo;s Local/Online choices and your deck list, in this
-          browser&rsquo;s <code>localStorage</code> &mdash; nothing is written to the server, and
-          <code>serve.py</code> stays read-only. What you had <em>open</em> is deliberately not saved: the page
-          forgets the tab, set and selection on navigation by design.</p>
-        <div class="mt-2 flex items-center gap-3">
-          <span class="text-xs tabular-nums text-neutral-300">${kb < 1 ? 'nothing saved yet'
-            : `${kb.toFixed(1)} KB &middot; ${num(LISTS.decks.length)} deck${LISTS.decks.length === 1 ? '' : 's'}${
-              kept ? `, ${num(kept)} kept from a draft` : ''}`}</span>
-          <button onclick="forgetState()" class="${BTN_DANGER} ml-auto"
-            title="Clear everything saved here and reload with the defaults">Forget saved state</button>
-        </div>`, { note: 'kept between reloads', right: `<span class="text-[10px] font-mono ${
-          kb ? 'text-sky-400' : 'text-neutral-600'}">${kb < 1 ? 'empty' : `${kb.toFixed(0)} KB`}</span>` });
-      })()}
-      ${P.cfgGame !== 'mtg' ? '' : Band('schema source map', (() => {
-        const rows = [['sets &mdash; base', '/sets', '&mdash;', 0],
-           ['sets &mdash; block, parent, mtgo, arena, foil/online-only, languages', '&mdash;', 'AllPrintings', 0],
-           ['cards &mdash; identity, images, artist', 'all_cards', '&mdash;', 1],
-           ['cards &mdash; driver + crossover', 'fallback', 'AllPrintings', 1],
-           ['printings &mdash; uuid, lang, finishes, promo', '&mdash;', 'AllPrintings', 0],
-           ['prices', 'all_cards', 'AllPrices', 1],
-           ['facets', 'derived', 'derived', 0]];
-        const live = r => r[3] && CFG.src.scryfall.at === 'online';
-        return Table([['Table / columns', 'flex-1'], ['Scryfall', 'w-28'], ['MTGJSON', 'w-24']],
-          rows.map(r => [`<span class="text-neutral-300">${r[0]}</span>`,
-            `<span class="font-mono ${r[1] === '&mdash;' ? 'text-neutral-700' : live(r) ? 'text-sky-300' : 'text-sky-400/80'}">${live(r) ? '/cards (live)' : r[1]}</span>`,
-            `<span class="font-mono ${r[2] === '&mdash;' ? 'text-neutral-700' : 'text-violet-400/80'}">${r[2]}</span>`]),
-          { rowCls: (_, i) => live(rows[i]) ? 'bg-sky-500/5' : '',
-            foot: 'The schema is genuinely mixed &mdash; MTGJSON drives, Scryfall fills in. Flipping Scryfall to Live changes only the three highlighted rows; everything MTGJSON owns is unaffected, and <code>sets</code> is live either way.' });
-      })(), { note: 'MTG only &mdash; two upstreams, one schema' })}
+const CfgBody = () => {
+  if (P.cfgSection === 'anatomy') return CfgAnatomyBody();
+  if (P.cfgSection === 'defaults') return CfgDefaultsBody();
+  return CfgSchemaBody();
+};
 
-      ${'' /* COUNTED OFF WHAT IS LOADED. These were typed: cards 108,412 against
-             a catalogue of 107,347 and sets 947 against 986 - close enough to
-             read as measured and wrong, which is the worst of both. A count the
-             page derives cannot drift from the thing it counts; one that is
-             typed always will, and these had. */}
-      ${Band('cache', Table([['Table', 'flex-1'], ['Rows', 'w-24 text-right']],
-        [['cards', ALL().length], ['sets', SETS.length],
-         ['facets', Object.values(facetCounts()).reduce((n, g) => n + g.length, 0)],
-         ['prices', ALL().reduce((n, c) => n + (c.usd ? 1 : 0), 0)]]
-          .map(([t, n]) => [`<span class="font-mono text-neutral-300">${t}</span>`,
-            `<span class="tabular-nums text-neutral-500">${n.toLocaleString('en-GB')}</span>`]),
-        { foot: 'Disposable. Delete it and rebuild from the sources above &mdash; every row here is counted off what is loaded now.' })
-        + `<div class="mt-2 flex"><button class="${BTN_SECONDARY} ml-auto">Rebuild from sources</button></div>`,
-        { note: 'disposable' })}
+/* THE ONE DOWNLOAD CONTROL, AT THE TOP, DERIVED FROM THE TABLE BELOW IT.
+   There is no per-source Download button any more. A download is not something
+   a source has, it is what routing a variable to On-disk COSTS - so the packs
+   listed here are exactly the ones the schema is currently pointing at, and
+   the total moves the moment you move a chip.
 
-      ${'' /* ONE ROW PER CONTAINER YOU ACTUALLY HAVE. This listed four filenames
-             -- binders/alara-block.csv, decks/bant-exalted.csv -- which were the
-             four mock binders and decks written out a second time, so it went on
-             naming them after they were deleted. The file IS the export, so the
-             list of files is the list of containers, and an empty collection
-             exports nothing. */}
-      ${Band('files', (() => {
-        const rows = [...LISTS.binders.map(r => [r, 'binder']), ...LISTS.decks.map(r => [r, 'deck'])];
-        const slug = n => String(n).toLowerCase().replace(/&[a-z]+;/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-        return !rows.length
-          ? `<p class="rounded-lg border border-dashed border-neutral-800 px-4 py-6 text-center text-[11px] text-neutral-600">
-               Nothing collected yet. One CSV per binder and per deck, written when there is something in one.</p>`
-          : Table([['File', 'flex-1'], ['Kind', 'w-16'], ['Rows', 'w-16 text-right']],
-            rows.map(([r, kind]) => [`<span class="font-mono text-neutral-300">${kind}s/${slug(r[0])}.csv</span>`,
-              `<span class="text-neutral-600">${kind}</span>`,
-              `<span class="tabular-nums text-neutral-500">${(r[4] || []).length}</span>`]),
-            { foot: 'Yours, irreplaceable. set &middot; language &middot; collector no &middot; finish &middot; qty. The file <em>is</em> the export.' });
-      })(), { note: 'irreplaceable' })}
-
+   THE PAGE STILL DOWNLOADS NOTHING. serve.py is read-only on purpose, so the
+   control that matters is the command, not a button: the plan names the packs
+   and prints the commands that fetch them. A Download button that downloaded
+   nothing is the exact lie the old "Download & cache now" button was, and the
+   same rule applies to the unused list - the page cannot delete a file, so it
+   names the file and the `rm` that reclaims it. */
+const DownloadPlan = () => {
+  const need = packsNeeded(), fetchList = packsToFetch(), unused = packsUnused();
+  const advice = routeAdvice();
+  const cmds = fetchList.map(p => { try { return SOURCES[p.k].cmd(p.q); } catch { return null; } }).filter(Boolean);
+  const lever = (at, label, hint) => `<button onclick="routeAll('${at}')" class="${BTN_SECONDARY}"
+    title="${hint}">${label}</button>`;
+  const packLine = (p, kind) => {
+    const s = SOURCES[p.k], have = onDisk(p.k, p.q);
+    const vend = packVendored(p.k, p.q);
+    const tone = kind === 'unused' ? 'text-amber-400/90' : vend || packHere(p.k, p.q) ? 'text-emerald-400/90' : 'text-sky-400/90';
+    return `<div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 border-t border-neutral-800/60 py-1">
+      <span class="font-mono text-[11px] text-neutral-300">${s.name} &middot; ${p.q}</span>
+      <span class="tabular-nums text-[11px] ${tone}">${vend ? 'vendored' : bytes(srcBytes(p.k, p.q))}</span>
+      <span class="text-[10px] ${packHere(p.k, p.q) ? 'text-emerald-500/80' : 'text-neutral-600'}">${
+        vend ? 'already in the repo' : packHere(p.k, p.q) ? `on disk${have && have.of ? ` &middot; ${have.n}/${have.of}` : ''}`
+        : have && have.of ? `${have.n} of ${have.of} on disk` : 'not fetched'}</span>
+      ${kind === 'unused'
+        ? `<span class="ml-auto font-mono text-[10px] text-neutral-600">rm -r ${esc(s.file(p.q))}</span>`
+        /* THE COUNT, THEN THREE NAMES. AllPrintings feeds over a hundred
+           variables and printing all of them is a paragraph per pack - the
+           question this line answers is "how much of the schema rides on
+           this file", which is a number. The full list is the tooltip. */
+        : `<span class="ml-auto text-[10px] text-neutral-600" title="${esc((p.els || []).join(', '))}">${
+            (p.els || []).length} variable${(p.els || []).length === 1 ? '' : 's'}${
+            (p.els || []).length ? ` &mdash; ${(p.els || []).slice(0, 3).join(', ')}${
+              (p.els || []).length > 3 ? `, +${(p.els || []).length - 3} more` : ''}` : ''}</span>`}
+    </div>`;
+  };
+  return `<div class="${PANEL} mb-5 px-4 py-4">
+    <div class="flex flex-wrap items-baseline gap-x-3 gap-y-2">
+      <span class="text-xs font-semibold uppercase tracking-wide text-neutral-300">Download plan</span>
+      <span class="text-[10px] text-neutral-600">derived from the routes below &mdash; move a chip and this moves</span>
+      <span class="ml-auto flex flex-wrap items-center gap-1.5">
+        ${(() => { const n = routeAdvice().reduce((t, p) => t + p.gain.length, 0);
+          return `<button onclick="makeLocal()" class="${n ? BTN_PRIMARY : BTN_SECONDARY}"
+            title="Every variable that could read a pack already being fetched now does. No extra download.">Make local${
+            n ? ` &mdash; ${n}` : ''}</button>`; })()}
+        ${lever('api', 'Everything by API', 'Route every variable that has an API to it. What is left on disk becomes unused, and is listed as such.')}
+        ${lever('disk', 'Everything on disk', 'Route every variable that has a local side to it. The plan totals what that costs.')}
+      </span>
     </div>
+    <div class="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs">
+      <span class="text-neutral-400">${need.length} pack${need.length === 1 ? '' : 's'} routed</span>
+      <span class="${planBytes() ? 'text-sky-300' : 'text-emerald-400'}">${
+        planBytes() ? `${bytes(planBytes())} still to fetch` : 'nothing left to fetch'}</span>
+      ${unused.length ? `<span class="text-amber-400/90">${bytes(unusedBytes())} on disk and unused</span>` : ''}
+    </div>
+    ${advice.length ? `<div class="mt-3 rounded-lg border border-emerald-900/50 bg-emerald-500/5 px-3 py-2">
+      ${advice.map(p => `<div class="flex flex-wrap items-baseline gap-2 text-[11px] text-emerald-200/90">
+        <span>Most of what <span class="font-mono">${SOURCES[p.k].name} &middot; ${p.q}</span> carries is already being used
+          &mdash; <span class="text-emerald-300">${p.gain.join(', ')}</span> could read it too, at no extra download.</span>
+        <button onclick="routePack('${p.k}','${p.q.replace(/'/g, "\\'")}')"
+          class="${BTN_SECONDARY} ml-auto">Switch ${p.gain.length} to local</button>
+      </div>`).join('')}
+    </div>` : ''}
+    ${need.length ? `<div class="mt-3">
+      <div class="text-[10px] uppercase tracking-wide text-neutral-500">Packs this configuration needs</div>
+      ${need.map(p => packLine(p, 'need')).join('')}
+    </div>` : `<p class="mt-3 text-[11px] text-neutral-600">Nothing is routed to disk &mdash; the app runs entirely off the APIs.</p>`}
+    ${unused.length ? `<div class="mt-3">
+      <div class="text-[10px] uppercase tracking-wide text-amber-500/80">On disk, routed to nothing &mdash; ${bytes(unusedBytes())} reclaimable</div>
+      ${unused.map(p => packLine(p, 'unused')).join('')}
+    </div>` : ''}
+    ${/* THE OTHER HALF OF THE PLAN. A variable routed at an API costs no disk,
+           which is why it does not appear above - but it is not free: Scryfall
+           is ~15 hours for a full catalogue at 10/s, and that number lived on
+           the source rows that the schema table replaced. A plan that prices
+           only the downloads is telling you half of what you chose. */''}
+    ${(() => {
+      const live = [...new Set(eltRows().flatMap(e => {
+        const c = CFG.elt[e.el]; return c && c.at === 'api' ? [c.source] : []; }))]
+        .filter(k => SOURCES[k] && SOURCES[k].online);
+      return live.length ? `<div class="mt-3">
+        <div class="text-[10px] uppercase tracking-wide text-neutral-500">Asked live &mdash; no download, but a rate limit</div>
+        ${live.map(k => `<div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 border-t border-neutral-800/60 py-1">
+          <span class="font-mono text-[11px] text-neutral-300">${SOURCES[k].name}</span>
+          <span class="text-[10px] text-neutral-500">${SOURCES[k].online}</span>
+        </div>`).join('')}
+      </div>` : '';
+    })()}
+    ${cmds.length ? `<div class="mt-3">
+      <div class="text-[10px] uppercase tracking-wide text-neutral-500">Run these to fetch what is missing</div>
+      <pre class="mt-1 overflow-x-auto rounded-lg border border-neutral-800 bg-neutral-950 p-2 text-[10px] leading-relaxed text-neutral-400">${
+        cmds.map(c => esc(c)).join('\n')}</pre>
+    </div>` : ''}
+    ${/* THE ONE DOWNLOAD THE PAGE CAN ACTUALLY RUN, re-hosted here. It hung off
+           the TCGplayer source row, and when the schema table replaced source
+           rows the only trigger for gen-packs-server.mjs went with them - a
+           capability lost to a layout change rather than to a decision. The
+           download plan is its natural home: everything else here prints the
+           command because the page cannot run it, and this one it can. */''}
+    ${GenPacksBlock()}
+    <div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-neutral-800 pt-2 text-[10px] text-neutral-600">
+      <span class="uppercase tracking-wide text-neutral-500">Refresh</span>
+      ${[['Prices', 'daily'], ['Gameplay data', 'weekly'], ['Downloaded file', 'keep cached 20h']]
+        .map(([w, v]) => `<span>${w} <span class="text-neutral-400">${v}</span></span>`).join('')}
+      <span class="ml-auto">Scryfall&rsquo;s own guidance &mdash; prices move once a day, gameplay data rarely.</span>
+    </div>
+  </div>`;
+};
 
-    <!-- ================= COLUMN B - BEHAVIOUR ================= -->
+/* ONE TABLE. Every data variable is a row; None / API / On-disk are the routes
+   it can take. The sections after the schema are the same three columns for
+   things that are not pulls - what is in the browser, what is counted, what is
+   on disk, and the header names the importer accepts. */
+const CfgSchemaBody = () => {
+  /* WHAT THIS BROWSER IS REMEMBERING, and the way to stop it. A store with
+     no way out is a trap: a kept draft has no delete anywhere else on the
+     page, so without this row the only cure for one you did not want is
+     devtools. */
+  const kb = savedBytes() / 1024;
+  const forgetCell = `<button onclick="forgetState()" class="${BTN_DANGER}"
+    title="Clear everything saved here and reload with the defaults">Forget saved state</button>`;
+  const section = (t, tone = 'text-neutral-500') => `<tr><td colspan="5"
+    class="border-t border-neutral-800 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wide ${tone}">${t}</td></tr>`;
+  const cacheRows = [['cards', ALL().length], ['sets', SETS.length],
+    ['facets', Object.values(facetCounts()).reduce((n, g) => n + g.length, 0)],
+    ['prices', ALL().reduce((n, c) => n + (c.usd ? 1 : 0), 0)]]
+    .map(([t, n]) => `<tr class="border-t border-neutral-800/60">
+      <td class="py-1.5 pr-3 text-neutral-300">${t}</td>
+      <td></td><td></td>
+      <td class="py-1.5"><span class="tabular-nums text-neutral-500">${n.toLocaleString('en-GB')}</span></td><td></td>
+    </tr>`).join('');
+  /* NO CSV LIST, AND NO ALIAS TABLE. The files band named `binders/x.csv` for
+     every container - paths for files that DO NOT EXIST, invented from the
+     container name, which is the same fiction as the mock counts this repo has
+     removed twice before. And the alias table was seven hand-typed rows beside
+     a HEADER_ALIAS of ten that was doing the actual matching; the aliases now
+     ride on the variable they belong to. Both are gone rather than fixed. */
+  return `${DownloadPlan()}
+  <div class="${PANEL} mb-5 px-4 pt-4">${Band('schema', `<div class="border-t border-neutral-800 pt-2 text-xs">
+    <table class="w-full">
+      <thead>
+        <tr class="text-[10px] uppercase tracking-wide text-neutral-500">
+          ${SchemaHead('name', 'variable')}
+          ${SchemaHead('route', 'None')}
+          ${SchemaHead('route', 'API', 'live, nothing stored')}
+          ${SchemaHead('size', 'On-disk', 'English only')}
+          ${SchemaHead('lang', 'non-en', 'packs carrying other languages')}
+        </tr>
+      </thead>
+      <tbody>
+        ${CfgSchemaSections()}
+        ${section('saved in this browser')}
+        <tr class="border-t border-neutral-800/60">
+          <td class="py-1.5 pr-3 text-neutral-300">config + decks</td>
+          <td class="py-1.5">${forgetCell}</td>
+          <td></td><td class="py-1.5"><span class="font-mono text-[10px] ${kb ? 'text-sky-400' : 'text-neutral-600'}">${
+            kb < 1 ? 'empty' : `${kb.toFixed(0)} KB`}</span></td><td></td>
+        </tr>
+        ${section('cache (live, counted off what is loaded)')}
+        ${cacheRows}
+        <tr class="border-t border-neutral-800/60">
+          <td class="py-1.5 pr-3 text-neutral-300">rebuild</td>
+          <td></td><td></td><td class="py-1.5"><button class="${BTN_SECONDARY}">Rebuild from sources</button></td><td></td>
+        </tr>
+      </tbody></table>
+    <p class="mt-2 text-[10px] text-neutral-600">One row per data variable, and the three routes it can take.
+      <span class="text-neutral-400">API</span> is a live call to the vendor &mdash; nothing is stored, nothing to download.
+      <span class="text-neutral-400">On-disk</span> reads a pack fetched once; the plan above totals every pack the
+      routes below add up to. A cell is <span class="font-mono">&mdash;</span> where the vendor offers no such route
+      &mdash; MTGJSON publishes files and not an API, and the mana font is vendored, so it has no API side at all.</p>
+  </div>`, { note: 'rows = data variable &middot; cols = route' })}</div>`;
+};
+const CfgDefaultsBody = () => `
+  <div class="grid items-start gap-5 xl:grid-cols-2">
     <div class="${PANEL} px-4 pt-4">
-
-      ${Band('refresh', Table([['What', 'w-32'], ['How often', 'flex-1']],
-        [['Prices', [['Daily', '+'], ['Weekly', ''], ['Manual', '']]],
-         ['Gameplay data', [['Daily', ''], ['Weekly', '+'], ['On set release', '']]],
-         ['Downloaded file', [['Keep cached', '+'], ['Stream &amp; discard', '']]]]
-          .map(([what, opts]) => [`<span class="text-neutral-300">${what}</span>`,
-            `<span class="flex flex-wrap gap-1.5">${opts.map(([o, on]) => chip(o, on)).join('')}</span>`]),
-        { foot: 'Upstream prices move once a day; gameplay data rarely &mdash; their guidance, not ours. Keep = 549 MB in data/, fast re-runs. Discard = no disk, re-downloads each run. Either way <code>buildScryfallIndex</code> holds ~250 MB resident while it runs.' }))}
-
-      ${Band('import / export map', Table([['Canonical field', 'w-32'], ['Accepted header aliases', 'flex-1'], ['', 'w-12']],
-        [['quantity', 'count, quantity, qty, amount'],
-         ['card name', 'name, card name, card_name'],
-         ['set code', 'edition, set, set code, set_id'],
-         ['collector number', 'collector number, card number, number'],
-         ['language', 'language, lang'],
-         ['finish / foil', 'foil, finish, printing, is_foil'],
-         ['grouping', 'tags, folder name, portfolio name, binder']]
-          .map(([f, a]) => [`<span class="text-neutral-200">${f}</span>`,
-            `<span class="font-mono text-neutral-500">${a}</span>`,
-            `<button class="${BTN_SECONDARY}">Edit</button>`]),
-        { foot: 'One alias table for all nine apps, applied in both directions. Per-source ids are read off the printing row.' }))}
-
       ${Band('defaults', `
         <div class="grid gap-x-8 sm:grid-cols-2">
           ${NumberField('Binder cols', 3)}${NumberField('Binder rows', 3)}
           ${NumberField('Value window', 90, 'days')}${NumberField('Page size', 60, 'cards')}
-          ${NumberField('Download cache', 20, 'hours')}</div>`)}
-
-      ${Band('debug', `
-        <label class="flex items-center gap-2 text-sm text-neutral-400">
-          <input type="checkbox" ${DEBUG ? 'checked' : ''} onchange="DEBUG=this.checked;render()" class="accent-emerald-500">
-          Show the resolved scope, sort, grouping and SQL on every page</label>
-        <div class="mt-3 flex flex-wrap items-center gap-2">
-          <a href="#/kit" class="${BTN_SECONDARY}">Control kit</a>
-          <a href="#/anatomy" class="${BTN_SECONDARY}">Card anatomy</a>
-          <span class="text-[11px] text-neutral-600">Every control rendered once, and ${ANATOMY_SAMPLES} printings of every shape of card there is &mdash; the two references the pages are checked against. Neither is user-facing, which is why they are not in the nav.</span></div>`)}
-
+          ${NumberField('Download cache', 20, 'hours')}</div>`,
+        { note: 'numbers the app reads; not routing' })}
       <div class="pb-4"></div>
     </div>
   </div>
-  </div>
-  ${ApplyBar(false, '<span class="ml-auto text-[10px] text-neutral-500">both columns, one Apply</span>')}`,
-});
+  ${ApplyBar(false, '<span class="ml-auto text-[10px] text-neutral-500">defaults, one Apply</span>')}`;
 
 /* ======================= CARD COLLECTOR MAIN ==========================
    The only screen without a game. Picking one locks it for the rest of the
@@ -6850,15 +7541,8 @@ const GameBanner = (k, g) => `
 
 /* Picking a game is also the reset: a new game must not inherit the last
    one's filters, sort or display - MTG's colours mean nothing in Pokémon. */
-function pickCfgGame(k) {
-  // config-only: does not reset filters, does not switch the active game the
-  // rest of the app sees. Just changes which row-group the page is showing.
-  P.cfgGame = k;
-  render();
-}
 function pickGame(k) {
   P.game = k;
-  P.cfgGame = k;     // the config tab keeps the active game in step on arrival
   clearPicks();
   // back to the default filing, not to nothing: picking a game is arriving, and
   // arriving is the moment the default is for
