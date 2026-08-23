@@ -260,3 +260,8 @@ shown once rather than beside a copy of itself. Note the scans are **normalised 
 layout** — so a Plane, a Scheme and a split card, all of which you turn sideways
 to read, arrive rotated; the compare column turns them back, or the drawn card
 looks like it got the orientation wrong when it is the scan that is turned.
+
+## MCP
+
+[MCP.md](MCP.md) — the MCP position for this repo: the server it should have,
+or why it should not have one.
