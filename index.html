@@ -796,6 +796,18 @@ const setElt = (name, source, pull, at = null) => {
   syncSrc(); saveState(); render();
 };
 
+/* THE SIZE THE FRAME DRAWS AT. Deliberately not a routing decision: syncSrc
+   leaves image sources' `q` alone (see the note above it), so nothing else
+   writes this. The per-source quality strip used to be the only control that
+   did, and it went with the schema rebuild, which left the value pinned at its
+   default with no way to change it from the page. It belongs on the art row
+   rather than on a source, because it answers "how big a picture does this
+   frame want", not "which file did you choose". */
+const setFrameQ = (q) => {
+  CFG.src.sfart.q = q;
+  saveState(); render();
+};
+
 /* PERSISTENCE - localStorage, for the two things the page can actually create.
    It stays read-only on the server side, which matters: serve.py is what exposes
    this repo over HTTP and it has no business taking writes.
@@ -7237,6 +7249,18 @@ const CfgSchemaRow = (e) => {
         ${vendor('mj', e.mj, e.mjn, 'text-neutral-600')}
         ${e.note ? `<span class="${e.gap ? 'text-amber-500/80' : 'text-neutral-600'}">${e.note}</span>` : ''}
       </div>
+      ${e.el === 'Picture::Art crop' ? `
+        <div class="mt-0.5 flex flex-wrap items-baseline gap-1 text-[10px]"
+          title="the size the card frame draws its art at - separate from routing, which picks the file">
+          <span class="text-neutral-600">frame draws at</span>
+          ${['art_crop', 'small', 'normal', 'large', 'png'].map(q => {
+            const on = (CFG.src.sfart || {}).q === q;
+            return `<button type="button" onclick="setFrameQ('${q}')"
+              class="rounded px-1 py-px font-mono ${on
+                ? 'bg-emerald-500/15 text-emerald-300/90'
+                : 'text-neutral-600 hover:text-neutral-400'}">${q}</button>`;
+          }).join('')}
+        </div>` : ''}
       ${(() => { const a = importAliases(e); return a.length
         ? `<div class="mt-0.5 text-[10px] text-neutral-700" title="header names the importer accepts for this variable">
              <span class="text-neutral-600">imports as</span> <span class="font-mono">${a.map(esc).join(', ')}</span></div>`
