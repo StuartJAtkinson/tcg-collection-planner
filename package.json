@@ -9,6 +9,7 @@
     "data": "node gen-data.mjs",
     "gen": "node gen-cards.mjs && node gen-sets.mjs && node gen-boosters.mjs && node gen-schema.mjs",
     "art": "node gen-art.mjs",
+    "schema-counts": "node gen-schema-counts.mjs",
     "packs": "node gen-packs.mjs",
     "gen-serve": "node gen-packs-server.mjs"
   },

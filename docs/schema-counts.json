@@ -27,7 +27,7 @@
       "mtgjson": 121677
     },
     "Identity::Sort key": {
-      "scryfall": null,
+      "scryfall": 116704,
       "mtgjson": null
     },
     "Identity::Language": {
@@ -64,11 +64,11 @@
     },
     "Card text::Rulings (date)": {
       "scryfall": null,
-      "mtgjson": null
+      "mtgjson": 68582
     },
     "Card text::Rulings (text)": {
       "scryfall": null,
-      "mtgjson": null
+      "mtgjson": 68582
     },
     "Picture::Thumbnail": {
       "scryfall": 112324,
@@ -155,11 +155,11 @@
       "mtgjson": null
     },
     "Faces::Face 1 UUID": {
-      "scryfall": null,
+      "scryfall": 0,
       "mtgjson": null
     },
     "Faces::Face 2 UUID": {
-      "scryfall": null,
+      "scryfall": 0,
       "mtgjson": null
     },
     "Faces::Per-face name": {
@@ -259,11 +259,11 @@
       "mtgjson": 121677
     },
     "Frame & finish::Has foil": {
-      "scryfall": null,
+      "scryfall": 71030,
       "mtgjson": null
     },
     "Frame & finish::Has nonfoil": {
-      "scryfall": null,
+      "scryfall": 102254,
       "mtgjson": null
     },
     "Print::Set code": {
@@ -295,7 +295,7 @@
       "mtgjson": null
     },
     "Print::Rulings URI": {
-      "scryfall": null,
+      "scryfall": 116704,
       "mtgjson": null
     },
     "Print::Prints search URI": {
@@ -339,7 +339,7 @@
       "mtgjson": null
     },
     "Promo & content::Starter card": {
-      "scryfall": null,
+      "scryfall": 116704,
       "mtgjson": null
     },
     "Identifiers (cross-source)::TCGplayer product id": {
@@ -391,8 +391,8 @@
       "mtgjson": null
     },
     "Prices::as_of": {
-      "scryfall": null,
-      "mtgjson": null
+      "scryfall": 116704,
+      "mtgjson": 112818
     },
     "Prices::USD (nonfoil)": {
       "scryfall": 85115,
@@ -467,8 +467,8 @@
       "mtgjson": 17003
     },
     "Legalities::Explorer": {
-      "scryfall": null,
-      "mtgjson": null
+      "scryfall": 0,
+      "mtgjson": 0
     },
     "Legalities::Gladiator": {
       "scryfall": 60555,
@@ -508,7 +508,7 @@
     },
     "Leadership & roles::Leadership skills object": {
       "scryfall": null,
-      "mtgjson": null
+      "mtgjson": 25825
     },
     "Leadership & roles::Is Reserved": {
       "scryfall": 1477,
@@ -567,24 +567,24 @@
       "mtgjson": 121677
     },
     "Sets::Set search URI": {
-      "scryfall": null,
+      "scryfall": 116704,
       "mtgjson": null
     },
     "Sets::Set scry URI": {
-      "scryfall": null,
+      "scryfall": 116704,
       "mtgjson": null
     },
     "Sets::Set URI (Scryfall)": {
-      "scryfall": null,
+      "scryfall": 116704,
       "mtgjson": null
     },
     "Sets::Printed size": {
-      "scryfall": null,
+      "scryfall": 36243,
       "mtgjson": null
     },
     "Sets::TCGplayer set id": {
-      "scryfall": null,
-      "mtgjson": null
+      "scryfall": 91293,
+      "mtgjson": 101128
     },
     "Sets::MTGO code": {
       "scryfall": null,
@@ -595,15 +595,15 @@
       "mtgjson": 121677
     },
     "Sets::Set legalities (aggregated)": {
-      "scryfall": null,
-      "mtgjson": null
+      "scryfall": 116704,
+      "mtgjson": 108721
     },
     "Sets::Set crossover flag": {
-      "scryfall": null,
-      "mtgjson": null
+      "scryfall": 13751,
+      "mtgjson": 13751
     },
     "Sets::Set logo URL": {
-      "scryfall": null,
+      "scryfall": 113967,
       "mtgjson": null
     },
     "Sets::Purchase URLs": {
@@ -619,8 +619,8 @@
       "mtgjson": null
     },
     "Taxonomy (app)::MTG_DECK_TYPES": {
-      "scryfall": null,
-      "mtgjson": null
+      "scryfall": 116704,
+      "mtgjson": 112818
     },
     "Taxonomy (app)::MTG_BUCKETS": {
       "scryfall": null,
@@ -631,8 +631,8 @@
       "mtgjson": null
     },
     "Taxonomy (app)::FORMAT_LIST (mtg)": {
-      "scryfall": null,
-      "mtgjson": null
+      "scryfall": 116704,
+      "mtgjson": 107183
     },
     "Taxonomy (app)::FORMAT_LIST (pokemon)": {
       "scryfall": null,
@@ -692,7 +692,7 @@
     },
     "Not imported::Rulings": {
       "scryfall": null,
-      "mtgjson": null
+      "mtgjson": 68582
     },
     "Not imported::Scryfall API URIs": {
       "scryfall": 116568,
