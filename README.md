@@ -43,6 +43,7 @@ The rest of the generators, which run rarely and mostly need a bulk file on disk
 | `gen-symbols.mjs` | `sym/` set symbols, so a card draws with the network off | network |
 | `gen-import.mjs` | `import-sample.csv` — one real card per distinct value of every column | catalogue |
 | `gen-schema.mjs` | `schema.js`, from `docs/schema-rows.json` + `docs/schema-counts.json` | — |
+| `gen-schema-counts.mjs` | `docs/schema-counts.json` — per-field population counts | `scryfall-default-cards.jsonl.gz`, `AllPrintings.json.gz`, network |
 
 And two support files that are not generators:
 
