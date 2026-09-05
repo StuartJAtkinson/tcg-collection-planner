@@ -2,6 +2,7 @@
 // route under a stubbed DOM and asserts the decisions we keep re-making, so they stop
 // regressing silently. Run: node check.mjs
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import vm from 'node:vm';
 import assert from 'node:assert';
 const MONTHS_3 = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -605,7 +606,20 @@ assert.ok(t.PACK_SAT > 1, 'the pack saturation is a no-op - say so or remove it'
     assert.strictEqual(Object.keys(now).length, 5, 'trim.js no longer states all five constants');
     assert.deepStrictEqual(man.constants, now,
       'packs/ was built with different constants from the ones in force - re-run gen-packs.mjs');
-    const onDisk = readdirSync('packs').filter(f => f.endsWith('.png'));
+    /* The constants are half the fingerprint. gen-packs hashes trimPixels' OWN
+       SOURCE alongside them precisely because a rewritten flood fill is the more
+       likely edit, and it leaves the five numbers untouched - so comparing
+       constants alone passes on exactly the case the recipe exists to catch.
+       Recomputed the way gen-packs.mjs computes it, off the same file. */
+    const [tp] = new Function(`${readFileSync('trim.js', 'utf8')}\nreturn [trimPixels];`)();
+    const recipe = createHash('sha1').update(JSON.stringify(now))
+      .update(tp.toString()).digest('hex').slice(0, 12);
+    if (man.recipe !== recipe) DEFERRED.push(
+      `packs/ was built by recipe ${man.recipe}, trim.js now makes ${recipe} - every pack image is stale, re-run gen-packs.mjs`);
+    /* The manifest describes ONE size (it says which), and packs/ holds both -
+       388 _200w and 388 _in_1000x1000. Walking every PNG asked the manifest
+       about files it never claimed to cover, which read as 388 missing records. */
+    const onDisk = readdirSync('packs').filter(f => f.endsWith(`_${man.size}.png`));
     const unrecorded = onDisk.filter(f => !man.files[f]);
     /* DEFERRED, NOT DOWNGRADED. This is a fact about the packs/ directory, not
        about the code, and it threw on line 603 of a 4,300-line file - so every

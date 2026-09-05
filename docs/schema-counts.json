@@ -260,11 +260,11 @@
     },
     "Frame & finish::Has foil": {
       "scryfall": 71030,
-      "mtgjson": null
+      "mtgjson": 68862
     },
     "Frame & finish::Has nonfoil": {
       "scryfall": 102254,
-      "mtgjson": null
+      "mtgjson": 98127
     },
     "Print::Set code": {
       "scryfall": 116568,

@@ -39,7 +39,7 @@
     "group": "Identity",
     "element": "Sort key",
     "scryfall": "derived from Card.collector_number",
-    "mtgjson": "Card.numberSort (recommended)"
+    "mtgjson": "not in v5 (was Card.numberSort in v4)"
   },
   {
     "group": "Identity",
@@ -387,13 +387,13 @@
     "group": "Frame & finish",
     "element": "Has foil",
     "scryfall": "derived from Card.finishes",
-    "mtgjson": "Card.hasFoil"
+    "mtgjson": "derived from Card.finishes"
   },
   {
     "group": "Frame & finish",
     "element": "Has nonfoil",
     "scryfall": "derived from Card.finishes",
-    "mtgjson": "Card.hasNonFoil"
+    "mtgjson": "derived from Card.finishes"
   },
   {
     "group": "Print",
@@ -483,7 +483,7 @@
     "group": "Promo & content",
     "element": "Booster (draft)",
     "scryfall": "Card.booster",
-    "mtgjson": "Card.isStarter (related)"
+    "mtgjson": "not in v5 (was Card.isStarter in v4)"
   },
   {
     "group": "Promo & content",
@@ -507,7 +507,7 @@
     "group": "Promo & content",
     "element": "Starter card",
     "scryfall": "derived (Card.booster-related)",
-    "mtgjson": "Card.isStarter"
+    "mtgjson": "not in v5 (was Card.isStarter in v4)"
   },
   {
     "group": "Identifiers (cross-source)",

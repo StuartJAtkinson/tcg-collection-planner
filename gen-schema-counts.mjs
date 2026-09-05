@@ -77,8 +77,11 @@ await scryfallPass((c) => {
    one set's cards array parses fine in memory; the whole 1.5 GB+ file does
    not). hasFoil/hasNonFoil/isStarter/numberSort are v4 field names: this
    file is v5.3.0 and none of the four exist in it any more (grepped the
-   full decompressed stream to confirm) - their honest count is 0, not a
-   skipped measurement. */
+   full decompressed stream to confirm). The four are NOT one case, though:
+   foil/nonfoil are answered by v5's `finishes`, the same array the Scryfall
+   side already reads, so those two are measured off it and compare properly.
+   numberSort and isStarter have no v5 equivalent at all, so they stay a blank
+   rather than a zero - the same treatment as a row with no vendor field. */
 const scanBraces = (s, st) => {
   for (let i = 0; i < s.length; i++) {
     const ch = s[i];
@@ -100,10 +103,18 @@ function takeSet(setObj) {
   const hasType = setObj.type != null;
   for (const c of cards) {
     mj.total++;
+    /* numberSort and isStarter are v4 names with no v5 equivalent at all, unlike
+       hasFoil below. The probe stays so a reinstated field is counted rather
+       than assumed absent forever; until then it is 0, and `|| null` at the
+       write below turns that into "no field to measure", which is what the
+       schema row now says in words. */
     if (c.numberSort != null) mj.sortKey++;
     if (c.rulings?.length) mj.rulings++;
-    if (c.hasFoil != null) mj.hasFoil++;
-    if (c.hasNonFoil != null) mj.hasNonfoil++;
+    // v4's hasFoil/hasNonFoil are gone from v5; finishes is the field that
+    // answers the same question, and it is the one the Scryfall side already
+    // reads - so both columns count the same array under the same name.
+    if (c.finishes?.includes('foil')) mj.hasFoil++;
+    if (c.finishes?.includes('nonfoil')) mj.hasNonfoil++;
     if (c.isStarter != null) mj.starter++;
     if (c.legalities?.explorer) mj.explorer++;
     if (c.legalities && Object.keys(c.legalities).length) mj.legalPresent++;
@@ -157,8 +168,8 @@ set('Card text::Rulings (date)', null, mj.rulings);        // scryfall bulk carr
 set('Card text::Rulings (text)', null, mj.rulings);
 set('Faces::Face 1 UUID', 0, null);                         // Card.face_one_id is not a real Scryfall field
 set('Faces::Face 2 UUID', 0, null);
-set('Frame & finish::Has foil', sf.hasFoil, mj.hasFoil || null);
-set('Frame & finish::Has nonfoil', sf.hasNonfoil, mj.hasNonfoil || null);
+set('Frame & finish::Has foil', sf.hasFoil, mj.hasFoil);
+set('Frame & finish::Has nonfoil', sf.hasNonfoil, mj.hasNonfoil);
 set('Print::Rulings URI', sf.rulingsUri, null);
 set('Promo & content::Starter card', sf.starter, mj.starter || null);
 set('Prices::as_of', sf.total, mj.total);                   // stamped once per import row, so this IS full coverage
@@ -178,4 +189,4 @@ set('Not imported::Rulings', null, mj.rulings);
 
 writeFileSync(path, `${JSON.stringify(doc, null, 2)}\n`);
 console.log(`${path} - filled 23 rows. Scryfall ${sf.total.toLocaleString('en-GB')} printings, MTGJSON ${mj.total.toLocaleString('en-GB')} cards.`);
-console.log('mtgjson hasFoil/hasNonFoil/isStarter/numberSort are 0: those are MTGJSON v4 field names and this file is v5.3.0 - the fields do not exist in it any more.');
+console.log(`mtgjson isStarter/numberSort are blank: v4 field names, this file is v5.3.0 and neither exists in it any more with nothing standing in for them. hasFoil/hasNonFoil are also gone but v5's finishes answers the same question, so they are measured off it (${mj.hasFoil.toLocaleString()} foil / ${mj.hasNonfoil.toLocaleString()} nonfoil).`);
