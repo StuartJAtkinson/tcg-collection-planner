@@ -60,6 +60,17 @@ const BTN_SECONDARY_LG = 'cursor-pointer rounded-full border border-neutral-700 
 const BTN_DANGER   = 'cursor-pointer rounded-full border border-rose-900/60 bg-rose-900/60 px-3 py-1 text-xs text-rose-200 hover:border-rose-700 hover:bg-rose-800/70';
 const FIELD        = 'rounded border border-neutral-700 bg-neutral-950 px-2 py-1.5 text-sm text-neutral-100';
 const PANEL        = 'rounded-xl border border-neutral-800 bg-neutral-900/50';
+/* The second fixed row, under the header and above the scrolling body. It was
+   retyped at four sites and had drifted on both of its properties: two sites
+   tinted /60 and one /40, and one padded px-6 where the others padded px-4, so
+   the bar changed shade and its label changed indent as you moved between pages
+   - on a row whose whole job is to be the one thing that does not move. */
+const SUBBAR       = 'shrink-0 border-b border-neutral-800 bg-neutral-900/60';
+/* The smallest caption: a column header, a stat label, the noun in front of a
+   selection. It was declared once beside STEPPER and then typed out verbatim at
+   eleven more sites, so the one place the size could change was not the place it
+   was written. It lives up here with the other tokens now. */
+const NUM_LABEL    = 'text-[10px] font-semibold uppercase tracking-wide text-neutral-600';
 
 /* Counts are exact while an exact count is worth reading, and abbreviated once
    it isn't: nobody reconciles 107,565 against a bar, and the comma grouping was
@@ -1338,7 +1349,7 @@ const GRID = { 1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-3', 5: 'grid-co
 const Table = (cols, rows, { rowCls = () => '', rowAttrs = () => '', foot = '', frame = true } = {}) => `
   <div class="${frame ? 'overflow-hidden rounded-lg border border-neutral-800' : ''}">
     <div class="flex items-baseline gap-2 border-b border-neutral-800 bg-neutral-900/60 px-2 py-1.5">
-      ${cols.map(([label, w]) => `<span class="${w} shrink-0 text-[10px] font-semibold uppercase tracking-wide text-neutral-600">${label}</span>`).join('')}</div>
+      ${cols.map(([label, w]) => `<span class="${w} shrink-0 ${NUM_LABEL}">${label}</span>`).join('')}</div>
     ${rows.map((cells, i) => `<div ${rowAttrs(cells, i)} class="flex items-baseline gap-2 border-t border-neutral-900 px-2 py-1.5 text-[11px] ${rowCls(cells, i)}">
       ${cols.map(([, w], j) => `<span class="${w} min-w-0 truncate">${cells[j] ?? ''}</span>`).join('')}</div>`).join('')}
     ${foot ? `<p class="border-t border-neutral-800 px-2 py-1.5 text-[11px] text-neutral-600">${foot}</p>` : ''}
@@ -1386,11 +1397,19 @@ const RangeField = (label, lo, hi, symbols = false, live = false) => `
     </div>`}
   </div>`;
 
+/* THREE FIXED TRACKS, NOT `justify-between`. Flexed that way, each input was
+   pushed right by the width of its own label and then pulled back by its
+   optional suffix, so five fields landed on five different left edges in a panel
+   whose whole content is one column of numbers. The label takes the slack and
+   the other two are fixed (`w-24` + `w-10`), so every input lines up whatever
+   its label says and whether or not it carries a unit. Written with plain
+   utilities on purpose: `draft.css` is prebuilt, so an arbitrary
+   `grid-cols-[...]` would not be in it and the row would silently stack. */
 const NumberField = (label, val, suffix = '') => `
-  <label class="flex items-center justify-between gap-3 py-1.5 text-sm">
-    <span class="text-neutral-400">${label}</span>
-    <span class="flex items-center gap-1"><input class="${FIELD} w-24 tabular-nums" value="${val}">
-    ${suffix ? `<span class="text-xs text-neutral-600">${suffix}</span>` : ''}</span></label>`;
+  <label class="flex items-center gap-3 py-1.5 text-sm">
+    <span class="min-w-0 flex-1 truncate text-neutral-400">${label}</span>
+    <input class="${FIELD} w-24 shrink-0 tabular-nums" value="${val}">
+    <span class="w-10 shrink-0 text-xs text-neutral-600">${suffix}</span></label>`;
 
 const ApplyBar = (dirty = true, extra = '') => `
   <div class="sticky bottom-0 -mx-3 mt-3 flex items-center gap-2 border-t border-neutral-800 bg-neutral-950/95 px-3 py-2.5 backdrop-blur">
@@ -2962,7 +2981,7 @@ const DETAIL_CELL = 'min-w-0 shrink-0 truncate px-1';
    that marker the header's columns sit a marker's width off the ones below. */
 const DetailHead = (pad = '', after = '') => `
   <div class="sticky top-0 z-10 flex items-center gap-3 border-b border-neutral-700 bg-neutral-950 ${pad}
-              text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
+              ${NUM_LABEL}">
     <span class="flex min-w-0 flex-1 items-center px-2 py-1">${DETAIL_COLS.map(([, label, w, align]) =>
       `<span class="${DETAIL_CELL} ${align === 'right' ? 'text-right' : ''}"
         style="width:${detailPct(w)}" title="${label}">${label}</span>`).join('')}</span>${after}
@@ -3012,8 +3031,14 @@ const TopNav = (section, stats = '') => `
              "there is work waiting for you here"; saying so when there is none
              is the same fiction as a Collected bar over an empty collection. It
              appears when there is something to resolve and not otherwise. */''}
-      ${!P.game ? '' : `<a href="#/io" title="Import" class="flex shrink-0 items-center gap-1.5 rounded-full px-2 py-1 text-sm font-medium ${
-        section === 'io' ? 'bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500' : 'text-neutral-400 hover:bg-neutral-800 hover:text-white'}">Import${
+      ${/* ONE BAR, ONE "YOU ARE HERE". Import and the cog used to mark themselves
+             selected with an emerald pill and ring while the four routes used the
+             underline, so a single row carried two treatments and the pill - on the
+             two least important controls - was the loudest thing on screen. They
+             take the same `border-b-2 border-emerald-500` as the routes now; the
+             routes-vs-utilities split is still readable from `ml-auto`. */''}
+      ${!P.game ? '' : `<a href="#/io" title="Import" class="flex shrink-0 items-center gap-1.5 border-b-2 px-1 py-3 text-sm font-medium ${
+        section === 'io' ? 'border-emerald-500 text-white' : 'border-transparent text-neutral-300 hover:text-white'}">Import${
         UNRESOLVED.length ? `<span class="rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-neutral-950">${UNRESOLVED.length}</span>` : ''}</a>`}
       ${/* THE COG IS GATED LIKE EVERY OTHER NAV ITEM. Config is per-game now, so
              with no game picked it has nothing to show and the router sends
@@ -3022,8 +3047,8 @@ const TopNav = (section, stats = '') => `
              and Import were already gated on P.game; the cog was the one that
              was not, which is what left it on the game picker. */''}
       ${!P.game ? '' : `<a href="#/config" title="Config" aria-label="Config"
-         class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-lg
-                ${section === 'config' ? 'bg-emerald-500/10 text-emerald-300 ring-1 ring-emerald-500' : 'text-neutral-400 hover:bg-neutral-800 hover:text-white'}">⚙</a>`}
+         class="flex shrink-0 items-center justify-center border-b-2 px-1 py-2 text-lg
+                ${section === 'config' ? 'border-emerald-500 text-white' : 'border-transparent text-neutral-300 hover:text-white'}">⚙</a>`}
     </nav></header>`;
 
 /* PER-PAGE ERROR LOG. The old Debug button was a static state dump you had to
@@ -3126,7 +3151,7 @@ const SelectorList = () => {
    controls exist, so they do. Only on a keyed scope: you don't edit a set. */
 const EditInline = () => `
   <span class="flex shrink-0 items-center gap-1.5">
-    <span class="text-[10px] font-semibold uppercase tracking-wide text-neutral-600">Edit</span>
+    <span class="${NUM_LABEL}">Edit</span>
     <button class="${BTN_SECONDARY}">Add cards</button>
     <button class="${BTN_SECONDARY}">Arrange</button>
     <button class="${BTN_DANGER}">Remove</button></span>`;
@@ -3170,11 +3195,14 @@ const Selector = () => {
       class="shrink-0 text-[11px] text-neutral-500">${num(shown)} <span class="text-neutral-600">of ${num(all)}</span></span>`;
   };
   const label = `
-    <span class="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-neutral-600">${one || 'scope'}</span>
+    <span class="shrink-0 ${NUM_LABEL}">${one || 'scope'}</span>
     <span class="truncate text-base font-semibold ${sel || !one ? 'text-neutral-100' : 'text-neutral-400'}">${sel || (one ? tab().all : scopeLabel())}</span>
     ${one ? `<span class="shrink-0 text-neutral-500">${open ? '&#9652;' : '&#9662;'}</span>` : ''}`;
   return `
-    <div class="shrink-0 border-b border-neutral-800 ${open ? 'bg-neutral-900' : 'bg-neutral-900/40'}">
+    ${/* Open, the bar goes fully opaque: it is covering the page beneath it and
+           a translucent lid over a scrolled list is unreadable. Closed, it is
+           the same SUBBAR as every other page's. */''}
+    <div class="${SUBBAR} ${open ? 'bg-neutral-900' : ''}">
       <div class="flex w-full flex-nowrap items-center gap-3 px-4 py-2">
         ${one
           ? `<button onclick="toggleSelector()" title="${open ? 'Collapse' : 'Choose another'}"
@@ -3747,7 +3775,7 @@ const SortRow = () => {
       ${views().length < 2 ? '' : `
       <div class="flex min-w-0 flex-wrap items-center gap-1.5" title="Display - decides what a break means"
         style="flex:${zoneWeight('Display', views().map(([v]) => v))} 1 0%">
-        <span class="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-neutral-600">Display</span>
+        <span class="shrink-0 ${NUM_LABEL}">Display</span>
         ${views().map(([v, icon, what]) =>
           DisplayChip(v, icon, v === P.view, `setView('${v}')`, `break = ${what}`)).join('')}
       </div>`}
@@ -3769,7 +3797,6 @@ const SortRow = () => {
    beside Apply and Clear, because they change how the results below are laid
    out rather than what is in them. */
 const STEPPER = 'w-11 rounded border border-neutral-700 bg-neutral-950 px-1 py-0.5 text-center text-[11px] tabular-nums text-neutral-200';
-const NUM_LABEL = 'text-[10px] font-semibold uppercase tracking-wide text-neutral-600';
 /* The binder counts its own way, because a page shape is more than one number.
    Pages, Columns and Rows say what is open in front of you and how it is
    pocketed, and the card size is then WHATEVER FITS - three integers instead of
@@ -4583,7 +4610,7 @@ const SetList = () => {
   // leaving a strip of rows scrolling past above it. A margin scrolls away.
   return `<div class="${PANEL} mt-4 overflow-clip">
     <table class="w-full table-fixed text-sm">
-      <thead><tr class="text-left text-[10px] font-semibold uppercase tracking-wide text-neutral-600 [&>th]:sticky [&>th]:top-0 [&>th]:z-10 [&>th]:border-b [&>th]:border-neutral-800 [&>th]:bg-neutral-900">
+      <thead><tr class="text-left ${NUM_LABEL} [&>th]:sticky [&>th]:top-0 [&>th]:z-10 [&>th]:border-b [&>th]:border-neutral-800 [&>th]:bg-neutral-900">
         <th class="w-10 px-1 py-1.5 text-center">Year</th><th class="w-10 px-1 py-1.5 text-center">Month</th>
         <th class="w-48 px-1 py-1.5 text-center">Booster</th>
         <th class="w-16 px-3 py-1.5">Code</th><th class="px-3 py-1.5">Set</th>
@@ -6155,7 +6182,7 @@ const RevealedList = () => {
     as you work through the boosters.</p>`;
   return `
     <div class="mb-1 flex items-baseline gap-2 border-b border-neutral-800 px-2 pb-1">
-      <span class="text-[10px] font-semibold uppercase tracking-wide text-neutral-600">revealed</span>
+      <span class="${NUM_LABEL}">revealed</span>
       <span class="text-[10px] tabular-nums text-neutral-500">${cards.length}</span></div>
     ${cards.map(DrawTitleRow).join('')}`;
 };
@@ -6168,7 +6195,7 @@ const DrawSide = () => {
   const kinds = fresh ? packsForMode(P.draw.set, P.draw.mode) : [];
   const pick = P.draw.mode === 'pull' && kinds.length > 1 ? `
     <div class="shrink-0">
-      <p class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-neutral-600">which booster</p>
+      <p class="mb-1 ${NUM_LABEL}">which booster</p>
       <div class="flex flex-wrap gap-1">${kinds.map((k) => `
         <button onclick="setPackKind('${k}')" class="${P.draw.kind === k ? CHIP_PLUS : CHIP_NEUTRAL}">${
           packLabel(k)}</button>`).join('')}</div>
@@ -6224,7 +6251,7 @@ const Beside = (grid) => `<div class="flex min-h-0 flex-1 gap-3">${DrawSide()}${
 const DrawAsk = () => !P.ask ? '' : `
   <div data-draw class="${DRAW_SHELL}">
       <div class="mb-4 flex shrink-0 items-baseline gap-3">
-        <span class="text-[10px] font-semibold uppercase tracking-wide text-neutral-600">Opening boosters</span>
+        <span class="${NUM_LABEL}">Opening boosters</span>
         <span class="truncate text-lg font-semibold text-neutral-100">${P.ask.set}</span>
         <button onclick="cancelDraw()" class="${BTN_SECONDARY} ml-auto shrink-0">Close</button>
       </div>
@@ -6397,7 +6424,7 @@ const DrawBanner = () => {
     })() : `
       ${!P.draw.picked.length ? '' : `
         <div class="mb-3 flex shrink-0 items-center gap-2">
-          <span class="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-neutral-600">taken</span>
+          <span class="shrink-0 ${NUM_LABEL}">taken</span>
           <span class="flex min-w-0 gap-1 overflow-x-auto">${P.draw.picked.map((c) => `
             <span class="w-10 shrink-0">${MockCard(c)}</span>`).join('')}</span></div>`}
       ${head(pull ? `booster ${P.draw.pack + 1}` : `booster ${P.draw.pack + 1} of ${P.draw.n}`,
@@ -6428,7 +6455,7 @@ const DrawBanner = () => {
   return `
     <div data-draw class="${DRAW_SHELL}">
       <div class="mb-3 flex shrink-0 flex-nowrap items-center gap-3">
-        <span class="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-neutral-600">${
+        <span class="shrink-0 ${NUM_LABEL}">${
           pull ? 'pulling' : robin ? 'drafting' : 'sealed'}</span>
         <span class="truncate text-base font-semibold text-neutral-100">${P.draw.set}</span>
         <span class="shrink-0 text-xs text-neutral-500">${pull ? '' : `${P.draw.n} &times; `}${
@@ -6860,8 +6887,25 @@ function applyImport() {
 // counted off the table rather than typed beside it: the old note said "seven of
 // nine formats carry it" against six columns, five of which do
 
+/* IO KEEPS THE BAR TOO. It was the one page that went straight from the header
+   to the body, so the second fixed row appeared and disappeared as you moved on
+   and off Import - the same reason Search keeps a bar it can never open. It
+   names the file the way the other bars name their selection, and Clear holdings
+   moves into it because a destructive action belongs on the bar's right, not
+   loose in the first row of the body. */
 PAGES.io = () => Frame('io', {
   stats: Stats([[String(UNRESOLVED.length), 'unresolved']]),
+  sub: `<div class="${SUBBAR}">
+    <div class="flex w-full flex-nowrap items-center gap-3 px-4 py-2">
+      <span class="shrink-0 ${NUM_LABEL}">file</span>
+      <span class="truncate text-base font-semibold ${IMPORT_NAME ? 'text-neutral-100' : 'text-neutral-400'}">${
+        IMPORT_NAME ? esc(IMPORT_NAME) : 'None chosen'}</span>
+      <span class="ml-auto flex shrink-0 items-center gap-3">
+        <button onclick="clearHoldings()" ${[...LISTS.decks, ...LISTS.binders].some(r => r[4]?.length) ? '' : 'disabled'}
+          class="${BTN_DANGER} disabled:cursor-not-allowed disabled:opacity-40">Clear holdings</button>
+      </span>
+    </div>
+  </div>`,
   body: `<div class="${PANEL} px-4 pt-4">
     ${Band('import', `
       ${/* THE SOURCE DROPDOWN IS GONE, and it is the third inert control on this
@@ -6873,7 +6917,9 @@ PAGES.io = () => Frame('io', {
              SEVEN, so three of its options named a mapping that does not exist.
              An unrecognised header is a row you add to that table. */''}
       <div class="mb-4 flex flex-wrap items-end gap-3">
-        <label class="flex flex-col gap-1 text-xs text-neutral-400">Export file
+        ${/* "Export file" named the file from the OTHER app's point of view, on a
+             page whose band, nav item and every other verb say Import. */''}
+        <label class="flex flex-col gap-1 text-xs text-neutral-400">Import a CSV
           <input type="file" accept=".csv,text/csv" onchange="readImport(this.files[0])"
             class="text-sm text-neutral-300 file:mr-2 file:rounded file:border-0 file:bg-neutral-700 file:px-2 file:py-1 file:text-neutral-100"></label>
         ${/* THE FILE IS READ ON CHOOSING IT, so Run has nothing left to do. It
@@ -6888,8 +6934,6 @@ PAGES.io = () => Frame('io', {
               IMPORT_MISSED ? ` &middot; <span class="text-neutral-500">${num(IMPORT_MISSED)} unmatched</span>` : ''}${
               IMPORT_SKIPPED ? ` &middot; <span class="text-neutral-500">${num(IMPORT_SKIPPED)} skipped</span>` : ''}${
               IMPORT_OTHER ? ` &middot; <span class="text-neutral-600">${num(IMPORT_OTHER)} not ${GAMES[P.game]?.label || 'this game'}</span>` : ''}</span>`}
-        <button onclick="clearHoldings()" ${[...LISTS.decks, ...LISTS.binders].some(r => r[4]?.length) ? '' : 'disabled'}
-          class="${BTN_DANGER} ml-auto disabled:cursor-not-allowed disabled:opacity-40">Clear Holdings</button>
       </div>
 
       ${/* The grouping section is gated on a file having been read: with no file
@@ -7051,11 +7095,11 @@ const CfgSub2 = () => {
      numbers the app reads. Sources and Refresh stay with Schema because the
      schema table needs them in the same conversation as the routing choices. */
   const tabs = [['schema', 'Schema'], ['defaults', 'Defaults'], ['anatomy', 'Anatomy &amp; kit']];
-  return `<div class="shrink-0 border-b border-neutral-800 bg-neutral-900/60">
+  return `<div class="${SUBBAR}">
     <nav class="flex items-center gap-4 px-4">
       ${tabs.map(([k, l]) => `<button onclick="pickCfgSection('${k}')"
         class="border-b-2 px-1 py-2 text-xs font-medium transition ${k === P.cfgSection
-          ? 'border-emerald-500 text-white' : 'border-transparent text-neutral-400 hover:text-white'}">${l}</button>`).join('')}
+          ? 'border-emerald-500 text-white' : 'border-transparent text-neutral-300 hover:text-white'}">${l}</button>`).join('')}
     </nav></div>`;
 };
 /* ANATOMY & KIT, INLINE. The two demo pages were reachable only from Config's
@@ -7291,14 +7335,14 @@ const CfgSchemaSections = () => {
     const routable = inKind.filter(e => e.pulls.length).length;
     const onDiskNow = inKind.filter(e => routeRank(e) === 2).length;
     return `<tr><td colspan="5" class="border-t border-neutral-800 pt-3 pb-1">
-        <span class="text-[10px] font-semibold uppercase tracking-wide text-neutral-400">${label}</span>
+        <span class="${NUM_LABEL}">${label}</span>
         <span class="ml-2 text-[10px] text-neutral-600">${inKind.length} variable${inKind.length === 1 ? '' : 's'}${
           k === 'holdings'
             /* holdings are neither downloaded nor computed - counting them as
                either was the section header describing the wrong thing */
             ? ` &middot; ${inKind.filter(e => e.store).length} stored on the holding${
                 inKind.some(e => e.gap) ? ` &middot; ${inKind.filter(e => e.gap).length} read but dropped` : ''}`
-            : ` &middot; ${onDiskNow} on disk${routable < inKind.length
+            : ` &middot; ${onDiskNow} downloaded${routable < inKind.length
                 ? ` &middot; ${inKind.length - routable} computed here` : ''}`}</span>
       </td></tr>${inKind.map(CfgSchemaRow).join('')}`;
   }).join('');
@@ -7349,8 +7393,8 @@ const DownloadPlan = () => {
       <span class="font-mono text-[11px] text-neutral-300">${s.name} &middot; ${p.q}</span>
       <span class="tabular-nums text-[11px] ${tone}">${vend ? 'vendored' : bytes(srcBytes(p.k, p.q))}</span>
       <span class="text-[10px] ${packHere(p.k, p.q) ? 'text-emerald-500/80' : 'text-neutral-600'}">${
-        vend ? 'already in the repo' : packHere(p.k, p.q) ? `on disk${have && have.of ? ` &middot; ${have.n}/${have.of}` : ''}`
-        : have && have.of ? `${have.n} of ${have.of} on disk` : 'not fetched'}</span>
+        vend ? 'already in the repo' : packHere(p.k, p.q) ? `downloaded${have && have.of ? ` &middot; ${have.n}/${have.of}` : ''}`
+        : have && have.of ? `${have.n} of ${have.of} downloaded` : 'not fetched'}</span>
       ${kind === 'unused'
         ? `<span class="ml-auto font-mono text-[10px] text-neutral-600">rm -r ${esc(s.file(p.q))}</span>`
         /* THE COUNT, THEN THREE NAMES. AllPrintings feeds over a hundred
@@ -7365,22 +7409,22 @@ const DownloadPlan = () => {
   };
   return `<div class="${PANEL} mb-5 px-4 py-4">
     <div class="flex flex-wrap items-baseline gap-x-3 gap-y-2">
-      <span class="text-xs font-semibold uppercase tracking-wide text-neutral-300">Download plan</span>
+      <span class="text-xs font-semibold uppercase tracking-wide text-neutral-400">Download plan</span>
       <span class="text-[10px] text-neutral-600">derived from the routes below &mdash; move a chip and this moves</span>
       <span class="ml-auto flex flex-wrap items-center gap-1.5">
         ${(() => { const n = routeAdvice().reduce((t, p) => t + p.gain.length, 0);
           return `<button onclick="makeLocal()" class="${n ? BTN_PRIMARY : BTN_SECONDARY}"
-            title="Every variable that could read a pack already being fetched now does. No extra download.">Make local${
+            title="Every variable that could read a pack already being fetched now does. No extra download.">Use downloads${
             n ? ` &mdash; ${n}` : ''}</button>`; })()}
-        ${lever('api', 'Everything by API', 'Route every variable that has an API to it. What is left on disk becomes unused, and is listed as such.')}
-        ${lever('disk', 'Everything on disk', 'Route every variable that has a local side to it. The plan totals what that costs.')}
+        ${lever('api', 'Everything by API', 'Route every variable that has an API to it. What is left downloaded becomes unused, and is listed as such.')}
+        ${lever('disk', 'Everything downloaded', 'Route every variable that has a downloaded side to it. The plan totals what that costs.')}
       </span>
     </div>
     <div class="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs">
       <span class="text-neutral-400">${need.length} pack${need.length === 1 ? '' : 's'} routed</span>
       <span class="${planBytes() ? 'text-sky-300' : 'text-emerald-400'}">${
         planBytes() ? `${bytes(planBytes())} still to fetch` : 'nothing left to fetch'}</span>
-      ${unused.length ? `<span class="text-amber-400/90">${bytes(unusedBytes())} on disk and unused</span>` : ''}
+      ${unused.length ? `<span class="text-amber-400/90">${bytes(unusedBytes())} downloaded and unused</span>` : ''}
     </div>
     ${advice.length ? `<div class="mt-3 rounded-lg border border-emerald-900/50 bg-emerald-500/5 px-3 py-2">
       ${advice.map(p => `<div class="flex flex-wrap items-baseline gap-2 text-[11px] text-emerald-200/90">
@@ -7395,7 +7439,7 @@ const DownloadPlan = () => {
       ${need.map(p => packLine(p, 'need')).join('')}
     </div>` : `<p class="mt-3 text-[11px] text-neutral-600">Nothing is routed to disk &mdash; the app runs entirely off the APIs.</p>`}
     ${unused.length ? `<div class="mt-3">
-      <div class="text-[10px] uppercase tracking-wide text-amber-500/80">On disk, routed to nothing &mdash; ${bytes(unusedBytes())} reclaimable</div>
+      <div class="text-[10px] uppercase tracking-wide text-amber-500/80">Downloaded, routed to nothing &mdash; ${bytes(unusedBytes())} reclaimable</div>
       ${unused.map(p => packLine(p, 'unused')).join('')}
     </div>` : ''}
     ${/* THE OTHER HALF OF THE PLAN. A variable routed at an API costs no disk,
@@ -7472,7 +7516,7 @@ const CfgSchemaBody = () => {
           ${SchemaHead('name', 'variable')}
           ${SchemaHead('route', 'None')}
           ${SchemaHead('route', 'API', 'live, nothing stored')}
-          ${SchemaHead('size', 'On-disk', 'English only')}
+          ${SchemaHead('size', 'Downloaded', 'English only')}
           ${SchemaHead('lang', 'non-en', 'packs carrying other languages')}
         </tr>
       </thead>
@@ -7494,16 +7538,23 @@ const CfgSchemaBody = () => {
       </tbody></table>
     <p class="mt-2 text-[10px] text-neutral-600">One row per data variable, and the three routes it can take.
       <span class="text-neutral-400">API</span> is a live call to the vendor &mdash; nothing is stored, nothing to download.
-      <span class="text-neutral-400">On-disk</span> reads a pack fetched once; the plan above totals every pack the
+      <span class="text-neutral-400">Downloaded</span> reads a pack fetched once; the plan above totals every pack the
       routes below add up to. A cell is <span class="font-mono">&mdash;</span> where the vendor offers no such route
       &mdash; MTGJSON publishes files and not an API, and the mana font is vendored, so it has no API side at all.</p>
   </div>`, { note: 'rows = data variable &middot; cols = route' })}</div>`;
 };
+/* ONE PANEL, SO NO GRID. This was `grid xl:grid-cols-2` left over from when
+   there were two panels here, and with one child that reserved an empty second
+   column: above 1280px the panel stopped at half the window while Download plan
+   and Schema on the sibling tab both ran the full width. */
 const CfgDefaultsBody = () => `
-  <div class="grid items-start gap-5 xl:grid-cols-2">
+  <div>
     <div class="${PANEL} px-4 pt-4">
       ${Band('defaults', `
-        <div class="grid gap-x-8 sm:grid-cols-2">
+        ${/* The panel runs the full width; the FIELDS do not. Five rows of one
+               number each, stretched to 1900px, put a label and its own input a
+               screen apart. Bounded, they read as a form. */''}
+        <div class="grid max-w-4xl gap-x-8 sm:grid-cols-2">
           ${NumberField('Binder cols', 3)}${NumberField('Binder rows', 3)}
           ${NumberField('Value window', 90, 'days')}${NumberField('Page size', 60, 'cards')}
           ${NumberField('Download cache', 20, 'hours')}</div>`,
@@ -7531,8 +7582,8 @@ function setLang(l) {
   render();
 }
 const LangPicker = () => `
-  <div class="shrink-0 border-b border-neutral-800 bg-neutral-900/60">
-    <label class="flex min-w-0 items-center gap-4 px-6 py-2">
+  <div class="${SUBBAR}">
+    <label class="flex min-w-0 items-center gap-4 px-4 py-2">
       <span class="shrink-0 text-xs font-semibold uppercase tracking-wide text-neutral-500">Language</span>
       <span class="ml-auto"></span>
       <select onchange="setLang(this.value)" class="${FIELD} shrink-0 py-1 text-xs">
@@ -8217,7 +8268,7 @@ const CardFace = () => {
       <span class="ml-auto text-[10px] text-neutral-600">${face === 'photo' ? 'as printed' : 'as catalogued'}</span>
     </div>
     ${face === 'photo'
-      ? `<div class="flex aspect-[5/7] w-full flex-col items-center justify-center rounded-lg border border-dashed border-neutral-700 bg-neutral-900/40 p-3 text-center">
+      ? `<div class="flex aspect-[5/7] w-full flex-col items-center justify-center rounded-lg border border-dashed border-neutral-800 bg-neutral-900/40 p-3 text-center">
           <span class="text-[11px] text-neutral-500">printed-card image</span>
           <span class="mt-1 font-mono text-[10px] uppercase text-neutral-600">${c.set} ${c.num} &middot; ${c.lang}</span>
           <span class="mt-2 text-[10px] text-neutral-700">hotlinked, never stored</span></div>`
@@ -8231,11 +8282,11 @@ PAGES.card = () => Frame(P.tab, {
   stats: Stats([[P.matched ? money(openedCard().usd) : '&mdash;', 'market'],
     [String(heldOf(P.card).reduce((t, [, , c]) => t + (c.qty || 0), 0)), 'owned']]),
   sub: `
-    <div class="shrink-0 border-b border-neutral-800 bg-neutral-900/40">
+    <div class="${SUBBAR}">
       <div class="flex w-full flex-nowrap items-center gap-3 px-4 py-2">
         <a href="#/${P.tab}" onclick="goTab('${P.tab}')" class="${BTN_SECONDARY} shrink-0">&larr; Back</a>
         <span class="-mx-2 flex min-w-0 items-center gap-3 rounded px-2 py-0.5">
-          <span class="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-neutral-600">card</span>
+          <span class="shrink-0 ${NUM_LABEL}">card</span>
           <span class="truncate text-base font-semibold text-neutral-100">${cardName()}</span>
           <span class="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${P.matched
             ? 'bg-emerald-500/10 text-emerald-300' : 'bg-amber-500/10 text-amber-300'}">${P.matched ? 'matched' : 'unmatched'}</span>

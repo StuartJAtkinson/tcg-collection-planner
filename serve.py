@@ -85,6 +85,17 @@ ART = re.compile(
     r'^/art/sf/(?:art_crop|small|normal|large|png)/(?:front|back)'
     r'/[0-9a-f]/[0-9a-f]/[0-9a-f-]{36}\.(?:jpg|png)$')
 
+# Set symbols, once `node gen-symbols.mjs` has fetched them -- the Downloaded
+# side of Config's Scryfall set symbols row.  This was the one local source with
+# no rule at all, so all 335 files 404ed while sitting on disk: index.json on
+# every page load, and every symbol the moment that row was switched off the CDN.
+# Same tight shape as the others -- a lowercase icon name and nothing else, so no
+# separator, dot or slash can walk out of the directory.  The bound is 16 rather
+# than 8 because the fallbacks are spelled out (`planeswalker.svg`), and the
+# trailing underscore is load-bearing for the same reason as BOOSTER's: Conflux's
+# icon is `con`, which Windows reserves, so that file is `con_.svg`.
+SYM = re.compile(r'^/sym/(?:index\.json|[a-z0-9_]{2,16}\.svg)$')
+
 
 class NoCache(SimpleHTTPRequestHandler):
     def send_head(self):
@@ -98,7 +109,8 @@ class NoCache(SimpleHTTPRequestHandler):
             from io import BytesIO
             return BytesIO(body)
         if (path not in ALLOWED and not BOOSTER.match(path)
-                and not PACK.match(path) and not ART.match(path)):
+                and not PACK.match(path) and not ART.match(path)
+                and not SYM.match(path)):
             self.send_error(404)
             return None
         return super().send_head()

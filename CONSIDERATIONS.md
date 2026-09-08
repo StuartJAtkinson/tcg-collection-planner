@@ -2,5 +2,4 @@
 
 Open questions that a human can answer in prose. Visual ones live in `STYLE.md`.
 
-- Config's download-plan row names one destination three ways in one screen: the button **"Make local"** (`index.html:7372`), the button beside it **"Everything on disk"** (`:7377`), and the schema table's column header **"On-disk"** (`:7170`). Which single word wins — *local* or *on disk*?
-- The io page's file input is labelled **"Export file"** (`index.html:6876`) inside a band titled **Import**, reached from a nav item labelled **Import**. It means "the file your other app exported". Keep it, or rename it to something like "Import a CSV"?
+- `docs/polish-review.md` is still fully untriaged (no box ticked on any of its 9 items). Item 6 — delete the ~39 loose working screenshots, or keep them as the visual record? — is the one blocking an open ISSUES.md bullet. Tick it either way?

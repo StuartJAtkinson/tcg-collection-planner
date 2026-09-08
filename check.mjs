@@ -2144,16 +2144,20 @@ t.IMPORT_GROUPS.length = 0;
    stay; only the holdings inside them go. The button is gated on having any
    holdings at all. */
 go('#/io');
-assert.ok(painted.includes('onclick="clearHoldings()"'), 'Clear Holdings button is absent from the import page');
-assert.ok(/>Clear Holdings<\/button>/.test(painted), 'Clear Holdings button label is missing');
-/* Clear Holdings sits next to Apply on the same sticky row, right-aligned via
-   ml-auto. The two actions are read as a pair — same scope, opposite direction. */
+assert.ok(painted.includes('onclick="clearHoldings()"'), 'Clear holdings button is absent from the import page');
+assert.ok(/>Clear holdings<\/button>/.test(painted), 'Clear holdings button label is missing');
+/* Sentence case, like every other multi-word label on the page. Title Case here
+   was the one exception and it read as a different kind of control. */
+assert.ok(!/>Clear Holdings</.test(painted), 'Clear holdings is back in Title Case');
+/* Clear holdings moved OFF the body's first row and into io's sub-header bar,
+   where every other page puts its destructive action: right-aligned inside the
+   bar's `ml-auto` span, not loose above the file input. */
 assert.ok(!painted.includes('max-w-4xl'), 'import panel is back to max-w-4xl');
-assert.ok(/onclick="clearHoldings\(\)"[\s\S]{0,250}ml-auto/.test(painted),
-  'Clear Holdings button is not right-aligned next to Apply');
+assert.ok(/ml-auto[\s\S]{0,250}onclick="clearHoldings\(\)"/.test(painted),
+  'Clear holdings is not right-aligned in the io sub-header bar');
 // nothing to clear, so the button is disabled
 assert.ok(/onclick="clearHoldings\(\)"[\s\S]{0,250}disabled/.test(painted),
-  'Clear Holdings is enabled when nothing has been imported');
+  'Clear holdings is enabled when nothing has been imported');
 // ...and clearing actually empties the rows. Seed a holding, run the function,
 // and assert the row's `row[4]` is empty while the container itself survives.
 // Default binder rows are 3-tuples (`[name, subtitle, dims]`) — holdings is a
@@ -2195,7 +2199,9 @@ assert.ok(painted.includes('>schema<'), 'config lost the schema band');
   const tables = (painted.match(/<table/g) || []).length;
   assert.strictEqual(tables, 1, `config draws ${tables} tables - it is meant to be one`);
   // the three route columns, plus the language column that is the whole point
-  for (const h of ['None', 'API', 'On-disk', 'non-en'])
+  // 'Downloaded' is the single name for that route: it used to be called
+  // 'On-disk' in the header, 'on disk' in the plan and 'local' on the button.
+  for (const h of ['None', 'API', 'Downloaded', 'non-en'])
     assert.ok(painted.includes(`>${h}<`), `config lost the "${h}" column`);
   // rows are grouped by what a route costs, not by the document's 22 groups
   for (const k of ['TEXT DATA', 'IMAGES', 'LIVE DATA', 'HOLDINGS'])
