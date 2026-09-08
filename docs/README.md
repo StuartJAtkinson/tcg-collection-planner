@@ -14,7 +14,6 @@ touches them; re-deriving one means writing the script again.
 |---|---|
 | [sources.md](sources.md) | where card data comes from and which source wins a conflict |
 | [import-formats.md](import-formats.md) | the ten exporter formats, read by `index.html` |
-| [polish-review.md](polish-review.md) | every ux/docs item still on the table, as yes/no ticks — triage before any of it becomes work |
 | `schema-rows.json` | the Scryfall ↔ MTGJSON field map — which field on one side answers to which on the other, grouped by concern. The mapping itself is still true; it is the table `schema-scryfall-vs-mtgjson.xlsx` was built from. |
 | `schema-counts.json` | how many cards on each side actually carry each of those fields, measured over 116,568 Scryfall and 112,605 MTGJSON records. This is what "MTGJSON has it but only for half the catalogue" was decided on. |
 | `composite-key-probe.json` | the probe behind the composite key: 538,675 Scryfall lines, 529,318 paper, and the language histogram that showed set+number is not unique until language joins it. |

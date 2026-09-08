@@ -51,7 +51,7 @@ Labels are a three-step hierarchy, all `font-semibold uppercase tracking-wide`:
 |---|---|---|
 | `text-[10px]` | `neutral-600` | table column headers, stat captions — always via `NUM_LABEL` |
 | `text-[11px]` | `neutral-500` | field and group labels |
-| `text-xs` | `neutral-400`–`500` | section and panel titles (`Band`, `:1326`) |
+| `text-xs` | `neutral-400`–`500` | section and panel titles (`Band`, `:1332`) |
 
 One step above them and outside the uppercase run: `SectionHeader` (`:1317`) is
 an `h2` at `text-lg font-semibold text-neutral-300` over a
@@ -115,6 +115,16 @@ asserts the column by it.
   destructive button sit at the **right** on `ml-auto`.
 - A selector expands over its page and collapses to the sub-header once you pick
   something; clicking the sub-header reopens it (`index.html:1282`).
+- **A section header never repeats the tab that led to it.** The reader has just
+  clicked the word; saying it again is the only thing in the panel that carries
+  no information. `Band('', …)` renders no title (`:1332`) and three bands pass
+  one deliberately: the import band under the Import nav item (`:6916`), and the
+  schema and defaults bands under their own Config sub-tabs (`:7519`, `:7560`).
+  The header row survives if it still has a note or a control on it and
+  collapses entirely if it does not, so the body starts at the top of the panel
+  rather than under an empty rule. The same rule killed the io file input's
+  visible label — the tab, the route and the sentence beside the control all
+  already said Import — which now carries an `aria-label` instead.
 - A count *badge* only appears when the count is non-zero — the amber pip on the
   nav's Import item (`:3040`) is gated on `UNRESOLVED.length`, because an empty
   badge asserts work that does not exist. The header's *stats* slot is the

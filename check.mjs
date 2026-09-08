@@ -2193,7 +2193,10 @@ const CFG0 = JSON.parse(JSON.stringify(t.CFG));
    lines above and took the rest of the file with it. Rewritten against what
    the page is now. */
 go('#/config');
-assert.ok(painted.includes('>schema<'), 'config lost the schema band');
+/* The schema band no longer carries a title: the sub-tab above it already says
+   Schema. Assert the table it wraps instead, which is the thing that matters. */
+assert.ok(!painted.includes('>schema<'), 'the schema band title is back, duplicating its sub-tab');
+assert.ok(painted.includes('rows = data variable'), 'config lost the schema band');
 {
   // one table, not the pile of separate ones the rebuild replaced
   const tables = (painted.match(/<table/g) || []).length;

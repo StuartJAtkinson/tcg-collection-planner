@@ -1323,14 +1323,20 @@ const SectionHeader = (title, right = '') =>
    padding, leaving a 20px strip the content scrolls through in plain sight. The
    bar starts 20px higher and pads it back, so it covers the strip and sits flush
    at rest. Change <main>'s padding and this changes with it. */
+/* AN EMPTY `name` DROPS THE TITLE, and three bands pass one deliberately. A band
+   called "import" on the Import page, "schema" on the Schema tab and "defaults"
+   on the Defaults tab all say the word the tab above them already says - the
+   reader has just clicked it. The row itself stays when there is still a note or
+   a control to hang on it, and collapses to nothing when there is not, so the
+   body starts at the top of the panel instead of under an empty rule. */
 const Band = (name, body, { off = false, right = '', note = '', stick = false } = {}) => `
   <section class="${off ? 'opacity-40' : ''} mb-5">
-    <div class="mb-2 flex items-center gap-2 border-b border-neutral-800 pb-1 ${
+    ${!name && !note && !right ? '' : `<div class="mb-2 flex items-center gap-2 border-b border-neutral-800 pb-1 ${
       stick ? '-top-5 -mt-8 pt-8 sticky z-10 -mx-3 bg-neutral-950/95 px-3 backdrop-blur' : ''}">
-      <span class="shrink-0 text-xs font-semibold uppercase tracking-wide ${off ? 'text-neutral-600' : 'text-neutral-400'}">${name}</span>
+      ${name ? `<span class="shrink-0 text-xs font-semibold uppercase tracking-wide ${off ? 'text-neutral-600' : 'text-neutral-400'}">${name}</span>` : ''}
       ${note ? `<span class="min-w-0 flex-1 truncate text-[10px] text-neutral-600">${note}</span>` : ''}
       <span class="ml-auto flex shrink-0 items-center gap-1.5">${right}</span>
-    </div>${off ? '' : body}
+    </div>`}${off ? '' : body}
   </section>`;
 
 /* Chips fill the sidebar rather than wrapping ragged: a fixed column count per
@@ -6907,7 +6913,7 @@ PAGES.io = () => Frame('io', {
     </div>
   </div>`,
   body: `<div class="${PANEL} px-4 pt-4">
-    ${Band('import', `
+    ${Band('', `
       ${/* THE SOURCE DROPDOWN IS GONE, and it is the third inert control on this
              screen to go the same way. `readImport` has always auto-detected by
              header and nothing ever read the selection, so the eleven options
@@ -6917,11 +6923,12 @@ PAGES.io = () => Frame('io', {
              SEVEN, so three of its options named a mapping that does not exist.
              An unrecognised header is a row you add to that table. */''}
       <div class="mb-4 flex flex-wrap items-end gap-3">
-        ${/* "Export file" named the file from the OTHER app's point of view, on a
-             page whose band, nav item and every other verb say Import. */''}
-        <label class="flex flex-col gap-1 text-xs text-neutral-400">Import a CSV
-          <input type="file" accept=".csv,text/csv" onchange="readImport(this.files[0])"
-            class="text-sm text-neutral-300 file:mr-2 file:rounded file:border-0 file:bg-neutral-700 file:px-2 file:py-1 file:text-neutral-100"></label>
+        ${/* NO VISIBLE LABEL. The nav item says Import, the route is Import, and
+             the sentence beside the control says "Choose a CSV" - a fourth
+             "Import a CSV" over the input was the word said twice in one glance.
+             The aria-label carries it for anyone who cannot see the tab. */''}
+        <input type="file" accept=".csv,text/csv" onchange="readImport(this.files[0])" aria-label="Import a CSV"
+          class="text-sm text-neutral-300 file:mr-2 file:rounded file:border-0 file:bg-neutral-700 file:px-2 file:py-1 file:text-neutral-100">
         ${/* THE FILE IS READ ON CHOOSING IT, so Run has nothing left to do. It
              was a button with no onclick beside an input with no onchange -
              two controls for one action, neither of which did it. What the
@@ -7509,7 +7516,7 @@ const CfgSchemaBody = () => {
      a HEADER_ALIAS of ten that was doing the actual matching; the aliases now
      ride on the variable they belong to. Both are gone rather than fixed. */
   return `${DownloadPlan()}
-  <div class="${PANEL} mb-5 px-4 pt-4">${Band('schema', `<div class="border-t border-neutral-800 pt-2 text-xs">
+  <div class="${PANEL} mb-5 px-4 pt-4">${Band('', `<div class="border-t border-neutral-800 pt-2 text-xs">
     <table class="w-full">
       <thead>
         <tr class="text-[10px] uppercase tracking-wide text-neutral-500">
@@ -7550,7 +7557,7 @@ const CfgSchemaBody = () => {
 const CfgDefaultsBody = () => `
   <div>
     <div class="${PANEL} px-4 pt-4">
-      ${Band('defaults', `
+      ${Band('', `
         ${/* The panel runs the full width; the FIELDS do not. Five rows of one
                number each, stretched to 1900px, put a label and its own input a
                screen apart. Bounded, they read as a form. */''}
