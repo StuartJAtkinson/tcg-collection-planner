@@ -6677,11 +6677,21 @@ const SET_BY_NAME = () => (SET_BY_NAME.m ||= new Map(SETS.map(r => [r[0].toLower
      Universes Beyond: a prefix Scryfall does not use                        236
      10th Edition      Scryfall spells the ordinal: "Tenth Edition"          210
      Commander: X      Scryfall says "X Commander"                            56
-   Measured end to end: 2,547 of 2,607 Magic rows resolve their set, 97.7%.
-   THE REMAINING 60 STAY UNRESOLVED ON PURPOSE. They are a long tail of promo
-   sets - Buy-A-Box Promos, FNM Promos, Media Promos, Coldsnap Theme Deck
-   Reprints - where the name maps to no single set and guessing one would file
-   cards under a printing you do not own. That is what the resolve step is for. */
+   Measured end to end: 2,566 of 2,607 Magic rows resolve their set, 98.4%.
+   THE REMAINING 41 STAY UNRESOLVED ON PURPOSE, and they are one kind of thing
+   rather than a long tail: a promo PROGRAMME - Buy-A-Box Promos, FNM Promos,
+   Media Promos, Mystery Booster Cards, Launch Party & Release Event Promos -
+   spans many sets at once. "FNM Promos" is F15 and F16 and F17; there is no
+   single code to map it to, so no normalisation can ever be written for it and
+   guessing one files a card under a printing you do not own. That is what the
+   resolve step is for.
+   Measured rather than assumed, because the tempting shortcut is provably
+   wrong: falling back to the collector number alone would settle 27 of them and
+   get at least one FLATLY WRONG - "Hero of Precinct One" from Promo Pack:
+   Throne of Eldraine lands on RNA, because RNA's #11 was the only number 11
+   among the candidates. A number with no set to anchor it is a weak key across
+   107,347 printings, and a silent wrong match is worse than a row you are asked
+   to resolve. */
 const ORDINAL = { '4th': 'Fourth', '5th': 'Fifth', '6th': 'Sixth', '7th': 'Seventh',
   '8th': 'Eighth', '9th': 'Ninth', '10th': 'Tenth' };
 const SET_NORM = [
@@ -6691,6 +6701,39 @@ const SET_NORM = [
   x => x.replace(/^(\d+)(st|nd|rd|th)\s+Edition$/i, (_, n, o) => `${ORDINAL[n + o.toLowerCase()] || n} Edition`),
   x => x.replace(/^Commander:\s*(.+)$/i, '$1 Commander'),
 ];
+/* ONE LAST STEP, AND A DIFFERENT KIND OF ONE. The five above rewrite a spelling
+   Collectr uses into the spelling Scryfall uses, and each was bought with a row
+   count. These six were not worth six more rules at 1-11 rows apiece - and they
+   are not six faults anyway, they are ONE: the two names are already the same
+   string, once the punctuation, a leading "Magic ", a trailing "Reprints" or
+   "Series", a "/ Edgar" tail and a plural are taken off.
+     Coldsnap Theme Deck Reprints    CST Coldsnap Theme Decks           11
+     Strixhaven: Mystical Archives   STA Strixhaven Mystical Archive     3
+     Time Spiral: Remastered         TSR Time Spiral Remastered          2
+     Secret Lair Drop Series         SLD Secret Lair Drop                1
+     Magic Game Night: Free-For-All  GN3 Game Night: Free-for-All        1
+     Summer Magic                    SUM Summer Magic / Edgar            1
+   SQUASHING THROWS INFORMATION AWAY, so a canonical form that two sets share
+   proves nothing about either and is refused rather than guessed. Measured, and
+   the honest number is that this guard catches NOTHING TODAY: all 986 sets
+   canonicalise to 986 distinct forms. It is here because the squash is the part
+   of this rule that could go wrong as sets are added, and a collision must fail
+   closed rather than pick whichever set was loaded first.
+   What actually keeps "Commander" out is simpler and worth not confusing with
+   the guard: NO set canonicalises to "commander", so there is nothing to match
+   and the row stays ambiguous - which is the correct answer for a name that is a
+   product family rather than a set.
+   ponytail: a canonical form, not a fuzzy match. There is no edit distance and
+   no scoring here - two names either land on the same string or they do not. */
+const canonSet = (x) => (x || '').toLowerCase()
+  .replace(/\s*\/.*$/, '').replace(/^magic\s+/, '')
+  .split(/[^a-z0-9]+/).filter(w => w && !/^(reprints?|series)$/.test(w))
+  .map(w => w.replace(/s$/, '')).join('');
+// a canonical form two sets share maps to null - present, and deliberately unusable
+const SET_BY_CANON = () => (SET_BY_CANON.m ||= SETS.reduce((m, r) => {
+  const k = canonSet(r[0]);
+  return m.set(k, m.has(k) ? null : r[1]);
+}, new Map()));
 const setCodeOf = (name) => {
   const s = (name || '').trim();
   if (!s) return '';
@@ -6703,7 +6746,9 @@ const setCodeOf = (name) => {
     const hit = SET_BY_NAME().get(t.trim().toLowerCase());
     if (hit) return hit;
   }
-  return '';
+  // ...and only once every exact spelling has failed, ask whether it is the
+  // same name wearing different punctuation
+  return SET_BY_CANON().get(canonSet(s)) || '';
 };
 const FOIL_WORD = /^(foil|holo|holofoil|etched|foil etched|rainbow foil)$/i;
 function resolveRow(v) {
@@ -6734,7 +6779,29 @@ function resolveRow(v) {
   if (!hits.length) return { hits: [], lang };
   // a language the row named narrows it, when the catalogue has such a row
   const inLang = hits.filter(c => (c.lang || 'en') === lang);
-  return { hits: inLang.length ? inLang : hits, lang };
+  let out = inLang.length ? inLang : hits;
+  /* A CORE-SET STAR IS A FINISH, AND THE FILE ALREADY SAID WHICH ONE. 91 rows of
+     the real export came back `ambiguous in "8th Edition" (2 matches, no/bad
+     number)` and every one of them is the same pair: 8ED 256 against 8ED 256*,
+     where Scryfall's star marks the foil-only core-set printing. Nothing about
+     those rows was unknowable - the catalogue tells the two apart already, `fin`
+     being a bitmask over FINISHES that reads 1 (nonfoil only) on the plain number
+     and 2 (foil only) on the starred one, and Collectr's Variance column states
+     Normal or Foil on all 91. The column was being read for the HOLDING and not
+     for the MATCH, so the answer sat one field away from the question.
+     Applied only when the row STATES a finish and the candidates genuinely split
+     on it. An absent column must stay ambiguous rather than fall through to
+     nonfoil: that would file every foil copy against the wrong printing and do it
+     silently, which is worse than a row you are asked to resolve. Etched folds in
+     with foil because a holding's finish is binary here (`hold.foil` is 0 or 1) -
+     widening that is a change to what a holding IS, not to this match. */
+  const said = (v['finish / variant'] || '').trim();
+  if (said && out.length > 1) {
+    const bit = 1 << (FOIL_WORD.test(said) ? 1 : 0);
+    const inFin = out.filter(c => c.fin & bit);
+    if (inFin.length && inFin.length < out.length) out = inFin;
+  }
+  return { hits: out, lang };
 }
 
 /* THE FILE, READ. This is what "Choose file" and "Run" were missing: the input
@@ -7109,15 +7176,14 @@ const CfgSub2 = () => {
           ? 'border-emerald-500 text-white' : 'border-transparent text-neutral-300 hover:text-white'}">${l}</button>`).join('')}
     </nav></div>`;
 };
-/* ANATOMY & KIT, INLINE. The two demo pages were reachable only from Config's
-   debug band, with their own Frame and their own hash. They are the two
-   references the pages are checked against, and bringing them onto Config as
-   a sub-tab makes them part of the same surface the choices live on. The
-   individual routes still exist for sharing a link. */
-const CfgAnatomyBody = () => {
-  /* KIT BLOCK — every control rendered once. Inline rather than routed so the
-     bands can sit next to the schema table without losing the place. */
-  const kit = `<div class="${PANEL} mb-4 px-4 py-4">
+/* EVERY CONTROL, ONCE - AND THE SOURCE OF IT ONCE TOO. This was fourteen
+   byte-identical lines in two places: Config's Anatomy & kit tab and the #/kit
+   route. A token added to one was missing from the other, which is the exact
+   drift the kit exists to catch, in the kit itself. The wrapper is NOT part of
+   it - the two differed only by a bottom margin, and a margin is the host's
+   business, not the control set's. So this returns the controls and each host
+   says where they sit. */
+const KitBody = () => `
     ${SectionHeader('Chips')}<div class="mb-5 flex gap-1.5">${chip('Neutral','')}${chip('Include','+')}${chip('Exclude','-')}${chip('With count','',count(42))}</div>
     ${SectionHeader('Buttons')}<div class="mb-5 flex gap-1.5"><button class="${BTN_PRIMARY}">Primary</button>
       <button class="${BTN_SECONDARY}">Secondary</button><button class="${BTN_DANGER}">Danger</button></div>
@@ -7132,7 +7198,17 @@ const CfgAnatomyBody = () => {
       <span class="text-xs text-neutral-400">62%</span></div>
     ${SectionHeader('Colours')}<div class="mb-2 flex gap-1.5">${['W','U','B','R','G','C'].map(c => pips(c)).join('')}</div>
     <p class="text-[11px] text-neutral-600">Validated for colour-vision deficiency against the dark surface; every swatch carries its letter.</p>
-  </div>`;
+`;
+
+/* ANATOMY & KIT, INLINE. The two demo pages were reachable only from Config's
+   debug band, with their own Frame and their own hash. They are the two
+   references the pages are checked against, and bringing them onto Config as
+   a sub-tab makes them part of the same surface the choices live on. The
+   individual routes still exist for sharing a link. */
+const CfgAnatomyBody = () => {
+  /* KIT BLOCK — every control rendered once. Inline rather than routed so the
+     bands can sit next to the schema table without losing the place. */
+  const kit = `<div class="${PANEL} mb-4 px-4 py-4">${KitBody()}</div>`;
   /* ANATOMY BLOCK — pulled out of PAGES.anatomy by hand. The two share their
      helpers (anatomyClasses, AnatomySample) so the body is the same; only the
      Frame and the desc paragraph were skipped. The hash routes still work. */
@@ -7834,22 +7910,7 @@ PAGES.anatomy = () => {
 /* ---- control kit ------------------------------------------------------ */
 PAGES.kit = () => Frame('kit', {
   desc: '<span class="text-neutral-200">Control kit.</span> Every control, once &mdash; this page is where the tokens are defined, not a copy of them. FIELD and PANEL are the two the repo hand-rolls and has no token for.',
-  body: `<div class="${PANEL} px-4 py-4">
-    ${SectionHeader('Chips')}<div class="mb-5 flex gap-1.5">${chip('Neutral','')}${chip('Include','+')}${chip('Exclude','-')}${chip('With count','',count(42))}</div>
-    ${SectionHeader('Buttons')}<div class="mb-5 flex gap-1.5"><button class="${BTN_PRIMARY}">Primary</button>
-      <button class="${BTN_SECONDARY}">Secondary</button><button class="${BTN_DANGER}">Danger</button></div>
-    ${SectionHeader('Sort row, with break')}<div class="mb-5">${SortRow()}</div>
-    ${SectionHeader('Identity row')}<div class="mb-5 max-w-3xl rounded-lg border border-neutral-800">${CARDS().slice(0, 3).map(c => KeyRow(c)).join('')}</div>
-    ${SectionHeader('Card frame')}<div class="mb-1 grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(224px,1fr))]">${
-      CARDS().slice(0, 6).map(c => MockCard(c)).join('')}</div>
-    <p class="mb-5 text-[11px] text-neutral-600">The same component the grid, the card page and the binder draw &mdash; a mock only the kit renders is a mock of a mock. Ink is picked from the plate&rsquo;s luminance, so no frame colour has to be listed as &ldquo;dark&rdquo;.</p>
-    ${SectionHeader('Fields')}<div class="mb-5 max-w-md">${RangeField('Range', 2, 5)}${NumberField('Number', 60, 'cards')}
-      <input class="${FIELD} w-full" placeholder="Text field"></div>
-    ${SectionHeader('Completion bar')}<div class="mb-5 flex max-w-md items-center gap-3">${CompletionBar(62, 84)}
-      <span class="text-xs text-neutral-400">62%</span></div>
-    ${SectionHeader('Colours')}<div class="mb-2 flex gap-1.5">${['W','U','B','R','G','C'].map(c => pips(c)).join('')}</div>
-    <p class="text-[11px] text-neutral-600">Validated for colour-vision deficiency against the dark surface; every swatch carries its letter.</p>
-  </div>`,
+  body: `<div class="${PANEL} px-4 py-4">${KitBody()}</div>`,
 });
 
 /* ---- router ---------------------------------------------------------- */

@@ -281,10 +281,32 @@ const cards = paper.reduce((t, s) => t + s.card_count, 0);
 // Set codes are not all identifiers - 10E, 2X2, 30A start with a digit, and
 // `{10E:…}` is a syntax error, not a key. Same for hyphenated variants.
 const key = (k) => /^[A-Za-z][A-Za-z0-9]*$/.test(k) ? k : q(k);
-const artRows = [...ART.keys()].sort().map((set) =>
+
+/* SETS COMES FROM SCRYFALL, COLLATION AND ART COME FROM MTGJSON, and the two do
+   not carry the same list. MTGJSON has MB1 (Mystery Booster); Scryfall's paper
+   set list does not, and the catalogue has 0 MB1 printings - so MB1 was emitted
+   into both PACK_ART and BOOSTER, and boosters/MB1.json written, for a code with
+   no set row to hang any of it on. Nothing could reach it (`packsFor` starts at
+   `setRow`, and no caller enumerates these keys), which is exactly why it sat
+   there: dead weight in two maps and a file, invisible to every check.
+   A set the SET LIST does not have is not a set this app can show, so its
+   collation is not ours to ship. Filtered here rather than deleted from the
+   generated file, which would come straight back on the next run. */
+const shown = new Set(ordered.map((s) => s.code.toUpperCase()));
+/* Report what was actually WITHDRAWN, not everything considered. MTGJSON carries
+   collation for a dozen digital-only sets (AKR, KLR, ME1-4, VMA...) that were
+   never emitted anyway - `!s.digital` had already kept them out - so listing
+   them as "dropped" describes work that did not happen. Only a code that would
+   otherwise have reached PACK_ART or BOOSTER is a real removal. */
+const dropped = [...new Set([...ART.keys(), ...[...COLLATION].filter(([, v]) => v).map(([c]) => c)])]
+  .filter((c) => !shown.has(c));
+if (dropped.length) console.log(`sets.js - withheld ${dropped.join(', ')
+  }: collation or pack art for a code with no row in the Scryfall paper set list`);
+
+const artRows = [...ART.keys()].filter((c) => shown.has(c)).sort().map((set) =>
   `  ${key(set)}:{${Object.entries(ART.get(set)).map(([c, id]) => `${key(c)}:${id}`).join(',')}},`);
 
-const drafted = [...COLLATION].filter(([, v]) => v).sort(([a], [b]) => a.localeCompare(b));
+const drafted = [...COLLATION].filter(([c, v]) => v && shown.has(c)).sort(([a], [b]) => a.localeCompare(b));
 const collRows = drafted.map(([set, [kind, n, rarest]]) =>
   `  ${key(set)}:[${q(kind)},${n},${rarest}],`);
 

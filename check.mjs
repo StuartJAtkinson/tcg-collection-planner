@@ -1,7 +1,8 @@
 // ponytail: the smallest thing that fails if the draft's rules break. Renders every
 // route under a stubbed DOM and asserts the decisions we keep re-making, so they stop
 // regressing silently. Run: node check.mjs
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
+import { gunzipSync } from 'node:zlib';
 import { createHash } from 'node:crypto';
 import vm from 'node:vm';
 import assert from 'node:assert';
@@ -15,7 +16,7 @@ const page = readFileSync('index.html', 'utf8');   // the markup too: <body> car
 const src = `${['sets.js', 'schema.js', 'trim.js', 'anatomy.js'].map(f => readFileSync(f, 'utf8')).join('\n')}
 ${page.match(/<script>([\s\S]*)<\/script>/)[1]}`;
 const js = src
-  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, artUrl, artCdn, artLocal, bytes, routeAll, routePack, makeLocal, routeAdvice, packsNeeded, packsToFetch, packsUnused, planBytes, unusedBytes, eltRows, eltPick, setElt, eltKind, ELEMENTS, srcKeys, srcBytes, onDisk, Table, DisplayChip, GroupHead, CARD_VIEWS, UNALIGNED, unaligned, anatomyKey, setFact, AlignList, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, VIEWS, FORMATS, CARD_TYPES, RARITIES, FINISHES, RARITY_NAME, FINISH, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, plateOf, scopedCards, LANGS, langFilter, langName, setLang, contrast, relLum, SURFACE, FRAME, lum, surfaceKey, mix, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, roles, roleOf, roleCount, ROLE_MIN, fieldLabel, zoneWeight, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, heldOf, heldByPrint, setBand, BandList, framable, printingsOf, alignFacts, finishesOf, printingsOf, pickPrinting, printKey, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, addSortTo, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, UNRESOLVED, IMPORT_GROUPS, filtered, ownedIn, holdingsChanged, CANON, flatLine, P, TABS, LISTS, GAMES, CFG, render, grouping, resolveRow, resolveUnresolved, setIconUrl, loadSymIndex, setIcon,'
+  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, artUrl, artCdn, artLocal, bytes, routeAll, routePack, makeLocal, routeAdvice, packsNeeded, packsToFetch, packsUnused, planBytes, unusedBytes, eltRows, eltPick, setElt, eltKind, ELEMENTS, srcKeys, srcBytes, onDisk, Table, DisplayChip, GroupHead, CARD_VIEWS, UNALIGNED, unaligned, anatomyKey, setFact, AlignList, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, VIEWS, FORMATS, CARD_TYPES, RARITIES, FINISHES, RARITY_NAME, FINISH, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, plateOf, scopedCards, LANGS, langFilter, langName, setLang, contrast, relLum, SURFACE, FRAME, lum, surfaceKey, mix, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, roles, roleOf, roleCount, ROLE_MIN, fieldLabel, zoneWeight, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, heldOf, heldByPrint, setBand, BandList, framable, printingsOf, alignFacts, finishesOf, printingsOf, pickPrinting, printKey, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, addSortTo, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, UNRESOLVED, IMPORT_GROUPS, filtered, ownedIn, holdingsChanged, CANON, flatLine, P, TABS, LISTS, GAMES, CFG, render, grouping, resolveRow, resolveUnresolved, setCodeOf, canonSet, packsFor, PACK_ART, setIconUrl, loadSymIndex, setIcon,'
   + ' get IMPORT_MATCHED() { return IMPORT_MATCHED; }, get IMPORT_SKIPPED() { return IMPORT_SKIPPED; },'
   + ' get IMPORT_NAME() { return IMPORT_NAME; }, set IMPORT_NAME(v) { IMPORT_NAME = v; },'
   + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen, PARENT_COLLATION, collationFor,'
@@ -1450,6 +1451,21 @@ t.pickGame('mtg'); go('#/kit');
 assert.ok(painted.includes('aspect-[5/7]') && painted.includes(t.CARDS()[0].n),
   'the control kit does not draw the card frame the rest of the app uses');
 
+/* ONE SOURCE FOR THE CONTROLS, ASSERTED ON THE SOURCE. Config's Anatomy & kit
+   tab and the #/kit route carried fourteen byte-identical lines each, so a token
+   added to one was missing from the other - the drift the kit exists to catch,
+   happening inside the kit. Both hosts call KitBody() now, and the way to say
+   that stays true is to count the thing that was duplicated rather than to look
+   for the helper: a second copy pasted back in would still define its own
+   'Chips' header, and would still fail here. */
+{
+  const h = readFileSync('index.html', 'utf8');
+  assert.strictEqual((h.match(/SectionHeader\('Chips'\)/g) || []).length, 1,
+    'the control kit markup has been duplicated again - both hosts must call KitBody()');
+  assert.strictEqual((h.match(/\$\{KitBody\(\)\}/g) || []).length, 2,
+    'the control kit is no longer drawn by both Config and the #/kit route');
+}
+
 /* The name has to be readable on every frame, which a hardcoded "dark frames"
    list does not deliver. Asserted over the REAL surfaces now - the four plates
    `plateOf` hands out - rather than over the frame and a 45%-over-black mix,
@@ -1589,7 +1605,13 @@ for (const r of ['#/printings', '#/binders', '#/decks', '#/search']) {
   assert.ok(!/>\d{1,3}(,\d{3})+/.test(painted), `${r}: a count is still comma-grouped`);
 }
 ctx.location.hash = '#/home'; t.render();
-assert.ok(painted.includes(`${t.num(107565)} cards`), 'the game banner is not using the short form');
+/* OFF THE SET LIST, NOT A LITERAL. This pinned 107,565 - the card_count sum of
+   sets.js at the time - so it failed the moment the set list was regenerated and
+   Scryfall had published two more sets. The formatting is what this is about
+   (the line above already pins num()'s behaviour on fixed inputs); the total is
+   data, and a check that restates data fails on news rather than on a bug. */
+const bannerTotal = t.SETS.reduce((n, s) => n + s[3], 0);
+assert.ok(painted.includes(`${t.num(bannerTotal)} cards`), 'the game banner is not using the short form');
 
 // --- X / Snow / Phyrexian ride the mana cost, not a group of their own ---
 t.pickGame('mtg'); go('#/printings');
@@ -4414,12 +4436,21 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
 {
   const oracle = (n) => [n, '{1}', 'Artifact', 'Text.', '', '', 1, 'normal', '', 0, 0];
   t.loadCards({ o: [oracle('Grizzled Outcasts // Krallenhorde Wantons'), oracle('Herald’s Horn'),
-                    oracle('Ambush'), oracle('Ambush (Version 2)')], p: [
+                    oracle('Ambush'), oracle('Ambush (Version 2)'),
+                    oracle('Grizzly Bears'), oracle('Drudge Skeletons')], p: [
     [0, 'ISD', '193', 2, 'a1', 0.1, 0, 1],
     [1, 'C17', '228', 2, 'a2', 4.4, 0, 1],
     [1, 'CMM', '300', 2, 'a3', 3.9, 0, 1],
     [2, 'CSP', '51', 1, 'a4', 0.1, 0, 1],
     [3, 'CSP', '51a', 1, 'a5', 0.1, 0, 1],
+    /* the core-set star pair, fin 1 against fin 2 - the real 8ED shape */
+    [4, '8ED', '256', 1, 'a6', 0.2, 0, 1],
+    [4, '8ED', '256★', 1, 'a7', 0, 0, 2],
+    /* ...and the one the finish CANNOT split: 129s is issued in both, so a row
+       saying Normal is true of either. 8ED Drudge Skeletons, the single
+       hold-out of the 91. */
+    [5, '8ED', '129', 1, 'a8', 0.2, 0, 1],
+    [5, '8ED', '129s', 1, 'a9', 0.5, 0, 3],
   ] });
   t.pickGame('mtg');
   const row = (o) => t.resolveRow({ 'card name': '', 'set code': '', 'set name': '',
@@ -4449,6 +4480,114 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
   assert.strictEqual(row({ 'card name': 'Nothing At All' }).hits.length, 0, 'an unknown name found a card');
   assert.strictEqual(row({ 'card name': '(Extended Art)' }).hits.length, 0,
     'a name that is nothing but a parenthetical matched everything');
+
+  /* 6. THE SAME NAME WEARING DIFFERENT PUNCTUATION. Six Collectr set names were
+        already the Scryfall name once a colon, a plural, a leading "Magic ", a
+        trailing Reprints/Series or a "/ Edgar" tail came off - 19 rows of the
+        real export, and not six faults but one. Asserted against the REAL
+        sets.js, because the rule is a claim about that file's contents. */
+  for (const [said, code] of [['Coldsnap Theme Deck Reprints', 'CST'],
+    ['Strixhaven: Mystical Archives', 'STA'], ['Time Spiral: Remastered', 'TSR'],
+    ['Secret Lair Drop Series', 'SLD'], ['Magic Game Night: Free-For-All', 'GN3'],
+    ['Summer Magic', 'SUM']])
+    assert.strictEqual(t.setCodeOf(said), code, `"${said}" no longer resolves to ${code}`);
+  /* ...and the ones that must NOT resolve. A promo programme spans many sets -
+     "FNM Promos" is F15, F16, F17 - so there is no code to give and guessing one
+     files a card under a printing you do not own. */
+  for (const said of ['Commander', 'FNM Promos', 'Buy-A-Box Promos', 'Mystery Booster Cards',
+    'Launch Party & Release Event Promos', 'Magic Player Rewards'])
+    assert.strictEqual(t.setCodeOf(said), '', `"${said}" was resolved to a single set, which it is not`);
+  /* ...and the squash must stay collision-free, or it starts answering for sets
+     it cannot tell apart. This is the guard's real job: it catches nothing today
+     and has to keep catching nothing. */
+  {
+    const seen = new Map();
+    for (const r of t.SETS) { const k = t.canonSet(r[0]); seen.set(k, (seen.get(k) || 0) + 1); }
+    const clash = [...seen].filter(([, n]) => n > 1);
+    assert.strictEqual(clash.length, 0,
+      `${clash.length} set names now squash together (e.g. "${clash[0]?.[0]}") - the canonical form has stopped telling sets apart`);
+  }
+
+  /* 5. THE STAR IS A FINISH AND THE FILE SAYS WHICH. 91 rows of the real export
+        were "ambiguous in 8th/9th Edition (2 matches)" and 90 of them are this
+        pair; the Variance column was being read for the holding and not for the
+        match, so the answer sat one field away from the question. */
+  const bears = (fin) => row({ 'card name': 'Grizzly Bears', 'set code': '8ED',
+    'finish / variant': fin });
+  assert.strictEqual(bears('Normal').hits.length, 1, 'a stated finish did not split the core-set star pair');
+  assert.strictEqual(bears('Normal').hits[0].num, '256', 'a Normal copy was filed against the foil-only printing');
+  assert.strictEqual(bears('Foil').hits[0].num, '256★', 'a Foil copy was filed against the nonfoil-only printing');
+  /* ...and the guard that makes it safe: with NO finish stated the row stays
+     ambiguous rather than defaulting to nonfoil, which would file every foil
+     copy wrong and do it silently. */
+  assert.strictEqual(bears('').hits.length, 2, 'a row that states no finish was resolved anyway');
+  /* ...and a finish that cannot split is not made to: 129s is issued in both, so
+     "Normal" is true of either and the row stays yours to resolve. */
+  assert.strictEqual(row({ 'card name': 'Drudge Skeletons', 'set code': '8ED',
+    'finish / variant': 'Normal' }).hits.length, 2,
+    'a finish that does not distinguish the candidates picked one anyway');
+}
+
+/* THE STYLESHEET IS A GENERATED ARTEFACT AND IT IS CHECKED IN, which is the same
+   shape of problem as packs/ and gets the same answer. It fell three weeks behind
+   the markup with nothing to notice: BTN_DANGER was restated in rose and never
+   rebuilt, so draft.css carried ZERO rose rules and the Clear holdings button
+   drew with no background, no border and no disabled state - reported from live
+   use as "it does nothing", because a button that is invisible and gives no
+   disabled feedback is indistinguishable from a broken one.
+   A missing class raises no error anywhere. Nothing in this file caught it
+   either: the render harness asserts 3,287 inline handlers resolve and says
+   nothing about whether the classes those pages name actually exist. So the
+   artefact records what built it and this asserts the two still agree.
+   DEFERRED, like the pack recipe: it is a fact about a build product, not about
+   the code, and it must not stop the assertions that are about the code. */
+{
+  const built = /recipe ([0-9a-f]{12})/.exec(readFileSync('draft.css', 'utf8').slice(0, 200));
+  const now = createHash('sha1').update(readFileSync('index.html'))
+    .update(readFileSync('foil.css')).digest('hex').slice(0, 12);
+  if (!built) DEFERRED.push('draft.css carries no recipe line - rebuild it with `node build.mjs`');
+  else if (built[1] !== now) DEFERRED.push(
+    `draft.css was built from a different index.html/foil.css (${built[1]}, now ${now}) - classes used by the page may not exist in it; run \`node build.mjs\``);
+}
+
+/* THE README STATES MEASURED NUMBERS, AND SEVEN OF THEM HAD DRIFTED - including
+   one the file contradicted itself on, quoting 107,214 printings in one place and
+   107,347 two paragraphs later. Prose is where this repo keeps its reasoning, so a
+   figure that has quietly stopped being true is worse here than in most codebases.
+   Each pair below is (what the README says, what the artefacts say). It asserts
+   the NUMBER ONLY, not the sentence around it - a check that pinned the wording
+   would fail on every edit and get deleted within a month.
+   DEFERRED, like the other two artefact checks: regenerating sets.js the day
+   Scryfall publishes a set is not a code defect and must not stop the code
+   assertions. */
+{
+  const readme = readFileSync('README.md', 'utf8');
+  const cat = JSON.parse(gunzipSync(readFileSync('cards.json.gz')));
+  const packAt = (sz) => readdirSync('packs').filter(f => f.endsWith(`_${sz}.png`))
+    .reduce((n, f) => n + statSync(`packs/${f}`).size, 0) / 1e6;
+  let openable = 0;
+  for (const r of t.SETS) { try { if ((t.packsFor(r[0]) || []).length) openable++; } catch { /* label miss */ } }
+  /* EVERY OCCURRENCE, NOT ANY OCCURRENCE. `includes` is satisfied by the number
+     appearing once, which is exactly what the README's own bug defeated: it said
+     107,214 in one paragraph and 107,347 in another, so a presence test passed
+     while the file contradicted itself. "N paper printings" is stated more than
+     once, so every one of them has to agree. */
+  const stated = [...readme.matchAll(/([\d,]+) paper\s+printings/g)].map(m => m[1]);
+  const want = cat.p.length.toLocaleString('en-GB');
+  const wrong = stated.filter(n => n !== want);
+  if (wrong.length) DEFERRED.push(
+    `README states "${wrong.join('" and "')}" paper printings where the catalogue has ${want}`);
+
+  const claims = [
+    ['oracle cards', cat.o.length.toLocaleString('en-GB')],
+    ['sets', `${t.SETS.length} paper MTG sets`],
+    ['PACK_ART sets', `\`PACK_ART\`: ${Object.keys(t.PACK_ART).length} sets`],
+    ['distinct pack products', `fetches all ${new Set(Object.values(t.PACK_ART).flatMap(o => Object.values(o))).size}`],
+    ['openable sets', `${openable} of ${t.SETS.length} do`],
+    ['200w megabytes', `${packAt('200w').toFixed(1)} MB at 200w`],
+  ];
+  for (const [what, text] of claims)
+    if (!readme.includes(text)) DEFERRED.push(`README's ${what} figure is stale - it does not say "${text}"`);
 }
 
 /* CONFIG NAMES THE FILE THE PIPELINE ACTUALLY READS, and this is asserted

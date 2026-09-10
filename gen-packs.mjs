@@ -166,7 +166,14 @@ for (const id of ids) {
 }
 save();
 
-const kb = readdirSync(OUT).reduce((n, f) => n + statSync(`${OUT}/${f}`).size, 0) / 1e6;
+/* ONE SIZE, BECAUSE THAT IS WHAT THE LINE CLAIMS. This totalled every file in
+   the directory while labelling the figure "at <size>", so a 200w run and an
+   in_1000x1000 run printed the SAME number - the tell that it was measuring the
+   directory rather than the build. packs/ holds both sizes at once, so the two
+   are 40.5 MB and 180.2 MB, not 220.7 MB twice. */
+const mine = readdirSync(OUT).filter((f) => f.endsWith(`_${size}.png`));
+const kb = mine.reduce((n, f) => n + statSync(`${OUT}/${f}`).size, 0) / 1e6;
+const all = readdirSync(OUT).reduce((n, f) => n + statSync(`${OUT}/${f}`).size, 0) / 1e6;
 console.log(`\n${done} processed, ${skipped} already on disk at this recipe, ${plain} kept untrimmed, ${failed} failed`);
-console.log(`${OUT}/ — ${kb.toFixed(1)} MB at ${size}`);
+console.log(`${OUT}/ — ${kb.toFixed(1)} MB across ${mine.length} files at ${size} (${all.toFixed(1)} MB in the directory, all sizes)`);
 console.log(existsSync('serve.py') ? 'Config → TCGplayer → Local now has files to serve.' : '');
