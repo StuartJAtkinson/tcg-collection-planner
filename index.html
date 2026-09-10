@@ -6582,6 +6582,11 @@ let IMPORT_MATCHED = [];  // [{ card, group }] - rows that resolved to one print
 let IMPORT_MISSED = 0;    // rows that matched no printing at all
 let IMPORT_OTHER = 0;     // rows for a different game, skipped rather than missed
 let IMPORT_SKIPPED = 0;   // ambiguous rows YOU declined - a decision, not a failure
+/* rows in a group with no destination. A THIRD kind of 'not filed', apart from
+   both of the above: the printing matched and you did not decline it, the group
+   it belongs to was simply never sent anywhere. Counted separately because one
+   number covering all three would hide which. */
+let IMPORT_UNSENT = 0;
 
 /* CSV, AND IT HAS TO BE A REAL ONE. Collectr quotes any field containing a
    comma - card names do, constantly ("Sen Triplets, Alpha", every "X, the Y"
@@ -6750,6 +6755,23 @@ const setCodeOf = (name) => {
   // same name wearing different punctuation
   return SET_BY_CANON().get(canonSet(s)) || '';
 };
+/* WHAT A GROUP BECOMES, BY SIZE - and no size may mean "discard it".
+   > 100 rows is a single large binder (a portfolio, a deckbox, a folder);
+   <= 100 is a deck, the median deck being 60 cards.
+   This read `c > 300 ? '' : c > 100 ? 'binder' : 'deck'`, so any group over 300
+   rows arrived with NO destination, and `applyImport` skips a group with no
+   kind. The group that rule is certain to hit is the biggest one, which on a
+   real collection IS the collection: measured on the 2,796-row export, "Main" is
+   1,795 rows and Apply filed 771 of the 2,566 cards it had just reported as
+   matched - 70% of the import discarded, with a dim "-> skipped" in the grouping
+   table as the only sign. It was reported as the import not working, and it may
+   as well not have been.
+   Nothing about a group being large means you did not want it. Skipping is still
+   yours to choose: `setGroupKind` toggles, so clicking the chosen chip puts a
+   group back to skipped. It is simply no longer what the app assumes for you.
+   Top-level so the check can call it: the assertion is that NO size maps to '',
+   which is a property of the function rather than of one number. */
+const kindFor = c => c > 100 ? 'binder' : 'deck';
 const FOIL_WORD = /^(foil|holo|holofoil|etched|foil etched|rainbow foil)$/i;
 function resolveRow(v) {
   const code = (v['set code'] || '').toUpperCase() || setCodeOf(v['set name']);
@@ -6813,7 +6835,7 @@ async function readImport(file) {
   if (!file) return;
   IMPORT_NAME = file.name;
   IMPORT_GROUPS.length = 0; UNRESOLVED.length = 0; IMPORT_MATCHED = [];
-  IMPORT_MISSED = 0; IMPORT_OTHER = 0; IMPORT_SKIPPED = 0;
+  IMPORT_MISSED = 0; IMPORT_OTHER = 0; IMPORT_SKIPPED = 0; IMPORT_UNSENT = 0;
   const rows = parseCsv(await file.text());
   if (rows.length < 2) { IMPORT_ROWS = 0; render(); return; }
   const at = mapColumns(rows[0]);
@@ -6852,13 +6874,6 @@ async function readImport(file) {
     IMPORT_MATCHED.push({ group, card: { ...hits[0], ...hold } });
     groups.set(group, (groups.get(group) || 0) + 1);
   }
-  /* GROUP KIND DEFAULTS, by size. > 300 rows is "everything that didn't fit
-     anywhere else" — unsorted, left as '' so the row says "→ skipped" until
-     you name it. > 100 is a single large binder (a portfolio, a deckbox, a
-     folder). ≤ 100 is a deck (the median deck is 60 cards; "Mono-Red Burn"
-     was 74 in the sample). The thresholds are read at import time, not
-     stored — change any of them before pressing Apply. */
-  const kindFor = c => c > 300 ? '' : c > 100 ? 'binder' : 'deck';
   for (const [n, c] of [...groups].sort((a, b) => b[1] - a[1])) IMPORT_GROUPS.push([n, c, kindFor(c)]);
   render();
 }
@@ -6917,11 +6932,18 @@ const clearHoldings = () => {
 };
 function applyImport() {
   if (!IMPORT_MATCHED.length) return;
+  IMPORT_UNSENT = 0;   // counted per apply, not per file: the kinds can change between them
   const kind = new Map(IMPORT_GROUPS.map(([n, , k]) => [n, k]));
   const made = new Set();
   for (const { group, card } of IMPORT_MATCHED) {
     const k = kind.get(group);
-    if (!k) continue;
+    /* A GROUP SENT NOWHERE IS STILL AN OUTCOME, AND IT HAS TO BE COUNTED.
+       This was a bare `continue`, so a skipped group left no trace: the bar
+       said "2,566 matched" and the app filed 771, and the missing 1,795 were
+       reported by nothing. Skipping is a legitimate decision - that is not what
+       was wrong - but a decision whose effect is invisible is indistinguishable
+       from a bug, which is exactly how it was reported. */
+    if (!k) { IMPORT_UNSENT++; continue; }
     const list = k === 'deck' ? LISTS.decks : LISTS.binders;
     let row = list.find(r => r[0] === group);
     /* THE ROW SHAPE IS NOT THE SAME FOR BOTH, which is why this is not one
@@ -7007,6 +7029,11 @@ PAGES.io = () => Frame('io', {
               UNRESOLVED.length ? ` &middot; <span class="text-amber-400">${UNRESOLVED.length} ambiguous</span>` : ''}${
               IMPORT_MISSED ? ` &middot; <span class="text-neutral-500">${num(IMPORT_MISSED)} unmatched</span>` : ''}${
               IMPORT_SKIPPED ? ` &middot; <span class="text-neutral-500">${num(IMPORT_SKIPPED)} skipped</span>` : ''}${
+              /* AMBER, LIKE `ambiguous`, BECAUSE IT IS THE SAME KIND OF THING:
+                 rows waiting on a decision from you. It reads after an apply
+                 that filed less than it matched, which is the moment the old
+                 bar said "2,566 matched" and wrote 771 without explaining. */
+              IMPORT_UNSENT ? ` &middot; <span class="text-amber-400">${num(IMPORT_UNSENT)} in no container</span>` : ''}${
               IMPORT_OTHER ? ` &middot; <span class="text-neutral-600">${num(IMPORT_OTHER)} not ${GAMES[P.game]?.label || 'this game'}</span>` : ''}</span>`}
       </div>
 
