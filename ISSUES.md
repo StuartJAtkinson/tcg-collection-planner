@@ -1,5 +1,10 @@
 # Issues — Card Collector v2
 
+> **Defects only.** An open item must be broken, dead, wrong, or contradict the docs.
+> Cosmetic drift → `CONSIDERATIONS.md`. Features and answered design decisions → `ROADMAP.md`.
+> One bullet per root cause, with the affected sites listed inside it — never one bullet per site.
+
+
 > The decisions live in the Resolved entries below: each one records what was
 > measured and why the call went that way, beside the work rather than in a plan.
 
