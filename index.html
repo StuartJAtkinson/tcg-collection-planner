@@ -7462,7 +7462,7 @@ const CfgSchemaSections = () => {
 const SchemaHead = (by, label, sub = '') => {
   const s = P.schemaSort || { by: 'group', dir: 1 };
   const on = s.by === by;
-  return `<th class="pb-1 pr-3 text-left font-normal">
+  return `<th class="pb-1 pr-3 text-left font-semibold">
     <button onclick="sortSchema('${by}')" class="group inline-flex items-baseline gap-1 hover:text-neutral-300 ${
       on ? 'text-neutral-300' : ''}" title="Sort by ${esc(label)}">
       <span>${label}</span>${sub ? `<span class="text-neutral-700">${sub}</span>` : ''}
@@ -7545,7 +7545,7 @@ const DownloadPlan = () => {
       </div>`).join('')}
     </div>` : ''}
     ${need.length ? `<div class="mt-3">
-      <div class="text-[10px] uppercase tracking-wide text-neutral-500">Packs this configuration needs</div>
+      <div class="${NUM_LABEL}">Packs this configuration needs</div>
       ${need.map(p => packLine(p, 'need')).join('')}
     </div>` : `<p class="mt-3 text-[11px] text-neutral-600">Nothing is routed to disk &mdash; the app runs entirely off the APIs.</p>`}
     ${unused.length ? `<div class="mt-3">
@@ -7562,7 +7562,7 @@ const DownloadPlan = () => {
         const c = CFG.elt[e.el]; return c && c.at === 'api' ? [c.source] : []; }))]
         .filter(k => SOURCES[k] && SOURCES[k].online);
       return live.length ? `<div class="mt-3">
-        <div class="text-[10px] uppercase tracking-wide text-neutral-500">Asked live &mdash; no download, but a rate limit</div>
+        <div class="${NUM_LABEL}">Asked live &mdash; no download, but a rate limit</div>
         ${live.map(k => `<div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 border-t border-neutral-800/60 py-1">
           <span class="font-mono text-[11px] text-neutral-300">${SOURCES[k].name}</span>
           <span class="text-[10px] text-neutral-500">${SOURCES[k].online}</span>
@@ -7570,7 +7570,7 @@ const DownloadPlan = () => {
       </div>` : '';
     })()}
     ${cmds.length ? `<div class="mt-3">
-      <div class="text-[10px] uppercase tracking-wide text-neutral-500">Run these to fetch what is missing</div>
+      <div class="${NUM_LABEL}">Run these to fetch what is missing</div>
       <pre class="mt-1 overflow-x-auto rounded-lg border border-neutral-800 bg-neutral-950 p-2 text-[10px] leading-relaxed text-neutral-400">${
         cmds.map(c => esc(c)).join('\n')}</pre>
     </div>` : ''}
@@ -7622,7 +7622,7 @@ const CfgSchemaBody = () => {
   <div class="${PANEL} mb-5 px-4 pt-4">${Band('', `<div class="border-t border-neutral-800 pt-2 text-xs">
     <table class="w-full">
       <thead>
-        <tr class="text-[10px] uppercase tracking-wide text-neutral-500">
+        <tr class="${NUM_LABEL}">
           ${SchemaHead('name', 'variable')}
           ${SchemaHead('route', 'None')}
           ${SchemaHead('route', 'API', 'live, nothing stored')}

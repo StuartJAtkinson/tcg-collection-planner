@@ -19,7 +19,7 @@ above it says so). Every one of them is genuinely in use:
 | `FIELD` | input/select, `rounded border-neutral-700 bg-neutral-950 px-2 py-1.5 text-sm` | 12 |
 | `PANEL` | `rounded-xl border-neutral-800 bg-neutral-900/50` | 18 |
 | `SUBBAR` | the second fixed row, `shrink-0 border-b-neutral-800 bg-neutral-900/60` (`:68`) | 6 |
-| `NUM_LABEL` | the 10px caption, `font-semibold uppercase tracking-wide text-neutral-600` (`:73`) | 20 |
+| `NUM_LABEL` | the 10px caption, `font-semibold uppercase tracking-wide text-neutral-600` (`:73`) | 24 |
 | `STEPPER` | the numeric input beside it | 5 |
 
 Everything is dark-mode-only Tailwind neutrals: `neutral-950` is the page,
