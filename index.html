@@ -3342,7 +3342,7 @@ const ComboSlicer = () => {
         const named = namesFit(cols, len), counted = countsFit(cols, len);
         return !items.length ? '' : `
           <div class="mb-1.5">
-            <div class="mb-1 text-[10px] uppercase tracking-wide text-neutral-600">${label}</div>
+            <div class="mb-1 ${NUM_LABEL}">${label}</div>
             <div class="grid gap-1 ${GRID[cols]}">
               ${items.map(([c, name, n]) => `
                 <button title="${name} &mdash; ${n} cards" ${hover(name, n)}
@@ -8139,7 +8139,7 @@ const FlatSource = () => { const toks = flatTokens(openedCard()); return `
     <code class="block rounded bg-neutral-950 px-2 py-1.5 font-mono text-xs text-neutral-300">${flatLine(openedCard())}</code>
     <div class="mt-2 flex flex-wrap gap-1.5">
       ${toks.map(([k, v]) => `
-        <span class="${CHIP_NEUTRAL} gap-1"><span class="text-[10px] uppercase tracking-wide text-neutral-600">${k}</span>${v}</span>`).join('')}
+        <span class="${CHIP_NEUTRAL} gap-1"><span class="${NUM_LABEL}">${k}</span>${v}</span>`).join('')}
     </div>
     <p class="mt-2 text-[11px] text-neutral-500">${P.matched
       ? 'Matched. Everything else on this page comes from the catalogue, not from the line.'
