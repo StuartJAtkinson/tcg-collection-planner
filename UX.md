@@ -7,20 +7,20 @@ this file is the bug.
 
 ## Tokens are declared, not typed
 
-`index.html:53-78` is the token block, and it is the source of truth (the comment
+`index.html:50-78` is the token block, and it is the source of truth (the comment
 above it says so). Every one of them is genuinely in use:
 
 | token | what it is | uses |
 |---|---|---|
-| `CHIP_NEUTRAL` / `CHIP_PLUS` / `CHIP_MINUS` | pill, `rounded-full px-3 py-1 text-xs`; neutral outline / emerald tint / rose tint | 12 / 9 / 4 |
-| `BTN_PRIMARY` / `BTN_SECONDARY` | filled emerald / outlined neutral, `px-3 py-1 text-xs` | 10 / 23 |
+| `CHIP_NEUTRAL` / `CHIP_PLUS` / `CHIP_MINUS` | pill, `rounded-full px-3 py-1 text-xs`; neutral outline / emerald tint / rose tint | 11 / 8 / 3 |
+| `BTN_PRIMARY` / `BTN_SECONDARY` | filled emerald / outlined neutral, `px-3 py-1 text-xs` | 8 / 21 |
 | `BTN_PRIMARY_LG` / `BTN_SECONDARY_LG` | the same pair one step up, `px-4 py-1.5 text-sm` | 2 / 2 |
-| `BTN_DANGER` | filled rose, destructive only | 7 |
-| `FIELD` | input/select, `rounded border-neutral-700 bg-neutral-950 px-2 py-1.5 text-sm` | 14 |
+| `BTN_DANGER` | filled rose, destructive only | 5 |
+| `FIELD` | input/select, `rounded border-neutral-700 bg-neutral-950 px-2 py-1.5 text-sm` | 12 |
 | `PANEL` | `rounded-xl border-neutral-800 bg-neutral-900/50` | 18 |
-| `SUBBAR` | the second fixed row, `shrink-0 border-b-neutral-800 bg-neutral-900/60` (`:68`) | 4 |
-| `NUM_LABEL` | the 10px caption, `font-semibold uppercase tracking-wide text-neutral-600` (`:73`) | 15 |
-| `STEPPER` | the numeric input beside it | 4 |
+| `SUBBAR` | the second fixed row, `shrink-0 border-b-neutral-800 bg-neutral-900/60` (`:68`) | 6 |
+| `NUM_LABEL` | the 10px caption, `font-semibold uppercase tracking-wide text-neutral-600` (`:73`) | 18 |
+| `STEPPER` | the numeric input beside it | 5 |
 
 Everything is dark-mode-only Tailwind neutrals: `neutral-950` is the page,
 `neutral-900` a raised surface, `neutral-800` a border, `neutral-100` body text.
@@ -36,8 +36,8 @@ Colour carries meaning here; it is not decoration.
   non-plain finish, the unresolved-import count in the nav, the grouping zone of
   the sort bar.
 - **rose** — negative. `CHIP_MINUS`, `BTN_DANGER` and the error panel
-  (`index.html:3069`). One hue for the whole negative surface; there is no
-  `red-*` UI token (the `red-500` at `:169` is the Pokéball graphic).
+  (`index.html:3075`). One hue for the whole negative surface; there is no
+  `red-*` UI token (the `red-500` at `:180` is the Pokéball graphic).
 - **sky** — data that is not on local disk or did not come from a vendor: the
   download plan's byte counts, fields that only exist because you imported them.
 - **fuchsia** — one badge, one meaning: the app substituted something (a printed
@@ -58,7 +58,7 @@ an `h2` at `text-lg font-semibold text-neutral-300` over a
 `border-b border-neutral-800`. It is the only heading larger than `text-xs`.
 
 Form-field labels are the exception to the uppercase rule: `NumberField`
-(`:1408`) labels its inputs in sentence case at `text-sm text-neutral-400`. An
+(`:1414`) labels its inputs in sentence case at `text-sm text-neutral-400`. An
 uppercase caption names a *section or column*; a sentence-case label names a
 *field*.
 
@@ -70,13 +70,13 @@ Numbers always carry `tabular-nums`, and counts abbreviate above 10,000 via
 ## Terminology
 
 The four routes are **Printings, Binders, Decks, Search** (`NAV`,
-`index.html:3012`), plus **Config** and **io**. `io` is the route id only — its
-nav item, its band and its page title all read **Import** (`:3040`, `:6910`);
+`index.html:3018`), plus **Config** and **io**. `io` is the route id only — its
+nav item, its band and its page title all read **Import** (`:3046`, `:6991`);
 nothing on screen ever says "io". A *printing* is a card as
 Wizards published it; a *binder* and a *deck* are containers you own; *holdings*
 are your copies. The distinction is enforced, not stylistic: the binder layout
 is offered on Binders only and the deck layout on Decks only
-(`VIEWS`, `index.html:3638`), because a set is a catalogue and a binder is
+(`VIEWS`, `index.html:3644`), because a set is a catalogue and a binder is
 property, and drawing one as the other was the confusion the app was rebuilt to
 remove.
 
@@ -91,42 +91,42 @@ asserts the column by it.
 
 ## Control placement
 
-- One fixed header (`index.html:3019`), then one fixed sub-header per page, then
-  the scrolling body (`Frame`, `:3083`; `<main>` is `px-6 py-5`). Both header
+- One fixed header (`index.html:3025`), then one fixed sub-header per page, then
+  the scrolling body (`Frame`, `:3089`; `<main>` is `px-6 py-5`). Both header
   rows are fixed height; the app owns the viewport and does not scroll as a
   document. Search keeps the bar even though it has nothing to select, and io
   keeps one naming the chosen file, so the second row never appears and
   disappears as you move between pages.
 - A selected tab is `border-b-2 border-emerald-500 text-white`; an unselected one
   is `border-transparent` with a `hover:text-white`. Same rule for the top nav
-  (`:3026`) and for Config's sub-tabs (`:7101`).
-  Import and the cog (`:3040`, `:3049`) follow it too: they used to mark
+  (`:3032`) and for Config's sub-tabs (`:7202`).
+  Import and the cog (`:3046`, `:3056`) follow it too: they used to mark
   themselves with an emerald pill and ring, which put two "you are here"
   treatments in one bar and made the two least important controls the loudest
   things on it. There is one treatment now.
 - An empty or placeholder box is a dashed outline, not a filled panel:
   `rounded-lg border border-dashed border-neutral-800`, centred text, a
   `text-sm text-neutral-400` line over a `text-[11px] text-neutral-600` one, and
-  the actions that would fill it underneath (`:3132`).
+  the actions that would fill it underneath (`:3139`).
 - A destructive or reset affordance inside a dense row is bare lowercase text at
-  `text-[10px]`, not a pill — `clear` on the error strip (`:3074`) and on the
-  colour filter (`:3268`). Pills are for actions with room around them.
+  `text-[10px]`, not a pill — `clear` on the error strip (`:3080`) and on the
+  colour filter (`:3316`). Pills are for actions with room around them.
 - Back sits at the **left** of a scoped page's sub-header; Close, Clear and any
   destructive button sit at the **right** on `ml-auto`.
 - A selector expands over its page and collapses to the sub-header once you pick
-  something; clicking the sub-header reopens it (`index.html:1282`).
+  something; clicking the sub-header reopens it (`index.html:1280`).
 - **A section header never repeats the tab that led to it.** The reader has just
   clicked the word; saying it again is the only thing in the panel that carries
   no information. `Band('', …)` renders no title (`:1332`) and three bands pass
-  one deliberately: the import band under the Import nav item (`:6916`), and the
-  schema and defaults bands under their own Config sub-tabs (`:7519`, `:7560`).
+  one deliberately: the import band under the Import nav item (`:7005`), and the
+  schema and defaults bands under their own Config sub-tabs (`:7622`, `:7663`).
   The header row survives if it still has a note or a control on it and
   collapses entirely if it does not, so the body starts at the top of the panel
   rather than under an empty rule. The same rule killed the io file input's
   visible label — the tab, the route and the sentence beside the control all
   already said Import — which now carries an `aria-label` instead.
 - A count *badge* only appears when the count is non-zero — the amber pip on the
-  nav's Import item (`:3040`) is gated on `UNRESOLVED.length`, because an empty
+  nav's Import item (`:3046`) is gated on `UNRESOLVED.length`, because an empty
   badge asserts work that does not exist. The header's *stats* slot is the
   opposite and deliberately so: it always shows its number, zero included
   ("986 sets · 0% collected", "0 binders", "0 unresolved"), because a measured
