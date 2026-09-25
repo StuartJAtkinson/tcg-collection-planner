@@ -1,14 +1,16 @@
 # docs/
 
-Prose is the first four; the rest is **evidence**, and it is here because it
-cannot be regenerated. The scripts that produced the JSON — `count_schema_fields.ts`,
+Prose is the first two; the rest is **evidence**, and it is here because it
+cannot be regenerated. The scripts that first produced the JSON — `count_schema_fields.ts`,
 `probe_composite_key.ts`, `build_schema_xlsx.py` — were deleted with the Next.js
 app in August 2026. What they measured is still the reason several decisions in
-[ISSUES.md](../ISSUES.md) went the way they did, so the numbers stay even though
-nothing reads them.
+[ISSUES.md](../ISSUES.md) went the way they did, so the numbers stay.
 
-Treat all four as **dated measurements, not live data**. Nothing in the build
-touches them; re-deriving one means writing the script again.
+Two of them are live inputs: `gen-schema.mjs` builds `schema.js` from
+`schema-rows.json` + `schema-counts.json`, and `gen-schema-counts.mjs` fills the
+gaps in `schema-counts.json`. The other two — `composite-key-probe.json` and the
+spreadsheet — are **dated measurements**: nothing reads them, and re-deriving
+one means writing the script again.
 
 | file | what it is |
 |---|---|

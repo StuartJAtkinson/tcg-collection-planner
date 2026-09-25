@@ -63,7 +63,7 @@ No install, no bundler, no framework. `index.html` is one file: a `PAGES` map, o
 `render()`, and all state in a single `P` object. `serve.py` is `http.server` plus a
 no-store header and a six-path allow-list (it roots at the repo now, so the default
 handler would have served `.git/` and `data/`), and one endpoint: `/data-index.json`
-reports what is actually on disk, which is what Config's Local column reads. That
+reports what is actually on disk, which is what Config's Downloaded column reads. That
 exists because a page cannot stat a filesystem, and the hand-typed sizes it replaced
 had drifted on five of the eight source rows — one named a filename that does not
 exist, one named a file that had never been downloaded at all.
@@ -97,10 +97,10 @@ Those photographs ship on a white card, so they are cut out before they are
 shown. `node gen-packs.mjs` fetches all 385 and does that cut ONCE — flood fill
 from the border ring to alpha, white balance, levels, saturation — writing
 `packs/<id>_<size>.png` (42.5 MB at 200w, 188.9 MB at in_1000x1000, gitignored). Config → TCGplayer →
-**Local** serves those; **Online** hotlinks the CDN and repeats the same pass in
+**Downloaded** serves those; after **Remove** it hotlinks the CDN and repeats the same pass in
 a canvas on every page. The two produce the same picture because they run the
 same code: `trim.js` is loaded by the page with `<script src>` and read by
-`gen-packs.mjs` with `new Function`, so the Local/Online chip changes where the
+`gen-packs.mjs` with `new Function`, so the Download/Remove button changes where the
 bytes come from and nothing else. It was two hand-kept copies with assertions
 holding them level, which is a tax for the life of the repo to avoid one file. A local file that isn't there draws as ABSENT - it does not fall through to the
 CDN. That fallback existed and was deleted deliberately: with 449 of 107,606 crops
@@ -124,7 +124,7 @@ comes out at 1 in 121, which is its 121 rares at one rare per pack.
 
 ### Tabs
 
-Five tabs — **Printings, Binders, Decks, Import, Search**. Each is the same shape: a
+Five tabs — **Printings, Binders, Decks, Search, Import**. Each is the same shape: a
 selector band listing sets / binders / decks, which collapses to a subheader once you
 pick one. Search is the one tab with nothing to select — it *is* all cards. Cards
 render as **MockCard**: a vector/font-only face (title, mana pips, type line, rules
