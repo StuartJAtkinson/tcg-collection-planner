@@ -9,6 +9,7 @@
 > measured and why the call went that way, beside the work rather than in a plan.
 
 ## Open
+- [ ] **Config captions hand-typed at the wrong weight and shade** — UX.md says a 10px caption or table column header always goes through `NUM_LABEL` (`font-semibold`, `neutral-600`), but Config types its own at `text-neutral-500` without `font-semibold`: the plan captions at `index.html:7548`, `:7565`, `:7573` and the schema table header row at `:7625`. Use `${NUM_LABEL}` at all four (the amber `:7552` caption and toned group rows at `:7606` are deliberate accents, leave them). *(found 2026-09-25)*
 - [ ] **CONSIDERATIONS.md points to a deleted file** — its header says visual questions live in `STYLE.md`, which commit 2924c18 deleted; every question goes in CONSIDERATIONS.md now. Drop that sentence. *(found 2026-09-25)*
 
 ## Resolved
