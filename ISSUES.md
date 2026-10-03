@@ -11,6 +11,7 @@
 ## Open
 
 ## Resolved
+- [x] **Set "Collected" % counts each language as a separate card** — `ownedIn` now keys by collector number alone, matching Scryfall's `card_count`; check.mjs adds a German copy to the counting fixture and fails on the old key. *(resolved 2026-10-03)*
 - [x] **Feature complete** — a static, hash-routed MTG collection app (Printings, Binders, Decks, Search, Import, Config) over a 107k-printing catalogue, with booster opening, CSV import from ten exporters and per-source offline downloads; `check.mjs` passes and no promised work is open *(assessed 2026-09-25)*
 - [x] **CONSIDERATIONS.md points to a deleted file** — its header says visual questions live in `STYLE.md`, which commit 2924c18 deleted; every question goes in CONSIDERATIONS.md now. Drop that sentence. *(found 2026-09-25)* — auto-continue *(resolved 2026-09-25)*
 - [x] **Config captions hand-typed at the wrong weight and shade** — UX.md says a 10px caption or table column header always goes through `NUM_LABEL` (`font-semibold`, `neutral-600`), but Config types its own at `text-neutral-500` without `font-semibold`: the plan captions at `index.html:7548`, `:7565`, `:7573` and the schema table header row at `:7625`. Use `${NUM_LABEL}` at all four (the amber `:7552` caption and toned group rows at `:7606` are deliberate accents, leave them). *(found 2026-09-25)* — auto-continue *(resolved 2026-09-25)*

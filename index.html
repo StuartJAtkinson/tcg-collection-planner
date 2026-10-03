@@ -4720,7 +4720,7 @@ const ownedIn = (code) => {
       for (const c of row[4]) {
         if (!c.set || !(c.qty > 0)) continue;
         if (!OWNED.has(c.set)) OWNED.set(c.set, new Set());
-        OWNED.get(c.set).add(`${c.num}/${c.lang || 'en'}`);
+        OWNED.get(c.set).add(c.num); // per number, not per language: the total is Scryfall's card_count
       }
     }
   }

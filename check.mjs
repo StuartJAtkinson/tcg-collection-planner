@@ -489,6 +489,8 @@ assert.ok(header(painted).includes('0% collected'), 'a collection holding nothin
   t.LISTS.binders.push(['Counted', '', [3, 3], '', [
     { n: 'A', set: s0[1], num: '1', lang: 'en', qty: 4 },
     { n: 'A', set: s0[1], num: '1', lang: 'en', qty: 1 },
+    // a German copy is the same card of the set: card_count has one slot per number
+    { n: 'A', set: s0[1], num: '1', lang: 'de', qty: 1 },
     { n: 'B', set: s0[1], num: '2', lang: 'en', qty: 1 },
     { n: 'C', set: s0[1], num: '3', lang: 'en', qty: 0 },
   ]]);
