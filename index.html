@@ -3736,9 +3736,11 @@ const views = () => VIEWS.filter(([, , , tabs]) => !tabs || tabs.includes(P.tab)
    inconsistent with itself. */
 const DisplayChip = (v, icon, on, click, title = '') => `<button onclick="${click}" title="${title}"
   class="${on ? CHIP_PLUS : CHIP_NEUTRAL} capitalize"><span class="text-neutral-500">${icon}</span>${v}</button>`;
-// The one tab with a default, because it has only one choice: a display you
-// cannot change is a question not worth asking. Everywhere else stays unpicked.
-const defaultView = () => (views().length === 1 ? views()[0][0] : null);
+// A tab with one display takes it; everywhere else opens on Grid, so a set you
+// click shows its cards at once instead of asking for a display first (Stuart,
+// 2026-10-03 - this replaced "everywhere else stays unpicked").
+const defaultView = () => (views().length === 1 ? views()[0][0]
+  : views().some(([v]) => v === 'grid') ? 'grid' : null);
 
 /* SORT - click to add and cycle asc/desc/off, drag to reorder, and BREAK is
    an element in the same list. Everything left of it is the grouping. */

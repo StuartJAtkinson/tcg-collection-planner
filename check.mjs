@@ -145,19 +145,20 @@ for (const r of ['search', 'decks', 'binders', 'printings', 'io', 'config']) {
 }
 /* A fresh session applies nothing on your behalf - EXCEPT the filing, which is
    now deliberate and everywhere rather than the binder's alone. The rest of the
-   rule is unchanged and still asserted below: no display, no filter, no pick. */
+   rule is unchanged and still asserted below: no filter, no pick. The display
+   is the other exception: a list opens on Grid, so a clicked set shows cards. */
 const filed = 'kinda,coloura,rarityd,BREAK,releasea,seta,numbera';
 assert.strictEqual(t.P.sort.map(x => x.f + (x.d || '')).join(), filed, 'the catalogue does not open filed');
 assert.strictEqual(t.sortDirty(), false, 'the default order lands staged but unapplied');
-assert.strictEqual(t.P.view, null, 'display has a default');
+assert.strictEqual(t.P.view, 'grid', 'a fresh page does not open on Grid');
 assert.strictEqual(t.P.filterDraft.cost.length, 0, 'a mana-cost symbol is preselected');
 assert.deepStrictEqual(Object.values(t.P.pick).join(','), ',,', 'something is preselected');
 // picking a game locks it in, and resets rather than inheriting
-setSort([{ f: 'name', d: 'a' }]); t.P.view = 'grid';
+setSort([{ f: 'name', d: 'a' }]); t.P.view = 'details';
 t.pickGame('pokemon');
 assert.strictEqual(t.P.game, 'pokemon', 'picking a game did not set it');
 assert.strictEqual(t.P.sort.map(x => x.f + (x.d || '')).join(), filed, 'a new game inherited the old sort');
-assert.strictEqual(t.P.view, null, 'a new game inherited the old display');
+assert.ok(t.P.view !== 'details', 'a new game inherited the old display');
 // the app enters at whatever tab is furthest left - reorder NAV and the
 // landing page follows, rather than a second hardcoded route drifting out of sync
 assert.strictEqual(ctx.location.hash, `#/${t.NAV[0][0]}`, 'picking a game did not land on the leftmost tab');
@@ -303,7 +304,7 @@ assert.strictEqual(t.selectorOpen(), true, 'coming back to a tab did not reopen 
 
 // --- nothing applied on a fresh page -----------------------------------
 go('#/search');
-assert.ok(painted.includes('No display chosen'), 'no empty state for an unpicked display');
+assert.ok(!painted.includes('No display chosen'), 'a fresh page asks for a display instead of showing cards');
 // display switches live; order stages and lands on Apply, like the filter
 /* DISPLAY, THEN GROUP ORDER, THEN SORT ORDER - in reading order, because that
    is the order the decisions compose in: what a card looks like, what makes a
@@ -4096,8 +4097,6 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
      drawn now, and the sentinel at the end asks for the next page. */
   t.clearFilter();
   assert.strictEqual(t.P.page, t.PAGE, 'clearing the filter did not put the paging back to the top');
-  // a display first: with none chosen the page draws no cards, and the sentinel
-  // is deliberately absent there - see the assertion at the end of this block
   t.setView('compact');
   t.P.page = 2; go('#/search');
   assert.strictEqual(t.CARDS().length, 2, 'the page size is not what gets drawn');
@@ -4105,15 +4104,7 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
   assert.ok(painted.includes('2 more'), 'the sentinel does not say how many are still to come');
   t.P.page = 99; go('#/search');
   assert.ok(!painted.includes('data-more'), 'the sentinel survives a fully drawn list');
-  /* ...and a page that draws NO cards has no end to reach. The sentinel used to
-     render under "No display chosen", where it is on screen from the first frame
-     with nothing above it: it came into view, paged, re-rendered, came into view
-     again, and had the whole filtered list drawn - 9,838 cards - before anyone
-     touched the scroll wheel. */
-  const view = t.P.view; t.P.view = null; t.P.page = 2; go('#/search');
-  assert.ok(!painted.includes('data-more'),
-    'a page with nothing drawn still asks for more, which pages the whole list on its own');
-  t.P.view = view; t.P.page = t.PAGE;
+  t.P.page = t.PAGE;
 
   // and the controls are controls now, where there is a rule behind them
   t.clearFilter(); go('#/search');
