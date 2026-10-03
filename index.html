@@ -280,6 +280,7 @@ const langName = l => LANG_NAME[l] || l;
 
 const P = {
   game: null,
+  org: null,   // Organise threshold in %, or null while the panel is shut
   /* THE CONFIG TAB HOLDS ITS OWN GAME SELECTOR. The one on the main switches
      the active game everywhere; the one here is just for browsing sources,
      and switching it does not move the rest of the app. A Magic user who
@@ -858,7 +859,7 @@ const STORE = 'card-collection/v1';
    catalogue no longer carries is still a card you own, so dropping it would be
    worse than letting it age. 2,452 names is ~40 KB against the 1.3 MB saved. */
 const slimHold = c => ({ n: c.n, set: c.set, num: c.num, lang: c.lang || 'en', qty: c.qty ?? 0, foil: c.foil ?? 0 });
-const slimList = r => [r[0], r[1], r[2], r[3], (Array.isArray(r[4]) ? r[4] : []).map(slimHold)];
+const slimList = r => [r[0], r[1], r[2], r[3], (Array.isArray(r[4]) ? r[4] : []).map(slimHold), ...(r[5] ? [r[5]] : [])];
 function saveState() {
   try {
     localStorage.setItem(STORE, JSON.stringify({
@@ -1277,7 +1278,13 @@ function setAcross(v) {
   render();
 }
 
-function selectItem(name) { P.pick[P.tab] = name; P.open = false; render(); }
+function selectItem(name) {
+  P.pick[P.tab] = name; P.open = false;
+  // an organised binder files itself: number order for a set, colour then name for the rest
+  const own = (LISTS[P.tab] || []).find(r => r[0] === name)?.[5];
+  if (own) { P.sort = own.map(t => ({ ...t })); P.sortDraft = own.map(t => ({ ...t })); }
+  render();
+}
 function clearItem() { P.pick[P.tab] = null; P.open = true; render(); }
 function toggleSelector() { P.open = !P.open; render(); }
 
@@ -3144,9 +3151,77 @@ const SelectorList = () => {
         <a href="#/printings" class="${BTN_SECONDARY}">Open boosters</a></div>
     </div>`;
   }
-  return `<div class="mt-4 grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(14rem,1fr))]">
+  return `${P.tab === 'binders' ? OrganisePanel() : ''}<div class="mt-4 grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(14rem,1fr))]">
     ${rows.map(row => SelectorRow(row[0], listLine(row), P.tab === 'binders' ? row[1] : row[3],
       row[0] === picked())).join('')}</div>`;
+};
+
+/* ORGANISE: a binder for every set you are close to finishing, everything else
+   in one. Completion is ownedIn over decks AND binders - a card in a deck is a
+   card of the set you own - but only binder cards move; decks are left alone.
+   A set binder takes ONE copy of each card number, the first met; spares go to
+   Generic sorted, so the set binder is the set and the rest is the rest.
+   ponytail: Apply replaces every binder, hand-made ones included (their cards
+   are all re-filed, none lost); keep hand-made binders out if that bites. */
+const GENERIC = 'Generic sorted';
+const SET_SORT = [{ f: 'BREAK' }, { f: 'number', d: 'a' }];
+const GENERIC_SORT = [{ f: 'colour', d: 'a' }, { f: 'BREAK' }, { f: 'name', d: 'a' }];
+const setPct = code => { const r = SET_BY_CODE.get(code); return r?.[3] ? ownedIn(code) / r[3] : 0; };
+const organisePlan = (min) => {
+  const pool = new Map();
+  for (const r of LISTS.binders) for (const c of r[4] || []) {
+    if (!(c.qty > 0)) continue;
+    const k = `${printKey(c)}/${c.foil ? 1 : 0}`, had = pool.get(k);
+    if (had) had.qty += c.qty; else pool.set(k, { ...c });
+  }
+  const sets = new Map(), generic = [], seen = new Set();
+  for (const c of pool.values()) {
+    const slot = `${c.set}/${c.num}`;
+    const keep = setPct(c.set) >= min && !seen.has(slot) ? 1 : 0;
+    if (keep) {
+      seen.add(slot);
+      if (!sets.has(c.set)) sets.set(c.set, []);
+      sets.get(c.set).push({ ...c, qty: 1 });
+    }
+    if (c.qty > keep) generic.push({ ...c, qty: c.qty - keep });
+  }
+  return { sets: [...sets].map(([code, cs]) => [code, setPct(code), cs]).sort((a, b) => b[1] - a[1]), generic };
+};
+const qtyOf = cs => cs.reduce((n, c) => n + c.qty, 0);
+function setOrganise(v) { P.org = v; render(); }
+function applyOrganise() {
+  const { sets, generic } = organisePlan(P.org / 100);
+  const row = (name, cs, sort) => [name, qtyOf(cs), [...P.dims], 'organised', cs, sort];
+  LISTS.binders = [...sets.map(([code, , cs]) => row(SET_BY_CODE.get(code)[0], cs, SET_SORT)),
+    ...(generic.length ? [row(GENERIC, generic, GENERIC_SORT)] : [])];
+  P.org = null; P.pick.binders = null;
+  holdingsChanged(); saveState(); render();
+}
+const OrganisePanel = () => {
+  if (P.org == null) return `<div class="mt-4 flex justify-end">
+    <button onclick="setOrganise(50)" class="${BTN_SECONDARY}">Organise&hellip;</button></div>`;
+  const { sets, generic } = organisePlan(P.org / 100);
+  return `<div class="${PANEL} mt-4 px-4 py-3">
+    <div class="flex flex-wrap items-center gap-3">
+      <span class="${NUM_LABEL}">Organise</span>
+      <label class="flex items-center gap-2 text-xs text-neutral-400">A set gets its own binder at
+        <input type="range" min="1" max="100" value="${P.org}" aria-label="Completion threshold"
+          oninput="this.nextElementSibling.textContent = this.value + '%'" onchange="setOrganise(+this.value)">
+        <span class="w-9 tabular-nums text-neutral-200">${P.org}%</span> complete</label>
+      <span class="ml-auto flex gap-1.5">
+        <button onclick="setOrganise(null)" class="${BTN_SECONDARY}">Cancel</button>
+        <button onclick="applyOrganise()" class="${BTN_PRIMARY}">Apply &mdash; replaces ${num(LISTS.binders.length)} binder${LISTS.binders.length === 1 ? '' : 's'}</button></span>
+    </div>
+    <table class="mt-3 w-full text-xs"><thead><tr class="${NUM_LABEL}">
+      <th class="py-1 text-left">Binder</th><th class="w-1/3 py-1 text-left">Set collected</th><th class="w-20 py-1 text-right">Cards</th></tr></thead>
+      <tbody>${sets.map(([code, p, cs]) => `<tr class="border-t border-neutral-900">
+        <td class="py-1 text-neutral-200">${SET_BY_CODE.get(code)[0]} <span class="font-mono text-neutral-600">${code}</span></td>
+        <td class="py-1"><span class="flex items-center gap-2">${CompletionBar(Math.round(100 * p))}<span class="w-8 text-right tabular-nums text-neutral-400">${Math.round(100 * p)}%</span></span></td>
+        <td class="py-1 text-right tabular-nums text-neutral-400">${num(qtyOf(cs))}</td></tr>`).join('')}
+      <tr class="border-t border-neutral-800"><td class="py-1 text-neutral-200">${GENERIC}</td>
+        <td class="py-1 text-neutral-600">colour, then name &middot; spares and every other set</td>
+        <td class="py-1 text-right tabular-nums text-neutral-400">${num(qtyOf(generic))}</td></tr></tbody></table>
+  </div>`;
 };
 
 /* Export belongs to a definite thing, so it rides in the bar exactly when the
@@ -6923,7 +6998,7 @@ const clearHoldings = () => {
   for (const r of LISTS.decks) r[4] = [];
   for (const r of LISTS.binders) r[4] = [];
   LISTS.decks = LISTS.decks.filter(r => r[3] !== 'imported');
-  LISTS.binders = LISTS.binders.filter(r => r[3] !== 'imported');
+  LISTS.binders = LISTS.binders.filter(r => r[3] !== 'imported' && r[3] !== 'organised');
   for (const r of LISTS.decks) { r[1] = 0; r[2] = '0 distinct'; }
   for (const r of LISTS.binders) { r[1] = 0; r[2] = [...P.dims]; }
   holdingsChanged();

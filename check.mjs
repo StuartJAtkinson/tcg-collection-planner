@@ -16,7 +16,7 @@ const page = readFileSync('index.html', 'utf8');   // the markup too: <body> car
 const src = `${['sets.js', 'schema.js', 'trim.js', 'anatomy.js'].map(f => readFileSync(f, 'utf8')).join('\n')}
 ${page.match(/<script>([\s\S]*)<\/script>/)[1]}`;
 const js = src
-  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, artUrl, artCdn, artLocal, bytes, routeAll, routePack, makeLocal, routeAdvice, packsNeeded, packsToFetch, packsUnused, planBytes, unusedBytes, eltRows, eltPick, setElt, eltKind, ELEMENTS, srcKeys, srcBytes, onDisk, Table, DisplayChip, GroupHead, CARD_VIEWS, UNALIGNED, unaligned, anatomyKey, setFact, AlignList, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, VIEWS, FORMATS, CARD_TYPES, RARITIES, FINISHES, RARITY_NAME, FINISH, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, plateOf, scopedCards, LANGS, langFilter, langName, setLang, contrast, relLum, SURFACE, FRAME, lum, surfaceKey, mix, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, roles, roleOf, roleCount, ROLE_MIN, fieldLabel, zoneWeight, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, heldOf, heldByPrint, setBand, BandList, framable, printingsOf, alignFacts, finishesOf, printingsOf, pickPrinting, printKey, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, addSortTo, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, UNRESOLVED, IMPORT_GROUPS, filtered, ownedIn, holdingsChanged, CANON, flatLine, P, TABS, LISTS, GAMES, CFG, render, grouping, resolveRow, resolveUnresolved, setCodeOf, canonSet, packsFor, PACK_ART, kindFor, setIconUrl, loadSymIndex, setIcon,'
+  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, artUrl, artCdn, artLocal, bytes, routeAll, routePack, makeLocal, routeAdvice, packsNeeded, packsToFetch, packsUnused, planBytes, unusedBytes, eltRows, eltPick, setElt, eltKind, ELEMENTS, srcKeys, srcBytes, onDisk, Table, DisplayChip, GroupHead, CARD_VIEWS, UNALIGNED, unaligned, anatomyKey, setFact, AlignList, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, VIEWS, FORMATS, CARD_TYPES, RARITIES, FINISHES, RARITY_NAME, FINISH, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, plateOf, scopedCards, LANGS, langFilter, langName, setLang, contrast, relLum, SURFACE, FRAME, lum, surfaceKey, mix, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, roles, roleOf, roleCount, ROLE_MIN, fieldLabel, zoneWeight, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, heldOf, heldByPrint, setBand, BandList, framable, printingsOf, alignFacts, finishesOf, printingsOf, pickPrinting, printKey, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, addSortTo, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, UNRESOLVED, IMPORT_GROUPS, filtered, ownedIn, holdingsChanged, organisePlan, applyOrganise, GENERIC, CANON, flatLine, P, TABS, LISTS, GAMES, CFG, render, grouping, resolveRow, resolveUnresolved, setCodeOf, canonSet, packsFor, PACK_ART, kindFor, setIconUrl, loadSymIndex, setIcon,'
   + ' get IMPORT_MATCHED() { return IMPORT_MATCHED; }, get IMPORT_SKIPPED() { return IMPORT_SKIPPED; },'
   + ' get IMPORT_NAME() { return IMPORT_NAME; }, set IMPORT_NAME(v) { IMPORT_NAME = v; },'
   + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen, PARENT_COLLATION, collationFor,'
@@ -499,6 +499,31 @@ assert.ok(header(painted).includes('0% collected'), 'a collection holding nothin
   assert.strictEqual(t.ownedIn('NOSUCH'), 0, 'an unheld set claims cards');
   t.LISTS.binders.pop(); t.holdingsChanged();
   assert.strictEqual(t.ownedIn(s0[1]), 0, 'removing a holding does not un-count it');
+}
+{
+  /* ORGANISE: a set over the bar gets a binder holding one of each card number;
+     spares and every set under the bar go to Generic sorted; a deck card counts
+     toward completion but never moves; and no copy is lost on the way. */
+  const near = t.SETS.find(r => r[3] === 4), far = t.SETS.find(r => r[3] > 100);
+  const binders = t.LISTS.binders, decks = t.LISTS.decks;
+  t.LISTS.binders = [['Old', 0, [3, 3], 'imported', [
+    { n: 'A', set: near[1], num: '1', lang: 'en', qty: 3, foil: 0 },
+    { n: 'A', set: near[1], num: '1', lang: 'de', qty: 1, foil: 0 },
+    { n: 'B', set: near[1], num: '2', lang: 'en', qty: 1, foil: 0 },
+    { n: 'Z', set: far[1], num: '9', lang: 'en', qty: 2, foil: 0 },
+  ]]];
+  t.LISTS.decks = [['Deck', 1, '1 distinct', '', [{ n: 'C', set: near[1], num: '3', lang: 'en', qty: 1, foil: 0 }]]];
+  t.holdingsChanged();
+  const plan = t.organisePlan(0.75);   // near is 3/4 with the deck card, 2/4 without it
+  assert.strictEqual(plan.sets.map(x => x[0]).join(), near[1], 'a deck card did not count toward completion, or a far set got a binder');
+  assert.strictEqual(plan.sets[0][2].map(c => `${c.num}x${c.qty}`).join(), '1x1,2x1', 'a set binder holds other than one copy per number');
+  const total = cs => cs.reduce((n, c) => n + c.qty, 0);
+  assert.strictEqual(total(plan.sets[0][2]) + total(plan.generic), 7, 'organising lost or invented copies');
+  t.P.org = 75; t.applyOrganise();
+  assert.strictEqual(t.LISTS.binders.map(r => r[0]).join('|'), `${near[0]}|${t.GENERIC}`, 'apply did not lay the binders out as planned');
+  assert.strictEqual(t.LISTS.decks[0][4].length, 1, 'organising moved a deck card');
+  assert.strictEqual(t.organisePlan(0.76).sets.length, 0, 'a set under the bar got its own binder');
+  t.LISTS.binders = binders; t.LISTS.decks = decks; t.holdingsChanged();
 }
 
 // every year between the oldest and newest set is represented - the gutter is
