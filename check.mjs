@@ -2203,6 +2203,21 @@ assert.strictEqual(t.kindFor(60), 'deck', 'a 60-row group is a deck');
 }
 t.IMPORT_GROUPS.length = 0;
 
+/* AN IMPORTED BINDER STATES WHAT IT HOLDS. The selector prints row[1] under a
+   binder's name, and Apply recomputed it for decks only - so Foundations and
+   Main from a real export read "0" while holding hundreds of cards. */
+{
+  const card = { n: 'Terminate', set: 'APC', num: '110', qty: 3, foil: 0, lang: 'en' };
+  t.IMPORT_GROUPS.push(['Count probe', 1, 'binder']);
+  t.IMPORT_MATCHED.push({ group: 'Count probe', card });
+  t.applyImport();
+  const b = t.LISTS.binders.find(r => r[0] === 'Count probe');
+  assert.strictEqual(b?.[1], 3, 'an imported binder says it holds no cards');
+  assert.ok(Array.isArray(b[2]), "applying an import overwrote a binder's page shape");
+  t.LISTS.binders.splice(t.LISTS.binders.indexOf(b), 1);
+  t.holdingsChanged();
+}
+
 /* CLEAR HOLDINGS. The import tab exposes a full-width button that empties every
    binder and deck's holdings (`row[4]`) and recomputes the deck counts — the
    reverse of Apply, scoped to what an import lands in. Containers themselves

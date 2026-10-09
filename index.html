@@ -7045,9 +7045,10 @@ function applyImport() {
   /* The counts a deck states about itself are DERIVED from what it now holds,
      not carried over from the file: a deck that says 60 while holding 44 is the
      invented-furniture problem the mock containers were deleted for. */
-  for (const r of LISTS.decks) if (made.has(r[0])) {
+  for (const r of [...LISTS.decks, ...LISTS.binders]) if (made.has(r[0])) {
     r[1] = r[4].reduce((n, c) => n + (c.qty || 0), 0);
-    r[2] = `${new Set(r[4].map(c => c.n)).size} distinct`;
+    // a binder's r[2] is its page shape, not a count - only a deck's is derived
+    if (LISTS.decks.includes(r)) r[2] = `${new Set(r[4].map(c => c.n)).size} distinct`;
   }
   IMPORT_MATCHED = [];
   IMPORT_GROUPS.length = 0;
