@@ -266,5 +266,5 @@
 - [x] **Colour combo filter wasn't ordered by WUBRG + multicolour-count buckets with dividers** — `app/components/ComboSlicer.tsx` now buckets options by length (1/2/3/4/5), sorts within each bucket by canonical WUBRG order, and renders each bucket in its own grid block (3/3/2/1/1 columns per Stuart's spec) separated by `divide-y divide-neutral-800`. Right-click "subsets" shortcut preserved.
 
 ## Needs input (Auto Continue)
-*Left by Auto Continue 2026-09-08 — decide these, then clear CONSIDERATIONS.md.*
-- The project's navigation contains two distinct "you are here" treatments: Import and the cog get a filled `#10b981` pill with a ring, while Printings/Binders/Decks/Search get a 2px `#10b981` underline. The configuration download-plan row names destinations three ways: "Make local" (`index.html:7372`), "Everything on disk" (`:7377`), and "On-disk" (`:7170`). The term "local" wins over "on disk." The io page's file input, labeled "Export file" inside an "Import" band, might be confusing. Consider renaming it to "Import a CSV."
+*Left by Auto Continue 2026-10-09 — decide these, then clear CONSIDERATIONS.md.*
+- Organise preview (`index.html` `OrganisePanel`) hand-rolls its table with `py-1` cells and no horizontal padding, where `Table` and every other table use `px-2 py-1.5` — cosmetic drift, no functional effect. Move it onto `Table` next time that panel is touched?
