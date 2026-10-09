@@ -11,6 +11,7 @@
 ## Open
 
 ## Resolved
+- [x] **Organise preview hand-rolls its table** — `OrganisePanel` now renders through `Table`, so its rows get the shared `px-2 py-1.5` and `NUM_LABEL` header. *(resolved 2026-10-09)*
 - [x] **Imported binders show a card count of 0** — `SelectorRow` prints `row[1]` under a binder's name, but `applyImport` (`index.html`, the `made` loop after filing) recomputes `r[1]` for decks only, so every imported binder reads "0" while holding cards (seen with Foundations and Main from `MTGCards.csv`). Recompute it for binders too. *(found 2026-10-03)* — auto-continue *(resolved 2026-10-09)*
 - [x] **Set "Collected" % counts each language as a separate card** — `ownedIn` now keys by collector number alone, matching Scryfall's `card_count`; check.mjs adds a German copy to the counting fixture and fails on the old key. *(resolved 2026-10-03)*
 - [x] **Feature complete** — a static, hash-routed MTG collection app (Printings, Binders, Decks, Search, Import, Config) over a 107k-printing catalogue, with booster opening, CSV import from ten exporters and per-source offline downloads; `check.mjs` passes and no promised work is open *(assessed 2026-09-25)*
