@@ -7029,8 +7029,8 @@ function applyImport() {
        so a blank there rendered nineteen imported binders as "undefined ×
        undefined pockets · NaN a page". The shape is the app's current default,
        which is what a binder you have not measured yet is.
-       Index 1 and 2 are recomputed on every apply below, because they describe
-       the membership and the membership is what just changed. */
+       Index 1 (and a deck's index 2) is recomputed on every apply below, because
+       it describes the membership and the membership is what just changed. */
     if (!row) {
       row = k === 'deck' ? [group, 0, '0 distinct', 'imported', []]
                          : [group, 0, [...P.dims], 'imported', []];
@@ -7042,7 +7042,7 @@ function applyImport() {
     const had = row[4].find(c => printKey(c) === printKey(card) && c.foil === card.foil);
     if (had) had.qty += card.qty; else row[4].push({ ...card });
   }
-  /* The counts a deck states about itself are DERIVED from what it now holds,
+  /* The counts a container states about itself are DERIVED from what it now holds,
      not carried over from the file: a deck that says 60 while holding 44 is the
      invented-furniture problem the mock containers were deleted for. */
   for (const r of [...LISTS.decks, ...LISTS.binders]) if (made.has(r[0])) {
