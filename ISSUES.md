@@ -267,5 +267,5 @@
 - [x] **Colour combo filter wasn't ordered by WUBRG + multicolour-count buckets with dividers** — `app/components/ComboSlicer.tsx` now buckets options by length (1/2/3/4/5), sorts within each bucket by canonical WUBRG order, and renders each bucket in its own grid block (3/3/2/1/1 columns per Stuart's spec) separated by `divide-y divide-neutral-800`. Right-click "subsets" shortcut preserved.
 
 ## Needs input (Auto Continue)
-*Left by Auto Continue 2026-10-09 — decide these, then clear CONSIDERATIONS.md.*
-- Organise preview (`index.html` `OrganisePanel`) hand-rolls its table with `py-1` cells and no horizontal padding, where `Table` and every other table use `px-2 py-1.5` — cosmetic drift, no functional effect. Move it onto `Table` next time that panel is touched?
+*Left by Auto Continue 2026-10-10 — decide these, then clear CONSIDERATIONS.md.*
+- Organise's completion slider (`index.html:3208`, the app's only range input) has no accent, so it draws in the browser default `#0075ff` on a page where "on/selected" is emerald `#10b981`. Should it take `accent-emerald-500`, or stay native?
