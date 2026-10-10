@@ -11,6 +11,7 @@
 ## Open
 
 ## Resolved
+- [x] **Organise slider, both options rendered: `shots/organise-slider.png` — a: native `#0075ff`, b: `accent-emerald-500` `#10b981`. Which one?** — kept native `#0075ff`: no code change; recorded as a convention in UX.md. *(resolved 2026-10-10)*
 - [x] **Organise's completion slider (`index.html:3208`, the app's only range input) has no accent, so it draws in the browser default `#0075ff` on a page where "on/selected" is emerald `#10b981`. Should it take `accent-emerald-500`, or stay native?** — rendered both options side by side in `shots/organise-slider.png` and re-asked in CONSIDERATIONS.md with the image attached; no code change until a colour is picked. *(resolved 2026-10-10)*
 - [x] **Organise preview hand-rolls its table** — `OrganisePanel` now renders through `Table`, so its rows get the shared `px-2 py-1.5` and `NUM_LABEL` header. *(resolved 2026-10-09)*
 - [x] **Imported binders show a card count of 0** — `SelectorRow` prints `row[1]` under a binder's name, but `applyImport` (`index.html`, the `made` loop after filing) recomputes `r[1]` for decks only, so every imported binder reads "0" while holding cards (seen with Foundations and Main from `MTGCards.csv`). Recompute it for binders too. *(found 2026-10-03)* — auto-continue *(resolved 2026-10-09)*

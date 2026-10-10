@@ -43,6 +43,10 @@ Colour carries meaning here; it is not decoration.
 - **fuchsia** — one badge, one meaning: the app substituted something (a printed
   scan shown where there is no frame to draw).
 
+Native form controls keep the browser's own accent. The Organise threshold
+slider (`index.html:3208`) stays the default `#0075ff` rather than taking
+`accent-emerald-500`, decided 2026-10-10 against `shots/organise-slider.png`.
+
 ## Type and spacing
 
 Labels are a three-step hierarchy, all `font-semibold uppercase tracking-wide`:
