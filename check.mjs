@@ -2634,6 +2634,27 @@ assert.ok(t.packsToFetch().some(p => p.k === 'scryfall'), 'going back on-disk di
     assert.doesNotThrow(() => t.loadState(), `a stored payload of ${junk} stops the page loading`);
   }
   globalThis.__store.removeItem(t.STORE);
+
+  // a full store must be SAID, not swallowed: the page used to look saved and
+  // lose everything on the next reload
+  const setItem = globalThis.__store.setItem;
+  globalThis.__store.setItem = () => { throw new Error('QuotaExceededError'); };
+  go('#/binders');
+  assert.ok(painted.includes('Not saved'), 'a failed save is silent - the next reload loses the work');
+  globalThis.__store.setItem = setItem;
+  t.render();
+  assert.ok(!painted.includes('Not saved'), 'the not-saved warning stays up after saving works again');
+
+  // a container name comes from an imported CSV, so it is DATA, not markup
+  // picked AND the list open, so both the bar and the selector row draw it
+  const evil = '<img src=x onerror=alert(1)>';
+  t.LISTS.binders.push([evil, 0, [3, 3], 'imported', []]);
+  go('#/binders'); t.selectItem(evil); t.P.open = true; t.render();
+  assert.ok(painted.includes('&lt;img src=x'), 'the test binder is not on the page, so this checks nothing');
+  // attribute values are left out: jsArg already makes the onclick safe, and a < inside quotes is inert
+  assert.ok(!painted.replace(/"[^"]*"/g, '""').includes('<img src=x'), 'an imported binder name is drawn as raw HTML');
+  t.LISTS.binders.pop(); t.P.open = false;
+  globalThis.__store.removeItem(t.STORE);
   t.LISTS.decks = decks.slice(1);             // put the fixture deck back on the shelf
   srcAt('tcg', 'online'); srcQ('sfart', 'art_crop');
 

@@ -860,6 +860,10 @@ const STORE = 'card-collection/v1';
    worse than letting it age. 2,452 names is ~40 KB against the 1.3 MB saved. */
 const slimHold = c => ({ n: c.n, set: c.set, num: c.num, lang: c.lang || 'en', qty: c.qty ?? 0, foil: c.foil ?? 0 });
 const slimList = r => [r[0], r[1], r[2], r[3], (Array.isArray(r[4]) ? r[4] : []).map(slimHold), ...(r[5] ? [r[5]] : [])];
+/* A FAILED SAVE HAS TO BE SEEN. render() calls saveState, so this re-renders
+   only when the state flips - otherwise a full store would loop forever. */
+let SAVE_FAILED = false;
+const saved = (ok) => { if (SAVE_FAILED !== !ok) { SAVE_FAILED = !ok; render(); } };
 function saveState() {
   try {
     localStorage.setItem(STORE, JSON.stringify({
@@ -868,7 +872,8 @@ function saveState() {
       v: 1, src: CFG.src, elt: CFG.elt, lang: P.lang, cols: P.cols,
       decks: LISTS.decks.map(slimList), binders: LISTS.binders.map(slimList),
     }));
-  } catch { /* quota, or a browser with storage off: the app runs, it just forgets */ }
+    saved(true);
+  } catch { saved(false); }   // quota, or storage off: the app runs, but you are told it will forget
 }
 function loadState() {
   let s;
@@ -3118,7 +3123,7 @@ const SelectorRow = (name, a, b, on) => `
   <button onclick="selectItem('${jsArg(name)}')"
     class="flex flex-col gap-0.5 rounded-lg border px-3 py-2 text-left ${on
       ? 'border-emerald-500 bg-emerald-500/10' : 'border-neutral-800 bg-neutral-900/60 hover:border-neutral-600'}">
-    <span class="text-sm font-medium ${on ? 'text-emerald-200' : 'text-neutral-100'}">${name}</span>
+    <span class="text-sm font-medium ${on ? 'text-emerald-200' : 'text-neutral-100'}">${esc(name)}</span>
     <span class="text-[11px] text-neutral-500">${a}</span>
     <span class="text-[10px] text-neutral-600">${b}</span></button>`;
 
@@ -3276,7 +3281,7 @@ const Selector = () => {
   };
   const label = `
     <span class="shrink-0 ${NUM_LABEL}">${one || 'scope'}</span>
-    <span class="truncate text-base font-semibold ${sel || !one ? 'text-neutral-100' : 'text-neutral-400'}">${sel || (one ? tab().all : scopeLabel())}</span>
+    <span class="truncate text-base font-semibold ${sel || !one ? 'text-neutral-100' : 'text-neutral-400'}">${esc(sel || (one ? tab().all : scopeLabel()))}</span>
     ${one ? `<span class="shrink-0 text-neutral-500">${open ? '&#9652;' : '&#9662;'}</span>` : ''}`;
   return `
     ${/* Open, the bar goes fully opaque: it is covering the page beneath it and
@@ -7127,7 +7132,7 @@ PAGES.io = () => Frame('io', {
              Choose a file above and its groups appear here &mdash; Collectr&rsquo;s Portfolio Name, Deckbox&rsquo;s tags,
              a Moxfield folder &mdash; one row each, to send to a binder, a box or a deck.</p>`
         : Table([['Group in the file', 'w-44'], ['Rows', 'w-20'], ['Becomes', 'flex-1']],
-          IMPORT_GROUPS.map(([n, c, k]) => [`<span class="text-neutral-200">${n}</span>`,
+          IMPORT_GROUPS.map(([n, c, k]) => [`<span class="text-neutral-200">${esc(n)}</span>`,
             `<span class="text-neutral-500">${c} rows</span>`,
             `<span class="flex flex-wrap items-center gap-1.5">${
               ['binder', 'box', 'deck'].map(x => `<button onclick="setGroupKind('${jsArg(n)}','${x}')"
@@ -7155,7 +7160,7 @@ PAGES.io = () => Frame('io', {
              <div class="w-72 shrink-0 font-mono text-[11px] text-neutral-300">
                <div class="whitespace-pre-wrap break-words rounded-lg border border-neutral-800 bg-black/60 p-2">${flatLine(u.line)}</div>
                <div class="mt-2 text-amber-400">${u.why}</div>
-               <div class="text-neutral-500">&rarr; ${u.group}</div>
+               <div class="text-neutral-500">&rarr; ${esc(u.group)}</div>
              </div>
            </div>`).join('')}`}`)}
 
@@ -8089,7 +8094,7 @@ const factsOf = c => {
 };
 const flatTokens = c => [['qty', c.qty || 1], ['name', c.n], c.set && ['set', c.set],
   c.num && ['number', c.num], c.foil && ['finish', 'foil'], c.lang && ['language', c.lang]].filter(Boolean);
-const flatLine = c => `${c.qty || 1} ${c.n}${c.set ? ` (${c.set})` : ''}${c.num ? ` ${c.num}` : ''}${
+const flatLine = c => `${c.qty || 1} ${esc(c.n)}${c.set ? ` (${c.set})` : ''}${c.num ? ` ${c.num}` : ''}${
   c.foil ? ' *F*' : ''}${c.lang ? ` [${c.lang}]` : ''}`;
 // the printings the flat line could mean - same name, different identity key,
 // which is why matching is a choice and not a lookup
@@ -8543,7 +8548,9 @@ function render() {
   const wasDown = sameRoute
     ? [...(document.querySelectorAll?.('[data-scroll]') || [])].map(e => [e.dataset.scroll, e.scrollTop])
     : [];
-  document.getElementById('app').innerHTML = PAGES[route]();
+  document.getElementById('app').innerHTML = PAGES[route]() + (SAVE_FAILED
+    ? `<div role="alert" class="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-lg border border-rose-800 bg-rose-950 px-4 py-2 text-sm text-rose-200">Not saved: browser storage is full or off. Changes since this appeared will be lost on reload.</div>`
+    : '');
   if (wasAt) {
     const box = document.querySelector('[data-draw-scroll]');
     if (box) box.scrollLeft = wasAt;
