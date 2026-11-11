@@ -6854,6 +6854,24 @@ const setCodeOf = (name) => {
    which is a property of the function rather than of one number. */
 const kindFor = c => c > 100 ? 'binder' : 'deck';
 const FOIL_WORD = /^(foil|holo|holofoil|etched|foil etched|rainbow foil)$/i;
+/* ONE PASS OVER THE CATALOGUE PER IMPORT, NOT SEVERAL PER ROW. resolveRow used
+   to filter all 107k printings up to four times a row, which froze the tab for
+   seconds on a 2,800-row file. Keyed on the pool itself, so a new catalogue
+   rebuilds it. A card is listed under its full name and, when two-faced, its
+   front face - the same two names the match has always accepted. */
+let ROW_IX = null;
+const rowIndex = (pool) => {
+  if (ROW_IX?.pool === pool) return ROW_IX;
+  const bySetNum = new Map(), byName = new Map();
+  const add = (m, k, c) => { const a = m.get(k); if (a) a.push(c); else m.set(k, [c]); };
+  for (const c of pool) {
+    add(bySetNum, `${c.set}/${c.num}`, c);
+    const full = String(c.n), front = full.split(' // ')[0];
+    add(byName, full, c);
+    if (front !== full) add(byName, front, c);
+  }
+  return (ROW_IX = { pool, bySetNum, byName });
+};
 function resolveRow(v) {
   const code = (v['set code'] || '').toUpperCase() || setCodeOf(v['set name']);
   const num = (v['collector number'] || '').trim();
@@ -6872,11 +6890,12 @@ function resolveRow(v) {
      As written FIRST and reduced second, never the reverse: "Insidious Bookworms
      (Version 2)" must not match Version 1 while an exact row still exists. */
   const bare = name.replace(/\s*\([^)]*\)\s*$/, '').trim();
-  const isName = (c, n) => n && (c.n === n || String(c.n).split(' // ')[0] === n);
-  let hits = code && num ? pool.filter(c => c.set === code && c.num === num) : [];
+  const ix = rowIndex(pool);
+  let hits = code && num ? ix.bySetNum.get(`${code}/${num}`) || [] : [];
   for (const n of hits.length ? [] : [name, bare]) {
-    if (code) hits = pool.filter(c => c.set === code && isName(c, n));
-    if (!hits.length) hits = pool.filter(c => isName(c, n));
+    const named = n ? ix.byName.get(n) || [] : [];
+    if (code) hits = named.filter(c => c.set === code);
+    if (!hits.length) hits = named;
     if (hits.length) break;
   }
   if (!hits.length) return { hits: [], lang };
