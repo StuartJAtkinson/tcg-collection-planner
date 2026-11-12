@@ -61,7 +61,8 @@ Two checkers beyond `check.mjs`:
 
 No install, no bundler, no framework. `index.html` is one file: a `PAGES` map, one
 `render()`, and all state in a single `P` object. `serve.py` is `http.server` plus a
-no-store header and a six-path allow-list (it roots at the repo now, so the default
+no-store header and an allow-list: the page's own files by name, plus tight patterns
+for `boosters/`, `packs/`, `art/` and `sym/` (it roots at the repo now, so the default
 handler would have served `.git/` and `data/`), and one endpoint: `/data-index.json`
 reports what is actually on disk, which is what Config's Downloaded column reads. That
 exists because a page cannot stat a filesystem, and the hand-typed sizes it replaced
