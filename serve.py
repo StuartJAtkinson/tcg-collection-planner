@@ -6,6 +6,7 @@ chasing that once was enough.  The allow-list exists because this now roots at t
 repo, so the default handler would happily serve .git/, data/ and any .env.
 """
 import json
+import os
 import re
 import sys
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -44,21 +45,36 @@ def inventory():
         if p.is_file():
             out['files']['data/' + p.name] = _stat(p)
 
-    def group(key, paths, name_of):
-        for p in paths:
-            if not p.is_file():
-                continue
-            g = out['groups'].setdefault(f'{key}/{name_of(p)}', {'n': 0, 'bytes': 0, 'mtime': 0})
-            st = p.stat()
-            g['n'] += 1
-            g['bytes'] += st.st_size
-            g['mtime'] = max(g['mtime'], int(st.st_mtime))
+    # os.scandir, not Path.glob + stat: on Windows a DirEntry's stat comes free
+    # with the directory listing, and a full art pull is 100k+ files per request
+    def walk(d, parts=()):
+        try:
+            entries = list(os.scandir(d))
+        except OSError:                        # not downloaded yet
+            return
+        for e in entries:
+            if e.is_dir(follow_symlinks=False):
+                yield from walk(e.path, parts + (e.name,))
+            elif e.is_file():
+                yield parts, e
+
+    def add(key, e):
+        g = out['groups'].setdefault(key, {'n': 0, 'bytes': 0, 'mtime': 0})
+        st = e.stat()
+        g['n'] += 1
+        g['bytes'] += st.st_size
+        g['mtime'] = max(g['mtime'], int(st.st_mtime))
 
     # packs/<id>_<size>.png -- the size is the tail of the stem
-    group('packs', Path('packs').glob('*.png'),
-          lambda p: p.stem.split('_', 1)[1] if '_' in p.stem else '?')
-    # art/sf/<size>/<side>/... and art/ptcg/<size>/... -- the size is the third part
-    group('art', Path('art').glob('*/*/**/*'), lambda p: '/'.join(p.parts[1:3]))
+    for parts, e in walk('packs'):
+        stem, ext = os.path.splitext(e.name)
+        if not parts and ext == '.png':
+            add('packs/' + (stem.split('_', 1)[1] if '_' in stem else '?'), e)
+    # art/sf/<size>/<side>/... and art/ptcg/<size>/... -- the size is the second
+    # folder down; files sitting above that depth are not art
+    for parts, e in walk('art'):
+        if len(parts) >= 2:
+            add('art/' + '/'.join(parts[:2]), e)
     return out
 
 # The collation is one file per set, fetched when you open that set's boosters --

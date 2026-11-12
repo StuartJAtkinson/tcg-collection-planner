@@ -6991,6 +6991,8 @@ function applyImport() {
   IMPORT_UNSENT = 0;   // counted per apply, not per file: the kinds can change between them
   const kind = new Map(IMPORT_GROUPS.map(([n, , k]) => [n, k]));
   const made = new Set();
+  const heldIn = new Map();                                // container row -> holdKey -> holding
+  const holdKey = c => `${printKey(c)}|${c.foil}`;
   for (const { group, card } of IMPORT_MATCHED) {
     const k = kind.get(group);
     /* A GROUP SENT NOWHERE IS STILL AN OUTCOME, AND IT HAS TO BE COUNTED.
@@ -7018,8 +7020,15 @@ function applyImport() {
     made.add(group);
     // one holding per printing per container: a second row of the same printing
     // is more copies of it, not a second entry
-    const had = row[4].find(c => printKey(c) === printKey(card) && c.foil === card.foil);
-    if (had) had.qty += card.qty; else row[4].push({ ...card });
+    // looked up, not searched: a find per row was 1.6M key builds on a 1,795-row group
+    let held = heldIn.get(row);
+    if (!held) {
+      heldIn.set(row, held = new Map());
+      for (const c of row[4]) if (!held.has(holdKey(c))) held.set(holdKey(c), c);   // first wins, as find did
+    }
+    const had = held.get(holdKey(card));
+    if (had) had.qty += card.qty;
+    else { const c = { ...card }; row[4].push(c); held.set(holdKey(c), c); }
   }
   /* The counts a container states about itself are DERIVED from what it now holds,
      not carried over from the file: a deck that says 60 while holding 44 is the

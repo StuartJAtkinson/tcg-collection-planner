@@ -2214,6 +2214,18 @@ t.IMPORT_GROUPS.length = 0;
   const b = t.LISTS.binders.find(r => r[0] === 'Count probe');
   assert.strictEqual(b?.[1], 3, 'an imported binder says it holds no cards');
   assert.ok(Array.isArray(b[2]), "applying an import overwrote a binder's page shape");
+
+  // one holding per printing AND finish: a repeat is more copies, a foil is its
+  // own holding, and a second Apply tops up what the first one filed
+  t.IMPORT_GROUPS.push(['Count probe', 3, 'binder']);
+  t.IMPORT_MATCHED.push({ group: 'Count probe', card: { ...card, qty: 2 } },
+                        { group: 'Count probe', card: { ...card, qty: 1, foil: 1 } },
+                        { group: 'Count probe', card: { ...card, qty: 4 } });
+  t.applyImport();
+  // as JSON: arrays made inside the vm have the vm's prototype, which deepStrictEqual compares
+  assert.strictEqual(JSON.stringify(b[4].map(c => [c.foil, c.qty])), '[[0,9],[1,1]]',
+    'repeat rows were not merged into one holding per printing and finish');
+  assert.strictEqual(b[1], 10, 'the binder count disagrees with its merged holdings');
   t.LISTS.binders.splice(t.LISTS.binders.indexOf(b), 1);
   t.holdingsChanged();
 }
