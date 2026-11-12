@@ -437,14 +437,6 @@ const SOURCES = {
     cmd: q => `curl -o data/${q}.json.gz https://mtgjson.com/api/v5/${q}.json.gz`,
     local: 'one published file &mdash; the whole point of this source',
     online: null, why: 'MTGJSON publishes files, not an API',
-    /* THE POSTGRES DUMP IS GONE, and it was the one pull no variable could
-       reach: 220 MB offered on a page that routes variables at files, with
-       nothing able to select it because there is no database on the other end.
-       docs/sources.md says so in as many words - the .sql/.psql/.sqlite shapes
-       "are irrelevant, the app is a static page" - and the Next.js + Postgres
-       surface it was for was deleted from this repo. A pack that cannot be
-       routed to is a download nothing can ever justify, and it was inflating
-       the offline total by the largest single number in the source. */
     q: [['AllPrintings', 'every set', 178.1e6], ['Standard', 'Standard-legal sets', 16.4e6],
         ['Modern', 'Modern-legal sets', 93.6e6], ['Legacy', 'Legacy-legal sets', 151.1e6]] },
   prices: { name: 'MTGJSON prices', gives: 'price history', kind: 'live', game: 'mtg',
@@ -976,14 +968,6 @@ const srcKeys = (kind) => Object.keys(SOURCES)
    rather than counted. "6 of 8 offline" with no way to reach 8 is a broken
    promise, and flipping such a row to Local anyway would be worse: it would
    read as done while every request still went to the network. */
-/* THE OFFLINE-MODE SUBSYSTEM IS GONE. `Work offline` was one button that set
-   every source local at a chosen size, plus the five helpers behind it -
-   canBeLocal, missingLocal, offlineBytes, goOffline, goOnline. The button was
-   removed when the schema table replaced the sources band, and nothing has
-   called any of them since except the assertions written for them.
-   The question it answered is now answered better and per-variable: the
-   download plan totals exactly what the current routes cost, and `Everything
-   on disk` is the same lever with a number attached. */
 /* GEN-PACKS, FROM A BUTTON ON THE TCGPLAYER ROW. The button POSTs to a local
    Node server (gen-packs-server.mjs on localhost:5245, started by `npm run
    gen-serve`) which spawns gen-packs.mjs and streams its stdout back as SSE.
@@ -2844,10 +2828,6 @@ const Card = c => `
    have to read: a green card is green here too, gold is multicolour, grey is
    colourless - the same rule, because it is the same call.
 
-   The cost-pip fallback is gone with it. The old row drew colour identity pips
-   when a card had no cost, which the frame now says on its own - a land is a
-   grey plate whether or not it has anything to spend.
-
    EVERY PRINTING HAS A NAME, checked rather than assumed: 0 of 107,347 are
    without one, including all 3,250 art-series "Card" printings and every
    full-art. So there is no set-and-number fallback here - it would be a branch
@@ -3243,13 +3223,6 @@ const EditInline = () => `
 
 // A select, not chips: there are ten formats (docs/import-formats.md) and the
 // bar has to stay one line tall next to the name, its numbers and Clear.
-/* THE EXPORT CONTROLS ARE GONE UNTIL EXPORT EXISTS. A <select> with no
-   onchange and a Download button with no onclick: eleven formats offered and
-   nothing behind any of them. This is the same defect ISSUES.md recorded when
-   it deleted the Import page's Source dropdown - "the third inert control on
-   that screen to go" - which survived here because it is on the other side of
-   the bar. Offering a choice that does nothing is worse than offering none. */
-const ExportInline = () => '';
 
 /* Only the NAME toggles the selector - it can't be one big <button> wrapping
    everything, because a <button>/<select> inside a <button> is invalid and the
@@ -3297,7 +3270,6 @@ const Selector = () => {
           ${CardCount()}
           ${DraftBar()}
           ${sel && tab().keyed ? EditInline() : ''}
-          ${definite ? ExportInline() : ''}
           ${sel ? `<button onclick="clearItem()" class="${BTN_SECONDARY}">Clear</button>` : ''}</span>
       </div>
     </div>
@@ -6551,7 +6523,6 @@ const DrawBanner = () => {
           <span class="text-xs text-neutral-500"><span class="font-semibold tabular-nums text-neutral-200">${
             num(pool().length)}</span> ${robin ? 'picked' : 'cards'}</span>
           <button onclick="reDraw()" class="${BTN_SECONDARY}">Draw again</button>
-          ${ExportInline()}
           <button onclick="closeDraw()" class="${BTN_SECONDARY}">Close</button></span>
       </div>
       <div class="flex min-h-0 flex-1 flex-col">${body}</div>
@@ -6604,21 +6575,6 @@ PAGES.search = PAGES.printings = PAGES.binders = PAGES.decks = () => BrowsePage(
 // where the catalogue itself comes from
 /* Verified from Archidekt's own importer bundle - see docs/import-formats.md.
    Numbers are the column's position in that app's export; '-' means absent. */
-/* LANGUAGE HAS A COLUMN, and this said otherwise for as long as the row has
-   existed. `NO COLUMN YET` described the deleted Postgres app's `cards` table,
-   which had no `lang` - that app is gone, and the schema map two bands down this
-   same page has listed `printings - uuid, lang, finishes, promo` the whole time,
-   so the page contradicted itself in two places.
-   Language is not merely storable, it is already everywhere: read off the
-   printing rather than assumed (2,634 of 107,347 are not English, across 19
-   languages), part of `printKey`, a column in Details, a row on the card page,
-   a facet in the sidebar, and a token on the import line - `1 Sol Ring (CMR) 700
-   [en]`. The one thing it genuinely is not is a fact about a HOLDING; see
-   ISSUES.md, because that is a real gap and not this row's business.
-   External uid is gone. Nine importers each carry their own id and none of them
-   identifies a card - set, collector number and language do, which is why they
-   are the key. Carrying a column purely to hand it back on export is a column
-   this app has no use for. */
 /* COLLECTR'S COLUMN is read off a real export (2,796 rows, 20 portfolios), not
    from documentation, and it is the odd one out in two ways worth having in the
    table rather than in a footnote:
@@ -7104,14 +7060,6 @@ PAGES.io = () => Frame('io', {
   </div>`,
   body: `<div class="${PANEL} px-4 pt-4">
     ${Band('', `
-      ${/* THE SOURCE DROPDOWN IS GONE, and it is the third inert control on this
-             screen to go the same way. `readImport` has always auto-detected by
-             header and nothing ever read the selection, so the eleven options
-             could not change the outcome - and auto-detect is not a fallback
-             here, it is the mechanism: 144/144 on the sample and 2,453/2,607 on
-             the real export. It also offered TEN apps while the column map knows
-             SEVEN, so three of its options named a mapping that does not exist.
-             An unrecognised header is a row you add to that table. */''}
       <div class="mb-4 flex flex-wrap items-end gap-3">
         ${/* NO VISIBLE LABEL. The nav item says Import, the route is Import, and
              the sentence beside the control says "Choose a CSV" - a fourth
@@ -7199,14 +7147,6 @@ PAGES.io = () => Frame('io', {
         : 'nothing read yet'}</span>
     </div>`}
 
-    ${/* THE COLUMN MAP TABLE IS GONE, and with it a claim that was not true.
-           Its footer said "we alias-match headers first and fall back to this" -
-           mapColumns contains ZERO references to CANON's positions, so the
-           fallback was never implemented and the grid documented a mechanism
-           that does not exist. Header matching alone lands 139/139 on the
-           sample and 2,453/2,607 on the real export; the positions were a
-           fingerprint nothing fingerprinted. The alias -> variable link CANON
-           still provides is read by the schema table. */''}
   </div>`,
 });
 
@@ -7713,12 +7653,6 @@ const CfgSchemaBody = () => {
       <td></td><td></td>
       <td class="py-1.5"><span class="tabular-nums text-neutral-500">${n.toLocaleString('en-GB')}</span></td><td></td>
     </tr>`).join('');
-  /* NO CSV LIST, AND NO ALIAS TABLE. The files band named `binders/x.csv` for
-     every container - paths for files that DO NOT EXIST, invented from the
-     container name, which is the same fiction as the mock counts this repo has
-     removed twice before. And the alias table was seven hand-typed rows beside
-     a HEADER_ALIAS of ten that was doing the actual matching; the aliases now
-     ride on the variable they belong to. Both are gone rather than fixed. */
   return `${DownloadPlan()}
   <div class="${PANEL} mb-5 px-4 pt-4">${Band('', `<div class="border-t border-neutral-800 pt-2 text-xs">
     <table class="w-full">
@@ -8259,15 +8193,9 @@ const FlatSource = () => { const toks = flatTokens(openedCard()); return `
    Clicking a row is `openCard(name, key)`, which on this page IS pickPrinting:
    same name, new printing, same route. So the ordinary card renderers need no
    card-page special case to be clickable here. */
-/* THE HOLDINGS BAND IS GONE, FOLDED IN HERE. It was a second list of the same
-   cards under the same page - "your copies" - from back when the printings list
-   had no quantity column and could not answer the question. Qty is a column
-   everywhere now, so the band was the same answer given twice, and the two could
-   disagree.
-   What the band carried that a Qty column does not is WHERE the copy is, so the
-   row carries that: a printing you hold names its containers. And the rows are
-   DECORATED with your real quantities first, which is what made the band look
-   necessary - `printingsOf` hands back catalogue rows, and a catalogue row's qty
+/* A PRINTING YOU HOLD NAMES ITS CONTAINERS, so the row says WHERE the copy is.
+   The rows are DECORATED with your real quantities first, because
+   `printingsOf` hands back catalogue rows, and a catalogue row's qty
    is 0 by construction, so the Qty column read "none" on a card sitting in your
    binder. */
 const Candidates = () => {
@@ -8488,8 +8416,7 @@ PAGES.card = () => Frame(P.tab, {
             ? 'bg-emerald-500/10 text-emerald-300' : 'bg-amber-500/10 text-amber-300'}">${P.matched ? 'matched' : 'unmatched'}</span>
         </span>
         <span class="ml-auto flex shrink-0 items-center gap-3">
-          ${P.matched ? `<button onclick="setMatched(false)" class="${BTN_SECONDARY}">Unmatch</button>` : ''}
-          ${ExportInline()}</span>
+          ${P.matched ? `<button onclick="setMatched(false)" class="${BTN_SECONDARY}">Unmatch</button>` : ''}</span>
       </div></div>`,
   body: `
     <div class="flex flex-wrap items-start gap-6">
@@ -8529,12 +8456,6 @@ function render() {
      the move by exempting the two crossings instead. */
   if (route !== lastRoute && route !== 'draw' && lastRoute !== 'draw') {
     clearPicks();
-    /* The binder used to be seeded with this arrangement on arrival and have it
-       taken back on the way out, because it was the one tab that filed itself
-       and everywhere else started empty. Now every tab starts filed, so there is
-       nothing left for that special case to do and it is gone - along with the
-       "did they touch it" bookkeeping it needed to avoid carrying a six-term
-       order onto Search as something nobody had asked for. */
   }
   const sameRoute = route === lastRoute;
   lastRoute = route;

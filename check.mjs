@@ -20,7 +20,7 @@ const js = src
   + ' get IMPORT_MATCHED() { return IMPORT_MATCHED; }, get IMPORT_SKIPPED() { return IMPORT_SKIPPED; },'
   + ' get IMPORT_NAME() { return IMPORT_NAME; }, set IMPORT_NAME(v) { IMPORT_NAME = v; },'
   + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen, PARENT_COLLATION, collationFor,'
-  + ' applyImport, setGroupKind, clearHoldings,'
+  + ' applyImport, setGroupKind, clearHoldings, parseCsv, mapColumns,'
   + ' logErr, clearErr, PAGE_LOG };';
 
 /* The collation is generated data, like sets.js - read from disk, not fetched.
@@ -4502,6 +4502,32 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
    opposite directions and both are wanted: the front face MATCHES a row that
    was being dropped, the parenthetical strip makes four rows AMBIGUOUS, which
    is the honest outcome for a card whose set is "Buy-A-Box Promos". */
+/* THE FILE IS READ BEFORE IT IS MATCHED, and both past failures here were in
+   the reading: a comma inside a quoted name shifts every column after it, and
+   `Category` claimed as the set column sent 119 of 144 rows to ambiguous. Real
+   Collectr header, BOM and CRLF included, the way Excel saves it. */
+{
+  const csv = '﻿Portfolio Name,Category,Set,Product Name,Card Number,Variance,Quantity,Market Price (As of 2026-08-16)\r\n'
+    + 'Main,Magic: The Gathering,Theros Beyond Death,"Kroxa, Titan of Death\'s Hunger",221,Foil,2,9.99\r\n'
+    + 'Main,Magic: The Gathering,Alliances,"The ""Ultimate"" Nightmare",1,Normal,1,0.10\r\n'
+    + '\r\n';
+  const rows = t.parseCsv(csv);
+  assert.strictEqual(rows.length, 3, 'a trailing blank line became a row, or a row was lost');
+  assert.strictEqual(rows[0][0], 'Portfolio Name', 'the BOM stayed glued to the first header');
+  assert.strictEqual(rows[1][3], "Kroxa, Titan of Death's Hunger", 'a comma inside quotes split the name');
+  assert.strictEqual(rows[1].length, 8, 'a quoted comma shifted the columns');
+  assert.strictEqual(rows[2][3], 'The "Ultimate" Nightmare', 'a doubled quote was not read as one quote');
+  assert.strictEqual(rows[2][7], '0.10', 'a CR survived at the end of a line');
+  const at = t.mapColumns(rows[0]);
+  assert.strictEqual(at['set name'], 2, '`Set` was not taken as the set name - Category may have claimed it');
+  assert.strictEqual(at.category, 1, 'Category is not read as the game column');
+  assert.strictEqual(at['card name'], 3, 'Product Name is not the card name');
+  assert.strictEqual(at['collector number'], 4, 'Card Number is not the collector number');
+  assert.strictEqual(at['finish / variant'], 5, 'Variance is not the finish');
+  assert.strictEqual(at.quantity, 6, 'Quantity is not the quantity');
+  assert.strictEqual(at['grouping / tags'], 0, 'Portfolio Name is not the grouping');
+  assert.strictEqual(new Set(Object.values(at)).size, Object.keys(at).length, 'one column was claimed twice');
+}
 {
   const oracle = (n) => [n, '{1}', 'Artifact', 'Text.', '', '', 1, 'normal', '', 0, 0];
   t.loadCards({ o: [oracle('Grizzled Outcasts // Krallenhorde Wantons'), oracle('Herald’s Horn'),
