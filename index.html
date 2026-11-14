@@ -4856,11 +4856,16 @@ const collationFor = (code) => PARENT_COLLATION[code] || code;
    printing's own identity and no MTGJSON uuid has to be carried on 107k rows.
    SET matters as much as number: the List and Special Guest slots deal cards
    from other sets entirely, which is 16% of all sheet entries. */
-let PRINTING_AT = null;
+/* Keyed on the pool it was built from, like rowIndex: built once and kept, a
+   pack dealt while the 7 MB catalogue was still loading froze the table on the
+   dozen sample cards and every pack after it came up empty until a reload. */
+let PRINTING_AT = null, PRINTING_OF = null;
 const printingAt = (key) => {
-  if (!PRINTING_AT) {
+  const pool = ALL();
+  if (PRINTING_OF !== pool) {
+    PRINTING_OF = pool;
     PRINTING_AT = new Map();
-    for (const c of ALL()) PRINTING_AT.set(`${c.set}:${c.num}`, c);
+    for (const c of pool) PRINTING_AT.set(`${c.set}:${c.num}`, c);
   }
   return PRINTING_AT.get(key);
 };

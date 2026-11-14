@@ -99,7 +99,6 @@ async function scan() {
   for await (const chunk of stream) {
     // while capturing, the tail would be re-read and doubled into the block
     const text = acc ? chunk.toString('latin1') : tail + chunk.toString('latin1');
-    tail = text.slice(-2100);
 
     let from = 0;
     if (acc) {
@@ -110,10 +109,13 @@ async function scan() {
       from = resumeAt;
     }
 
-    let m; rx.lastIndex = from;
+    let m, lastEnd = from; rx.lastIndex = from;
     while ((m = rx.exec(text))) {
+      lastEnd = rx.lastIndex;
       if (m[1] !== undefined) { cur = m[1]; num = null; continue; }   // a new set starts
-      if (m[2] !== undefined) { num = m[2]; continue; }
+      // the text is read as latin1 so a chunk can split a character safely, which
+      // leaves `256★` as `256â` plus two bytes - decoded back, or it never matches
+      if (m[2] !== undefined) { num = Buffer.from(m[2], 'latin1').toString('utf8'); continue; }
       // a card ends: pair it. Every card in the file, because a sheet may name
       // one from any set — filtering to the owning set's own uuids is what lost
       // the List and Special Guest slots.
@@ -134,8 +136,15 @@ async function scan() {
       acc.parts.push(end < 0 ? rest : rest.slice(0, end));
       if (end < 0) { resumeAt = 0; break; }
       finish();
-      rx.lastIndex = m.index + '"booster":'.length + end;
+      rx.lastIndex = lastEnd = m.index + '"booster":'.length + end;
     }
+    /* ONLY WHAT NO MATCH CONSUMED CARRIES OVER. This kept a fixed 2,100
+       characters and scanned them again, and a re-read is not harmless here: a
+       `number` still waiting from the end of the last pass got paired with the
+       first uuid in the overlap, so which number a card got depended on where
+       the chunks fell - 104 uuids changed between 64 KB and 8 MB chunks. Every
+       pattern above is far shorter than 2,100, so nothing can straddle further. */
+    if (!acc) tail = text.slice(Math.max(lastEnd, text.length - 2100));
   }
 
   function finish() {

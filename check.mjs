@@ -4542,6 +4542,8 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
 }
 {
   const oracle = (n) => [n, '{1}', 'Artifact', 'Text.', '', '', 1, 'normal', '', 0, 0];
+  // a pack dealt BEFORE this catalogue lands builds printingAt's table on the old one
+  t.printingAt('ISD:193');
   t.loadCards({ o: [oracle('Grizzled Outcasts // Krallenhorde Wantons'), oracle('Herald’s Horn'),
                     oracle('Ambush'), oracle('Ambush (Version 2)'),
                     oracle('Grizzly Bears'), oracle('Drudge Skeletons')], p: [
@@ -4560,6 +4562,8 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
     [5, '8ED', '129s', 1, 'a9', 0.5, 0, 3],
   ] });
   t.pickGame('mtg');
+  assert.strictEqual(t.printingAt('ISD:193')?.set, 'ISD',
+    'printingAt kept the catalogue it was first built on - packs deal from the old cards');
   const row = (o) => t.resolveRow({ 'card name': '', 'set code': '', 'set name': '',
     'collector number': '', language: '', ...o });
 
