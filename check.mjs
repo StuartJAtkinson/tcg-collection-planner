@@ -1,8 +1,13 @@
 // ponytail: the smallest thing that fails if the draft's rules break. Renders every
 // route under a stubbed DOM and asserts the decisions we keep re-making, so they stop
 // regressing silently. Run: node check.mjs
-import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
-import { gunzipSync } from 'node:zlib';
+import { readFileSync, readdirSync, existsSync, statSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { createServer } from 'node:http';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { download } from './gen-data.mjs';
+import { gunzipSync, gzipSync } from 'node:zlib';
 import { createHash } from 'node:crypto';
 import vm from 'node:vm';
 import assert from 'node:assert';
@@ -2912,6 +2917,64 @@ assert.ok(t.DisplayChip('grid', '#', true, "setView('grid')").includes("setView(
   t.P.sort = before;
 }
 
+
+/* THE SCANNER, ON A FIXTURE, AT TWO CHUNK SIZES. The booster scanner pairs a
+   card's number with its own uuid in one pass over the dump, and it used to
+   re-read the last 2,100 characters of every chunk: a number still waiting at
+   the end of a pass then got paired with a card from the overlap, so which
+   card a number belonged to depended on where the chunks happened to fall. The
+   fixture below has cards, a star number and a sheet naming all of them, and
+   it is scanned at two chunk sizes - the answer has to be the same both times,
+   and it has to be the right one. */
+{
+  const dir = mkdtempSync(join(tmpdir(), 'ponytail-boost-'));
+  const uuid = (n) => `00000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
+  const cards = [];
+  for (let i = 1; i <= 60; i++) cards.push({ number: String(i), uuid: uuid(i) });
+  cards.push({ number: '256★', uuid: uuid(999) });   // a foil-only number, and not ASCII
+  const sheet = {};
+  for (const c of cards) sheet[c.uuid] = 1;
+  const fixture = join(dir, 'fixture.json.gz');
+  writeFileSync(fixture, gzipSync(JSON.stringify({ meta: { date: '2026-01-01' }, data: { XXA: {
+    baseSetSize: cards.length,
+    booster: { default: { boostersTotalWeight: 1, boosters: [{ weight: 1, contents: { s1: 1 } }],
+      sheets: { s1: { totalWeight: cards.length, foil: false, cards: sheet } } } },
+    cards } } })));
+  /* the generator writes boosters/ where it is run, so it runs in the temp
+     folder - the repo's own boosters/ must not be touched by a test */
+  const scan = (chunk) => {
+    const r = spawnSync(process.execPath, [resolve('gen-boosters.mjs'), fixture, String(chunk)],
+      { cwd: dir, encoding: 'utf8' });
+    assert.strictEqual(r.status, 0, `gen-boosters.mjs failed on the fixture: ${r.stderr}`);
+    return JSON.parse(readFileSync(join(dir, 'boosters', 'XXA.json'), 'utf8'));
+  };
+  const keys = (j) => Object.keys(j.kinds.default.sheets.s1.cards).sort();
+  const want = cards.map((c) => `XXA:${c.number}`).sort();
+  assert.deepStrictEqual(keys(scan(64)), want, 'the scanner paired a number with the wrong card');
+  assert.deepStrictEqual(keys(scan(4096)), want, 'the scanner paired a number with the wrong card at 4 KB');
+  rmSync(dir, { recursive: true, force: true });
+}
+
+/* A DOWNLOAD THAT STOPS EARLY MUST NOT LEAVE A FILE THAT LOOKS FINISHED. The
+   cache rule only looks at a file's age, so a half-written dump used to sit
+   under its real name and be served as the real thing for the next 20 hours.
+   The bytes land in a .part file and the name only changes at the end. */
+{
+  const server = createServer(async (req, res) => {
+    res.writeHead(200, { 'Content-Length': '100000' });
+    res.write('x'.repeat(50000));
+    await new Promise((r) => setTimeout(r, 50));   // let the bytes arrive
+    res.destroy();                       // the connection dies mid-body
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const dir = mkdtempSync(join(tmpdir(), 'ponytail-dl-'));
+  await assert.rejects(download(`http://127.0.0.1:${server.address().port}/x`, 'x.bin', dir),
+    'a download that stopped early was accepted as a finished file');
+  assert.ok(!existsSync(join(dir, 'x.bin')), 'the half file was left under its real name');
+  assert.ok(!existsSync(join(dir, 'x.bin.part')), 'the half file was left behind');
+  server.close();
+  rmSync(dir, { recursive: true, force: true });
+}
 
 console.log('\ngame gated on the main then locked. fresh page applies nothing.');
 console.log('one page shape everywhere: selector -> filter -> sort -> view. break honoured in 5 layouts.');

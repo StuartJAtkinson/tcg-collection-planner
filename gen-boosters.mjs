@@ -1,5 +1,9 @@
 // Regenerates boosters/<CODE>.json from MTGJSON's `set.booster` — the real
-// collation, weights included. Run: node gen-boosters.mjs
+// collation, weights included. Run: node gen-boosters.mjs [file] [chunkBytes]
+//
+// The file defaults to data/AllPrintings.json.gz and the chunk size to gunzip's
+// own. Both are arguments so the scanner can be run on a fixture, at a chunk
+// size small enough to break it — which is what check.mjs does.
 //
 // Until now the page drew packs from a hand-written rarity-tier table (`SHEET`,
 // `PACK_KINDS` in index.html), which is a plausible imitation of a booster and
@@ -28,6 +32,10 @@
 // scanning the owning set silently threw every one of them away.
 import { writeFileSync, mkdirSync, readdirSync, rmSync, statSync, createReadStream } from 'node:fs';
 import { createGunzip } from 'node:zlib';
+
+const [fileArg, chunkArg] = process.argv.slice(2);
+const FILE = fileArg || 'data/AllPrintings.json.gz';
+const CHUNK = Number(chunkArg) || 16 * 1024;   // gunzip's own default
 
 const scanBraces = (s, st) => {   // advance st over s; return index past the close, or -1
   for (let i = 0; i < s.length; i++) {
@@ -95,7 +103,7 @@ async function scan() {
      precedes `uuid` within a card, both because MTGJSON's keys are alphabetical. */
   const rx = /"([A-Z0-9_]{2,8})":\{"baseSetSize"|"booster":\{|"number":"((?:[^"\\]|\\.)*)"|"uuid":"([0-9a-f-]{36})"/g;
   let tail = '', cur = null, acc = null, num = null, resumeAt = 0;
-  const stream = createReadStream('data/AllPrintings.json.gz').pipe(createGunzip());
+  const stream = createReadStream(FILE).pipe(createGunzip({ chunkSize: CHUNK }));
   for await (const chunk of stream) {
     // while capturing, the tail would be re-read and doubled into the block
     const text = acc ? chunk.toString('latin1') : tail + chunk.toString('latin1');
