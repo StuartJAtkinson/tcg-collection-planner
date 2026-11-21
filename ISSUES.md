@@ -269,5 +269,7 @@
 - [x] **Colour combo filter wasn't ordered by WUBRG + multicolour-count buckets with dividers** — `app/components/ComboSlicer.tsx` now buckets options by length (1/2/3/4/5), sorts within each bucket by canonical WUBRG order, and renders each bucket in its own grid block (3/3/2/1/1 columns per Stuart's spec) separated by `divide-y divide-neutral-800`. Right-click "subsets" shortcut preserved.
 
 ## Needs input (Auto Continue)
-*Left by Auto Continue 2026-10-10 — decide these, then clear CONSIDERATIONS.md.*
-- Organise's completion slider (`index.html:3208`, the app's only range input) has no accent, so it draws in the browser default `#0075ff` on a page where "on/selected" is emerald `#10b981`. Should it take `accent-emerald-500`, or stay native?
+*Nothing is waiting. The last question — the Organise completion slider's accent —
+was answered on 2026-10-10: it stays native `#0075ff`, and the convention is
+recorded in UX.md. The question was left in this section as well, so Auto
+Continue would have asked a settled thing again.*
