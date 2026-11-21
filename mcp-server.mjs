@@ -1,6 +1,6 @@
 // MCP SERVER OVER THE CATALOGUE.
 //
-//   node mcp-server.mjs [collection.csv]
+//   node mcp-server.mjs [collection.csv] [catalogue.json.gz]
 //
 // Read-only on purpose. MCP.md says why: marking a card owned is a claim about
 // the physical world, and a model cannot check it and has every incentive to
@@ -33,8 +33,12 @@ import vm from 'node:vm';
 import path from 'node:path';
 
 const ROOT = fileURLToPath(new URL('.', import.meta.url));
-const [csvArg] = process.argv.slice(2);
+const [csvArg, catArg] = process.argv.slice(2);
 const CSV = path.resolve(ROOT, csvArg || 'MTGCards.csv');
+/* The catalogue is an argument so a test can hand the server a small one: the
+   real cards.json.gz is 7 MB of generated data and is not in git, so a check
+   that needs it never runs on a fresh clone. */
+const CATALOGUE = path.resolve(ROOT, catArg || 'cards.json.gz');
 
 /* THE PAGE, IN A VM. The stubs are check.mjs's: the page draws into a fake
    element, reads a Map behind the localStorage shape and asks nothing of the
@@ -67,7 +71,7 @@ const t = ctx.__t;
 
 /* THE CATALOGUE, MATERIALISED BY THE PAGE. */
 t.pickGame('mtg');
-await t.loadCards(JSON.parse(gunzipSync(readFileSync(path.join(ROOT, 'cards.json.gz')))));
+await t.loadCards(JSON.parse(gunzipSync(readFileSync(CATALOGUE))));
 const ALL = t.ALL();
 
 /* WHAT YOU OWN, BY THE PAGE'S OWN IMPORT. readImport is the app's import path:

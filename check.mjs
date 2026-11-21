@@ -2976,24 +2976,45 @@ assert.ok(t.DisplayChip('grid', '#', true, "setView('grid')").includes("setView(
   rmSync(dir, { recursive: true, force: true });
 }
 
-/* THE MCP SERVER, TALKED TO OVER ITS OWN TRANSPORT. The server is meant to
-   answer the same questions the page answers, from the same file, so it is
-   asked them the way a client would: JSON-RPC down stdin, JSON-RPC back. The
-   counts are checked against the file the harness reads itself - the row count
-   and the rows of another game are countable without a catalogue, and a server
-   that read the wrong file, or counted a portfolio as a card, would disagree. */
+/* THE MCP SERVER, TALKED TO OVER ITS OWN TRANSPORT, AGAINST A FIXTURE. The
+   server is meant to answer the same questions the page answers, from the same
+   rules, so it is asked them the way a client would: JSON-RPC down stdin,
+   JSON-RPC back. The catalogue and the collection are written to a temp
+   folder rather than read from the working directory: the real ones are
+   generated data and are not in git, so a check that needs them never runs on
+   a fresh clone. */
 {
-  const file = 'MTGCards.csv';
-  const rows = t.parseCsv(readFileSync(file, 'utf8'));
-  const at = t.mapColumns(rows[0]);
-  let magic = 0, other = 0;
-  for (const r of rows.slice(1)) {
-    const v = {};
-    for (const f in at) v[f] = (r[at[f]] ?? '').trim();
-    if (v.category && !/magic/i.test(v.category)) other++; else magic++;
-  }
+  const dir = mkdtempSync(join(tmpdir(), 'ponytail-mcp-'));
+  /* A catalogue in the page's own format: `o` holds the cards, `p` the
+     printings that point at them. Two Forests, so the foil-only printing can
+     be told from the plain one, and a card nobody owns. */
+  const card = (n, type, cmc) => [n, '', type, '', '', '', cmc, 'normal', 0, null, 0, null, 0, 0];
+  writeFileSync(join(dir, 'cards.json.gz'), gzipSync(JSON.stringify({
+    o: [card('Forest', 'Basic Land — Forest', 0),
+        card('Shock', 'Instant', 1),
+        card('Grizzly Bears', 'Creature — Bear', 2)],
+    p: [[0, '10E', '1', 1, '', 0.1, 0, 1, 0, 0, 0, 0, 0],      // Forest, plain
+        [0, '10E', '1★', 1, '', 0.2, 0, 2, 0, 0, 0, 0, 0],     // Forest, foil only
+        [1, '10E', '300', 2, '', 0.3, 0, 1, 0, 0, 0, 0, 0],    // Shock
+        [2, '10E', '2', 1, '', 0.1, 0, 1, 0, 0, 0, 0, 0]],    // Grizzly Bears
+  })));
+  /* A collection in the app's own import format - Collectr's columns. Six
+     rows, and every one of them lands somewhere different: two that resolve,
+     one that resolves only because the Variance column says which Forest, one
+     that resolves to nothing, one that is another game's, and one that the
+     app would ask you about because two printings match it equally. */
+  writeFileSync(join(dir, 'collection.csv'), [
+    'Portfolio Name,Category,Set,Product Name,Card Number,Rarity,Variance,Quantity',
+    'Main,Magic: The Gathering,10th Edition,Forest,1,Common,Normal,1',
+    'Main,Magic: The Gathering,10th Edition,Forest,,Common,Foil,1',
+    'Main,Magic: The Gathering,10th Edition,Shock,,Common,Normal,1',
+    'Main,Magic: The Gathering,10th Edition,Nothing At All,9,Common,Normal,1',
+    'Old,YuGiOh,10th Edition,Forest,1,Common,Normal,1',
+    'Main,Magic: The Gathering,10th Edition,Forest,,Common,,1',
+  ].join('\n'));
   const ask = (messages) => {
-    const r = spawnSync(process.execPath, [resolve('mcp-server.mjs'), file], {
+    const r = spawnSync(process.execPath,
+      [resolve('mcp-server.mjs'), join(dir, 'collection.csv'), join(dir, 'cards.json.gz')], {
       input: `${messages.map(m => JSON.stringify(m)).join('\n')}\n`,
       encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
     assert.strictEqual(r.status, 0, `the MCP server failed: ${r.stderr}`);
@@ -3003,8 +3024,9 @@ assert.ok(t.DisplayChip('grid', '#', true, "setView('grid')").includes("setView(
     { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18' } },
     { jsonrpc: '2.0', id: 2, method: 'tools/list' },
     { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'collection_stats', arguments: {} } },
-    { jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'find_gaps', arguments: { set: '8ED' } } },
-    { jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'list_sets', arguments: {} } },
+    { jsonrpc: '2.0', id: 'x', method: 'tools/call', params: { name: 'find_gaps', arguments: { set: '10th Edition' } } },
+    { jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'list_cards', arguments: { set: '10E', owned: true } } },
+    { jsonrpc: '2.0', id: 6, method: 'tools/call', params: { name: 'find_gaps', arguments: { set: 'No Such Set' } } },
   ]);
   assert.strictEqual(reply.get(1).result.protocolVersion, '2025-06-18',
     'the server did not answer the handshake with the version it was asked for');
@@ -3012,21 +3034,25 @@ assert.ok(t.DisplayChip('grid', '#', true, "setView('grid')").includes("setView(
     ['list_sets', 'list_cards', 'get_card', 'collection_stats', 'find_gaps'],
     'the server is not offering the five read-only tools MCP.md names');
   const stats = JSON.parse(reply.get(3).result.content[0].text);
-  assert.strictEqual(stats.collection.rows, magic + other,
-    'the server read a different number of rows than the file holds');
-  assert.strictEqual(stats.collection.other, other,
-    'the server skipped a different number of another game\'s rows than the page does');
-  assert.strictEqual(stats.collection.matched + stats.collection.ambiguous + stats.collection.missed,
-    magic, 'the rows the server could not decide are not the rows it decided');
-  assert.strictEqual(stats.owned, stats.bySet.reduce((n, r) => n + r.owned, 0),
-    'the owned total is not the sum of the per-set counts');
-  const gaps = JSON.parse(reply.get(4).result.content[0].text);
-  assert.strictEqual(gaps.total, gaps.owned + gaps.missing, 'the gaps do not add up to the set');
-  const sets = JSON.parse(reply.get(5).result.content[0].text);
-  const eight = sets.find(s => s.code === '8ED');
-  assert.ok(eight, 'the server does not know the set 8ED');
-  assert.strictEqual(gaps.total, eight.total, 'find_gaps and list_sets disagree about the size of a set');
-  assert.strictEqual(gaps.owned, eight.owned, 'find_gaps and list_sets disagree about what you own');
+  assert.deepStrictEqual(stats.collection,
+    { rows: 6, matched: 3, ambiguous: 1, missed: 1, other: 1, file: 'collection.csv' },
+    'the server did not import the collection the way the page does');
+  assert.strictEqual(stats.owned, 3, 'the server owns the wrong number of printings');
+  const gaps = JSON.parse(reply.get('x').result.content[0].text);
+  assert.strictEqual(gaps.set, '10E', 'a set named in words did not resolve to its code');
+  assert.deepStrictEqual([gaps.total, gaps.owned, gaps.missing], [4, 3, 1],
+    'the gaps do not add up to the set');
+  assert.deepStrictEqual(gaps.cards.map(c => c.num), ['2'],
+    'the server says the wrong cards are missing');
+  /* THE FOIL ROW OWNS THE FOIL PRINTING. The Variance column is the only
+     thing that tells 10E 1 from 10E 1*, and the app reads it for the MATCH,
+     not only for the holding. */
+  const mine = JSON.parse(reply.get(5).result.content[0].text).cards;
+  assert.deepStrictEqual(mine.map(c => `${c.set}/${c.num}`), ['10E/1', '10E/1★', '10E/300'],
+    'the server did not file the foil row under the foil printing');
+  assert.strictEqual(mine.find(c => c.num === '1★').foil, 1, 'the foil printing was filed as a plain one');
+  assert.strictEqual(reply.get(6).result.isError, true, 'a set that does not exist came back as an answer');
+  rmSync(dir, { recursive: true, force: true });
 }
 
 console.log('\ngame gated on the main then locked. fresh page applies nothing.');
