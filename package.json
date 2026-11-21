@@ -11,7 +11,8 @@
     "art": "node gen-art.mjs",
     "schema-counts": "node gen-schema-counts.mjs",
     "packs": "node gen-packs.mjs",
-    "gen-serve": "node gen-packs-server.mjs"
+    "gen-serve": "node gen-packs-server.mjs",
+    "mcp": "node mcp-server.mjs"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.2",

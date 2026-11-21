@@ -1,10 +1,15 @@
 # MCP — card-collection
 
-**Design spec.** No MCP server exists yet.
+**Built.** `node mcp-server.mjs [collection.csv]` — stdio, no dependency, read-only.
 
-- **Proposed server:** `card-collection`
+- **Server:** `card-collection`
 - **Transport:** stdio
 - **Backs onto:** the static data index `index.html` reads
+
+The tool names below are what it serves. `collection_stats` and `find_gaps`
+answer from what you own, which is read from the export your collection tool
+writes — `MTGCards.csv` by default — and resolved to printings by the page's
+own import path, so the two agree on what a row means.
 
 ## Why this repo wants one
 
@@ -50,3 +55,18 @@ Because the app is static and hash-routed, an MCP server reads the same data
 index the page does — no server process to keep in sync, no second source of
 truth. That is the cheapest possible shape: one reader, one file, no drift.
 Keep it that way rather than introducing an API for the server's benefit.
+
+**Which is why the server runs the page's script.** Matching an export row to
+a printing is the delicate half of the import — Collectr gives the set by
+name, leaves the collector number blank on 936 of its 2,796 rows, writes the
+variant into the product name, and states the foil in a column one field away
+from the question. Those rules live in `index.html`, where they have already
+been bought with three rounds of wrong answers. So `mcp-server.mjs` runs that
+script in a `node:vm` — the same trick `check.mjs` uses — and calls
+`readImport`. One implementation, so "which printing is this row" cannot mean
+two things, and the cost is that the server needs `index.html`, `sets.js` and
+`cards.json.gz` sitting next to it.
+
+**No dependency.** The stdio transport is JSON-RPC 2.0 with one message per
+line, and this server needs five methods. The official SDK would be the first
+runtime dependency in a repo that has none.

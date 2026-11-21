@@ -297,3 +297,29 @@ looks like it got the orientation wrong when it is the scan that is turned.
 
 [MCP.md](MCP.md) — the MCP position for this repo: the server it should have,
 or why it should not have one.
+
+There is one now. `node mcp-server.mjs [collection.csv]` speaks MCP over stdio
+and reads the same files the page does — `cards.json.gz`, `sets.js` and the
+export your collection tool writes (`MTGCards.csv` by default). It offers five
+read-only tools: `list_sets`, `list_cards`, `get_card`, `collection_stats` and
+`find_gaps`, plus the two resources `cards://sets` and `cards://stats`.
+
+Nothing here can change what you own. Marking a card owned is a claim about
+the physical world, and a model cannot check it; wrong ownership is worse than
+none, because it makes `find_gaps` lie.
+
+To give it to a client, point the client at the command:
+
+```jsonc
+// claude_desktop_config.json, or .mcp.json in the project
+{
+  "mcpServers": {
+    "card-collection": { "command": "node", "args": ["C:/path/to/card-collection/mcp-server.mjs"] }
+  }
+}
+```
+
+The server resolves an export row to a printing with the page's own import
+rules rather than a copy of them: it runs `index.html` in a `node:vm` and
+calls `readImport`, so "which printing is this row" cannot mean two things.
+That is why it needs `index.html`, `sets.js` and `cards.json.gz` next to it.

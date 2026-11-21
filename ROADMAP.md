@@ -6,9 +6,16 @@
 > **Human-only** items carry no checkbox, so Auto never picks them up.
 
 **Now:** no milestone queued — feature-complete per the 2026-09-25 assessment, plus the
-2026-10-03 Organise work below. Reviewed 2026-10-09.
+2026-10-03 Organise work below and the 2026-11-21 MCP server. Reviewed 2026-11-21.
 
 ## Done
+- [x] **An MCP server over the catalogue** — `mcp-server.mjs` speaks MCP over stdio and
+  answers five read-only questions from the same files the page reads: `list_sets`,
+  `list_cards`, `get_card`, `collection_stats`, `find_gaps`, plus `cards://sets` and
+  `cards://stats`. It resolves an export row to a printing with the page's own import
+  path — the script runs in a `node:vm` and calls `readImport` — so the server cannot
+  disagree with the app about what a row means. No dependency; check.mjs talks to it
+  over its own transport.
 - [x] **Organise: suggest a binder layout from set completion** — after import, propose
   one binder per set at or above an adjustable completion threshold (default 50%,
   slider), most complete first, plus one "Generic sorted" binder for the rest. Review,

@@ -2976,6 +2976,59 @@ assert.ok(t.DisplayChip('grid', '#', true, "setView('grid')").includes("setView(
   rmSync(dir, { recursive: true, force: true });
 }
 
+/* THE MCP SERVER, TALKED TO OVER ITS OWN TRANSPORT. The server is meant to
+   answer the same questions the page answers, from the same file, so it is
+   asked them the way a client would: JSON-RPC down stdin, JSON-RPC back. The
+   counts are checked against the file the harness reads itself - the row count
+   and the rows of another game are countable without a catalogue, and a server
+   that read the wrong file, or counted a portfolio as a card, would disagree. */
+{
+  const file = 'MTGCards.csv';
+  const rows = t.parseCsv(readFileSync(file, 'utf8'));
+  const at = t.mapColumns(rows[0]);
+  let magic = 0, other = 0;
+  for (const r of rows.slice(1)) {
+    const v = {};
+    for (const f in at) v[f] = (r[at[f]] ?? '').trim();
+    if (v.category && !/magic/i.test(v.category)) other++; else magic++;
+  }
+  const ask = (messages) => {
+    const r = spawnSync(process.execPath, [resolve('mcp-server.mjs'), file], {
+      input: `${messages.map(m => JSON.stringify(m)).join('\n')}\n`,
+      encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+    assert.strictEqual(r.status, 0, `the MCP server failed: ${r.stderr}`);
+    return new Map(r.stdout.split('\n').filter(Boolean).map(l => JSON.parse(l)).map(m => [m.id, m]));
+  };
+  const reply = ask([
+    { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18' } },
+    { jsonrpc: '2.0', id: 2, method: 'tools/list' },
+    { jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'collection_stats', arguments: {} } },
+    { jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'find_gaps', arguments: { set: '8ED' } } },
+    { jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'list_sets', arguments: {} } },
+  ]);
+  assert.strictEqual(reply.get(1).result.protocolVersion, '2025-06-18',
+    'the server did not answer the handshake with the version it was asked for');
+  assert.deepStrictEqual(reply.get(2).result.tools.map(x => x.name),
+    ['list_sets', 'list_cards', 'get_card', 'collection_stats', 'find_gaps'],
+    'the server is not offering the five read-only tools MCP.md names');
+  const stats = JSON.parse(reply.get(3).result.content[0].text);
+  assert.strictEqual(stats.collection.rows, magic + other,
+    'the server read a different number of rows than the file holds');
+  assert.strictEqual(stats.collection.other, other,
+    'the server skipped a different number of another game\'s rows than the page does');
+  assert.strictEqual(stats.collection.matched + stats.collection.ambiguous + stats.collection.missed,
+    magic, 'the rows the server could not decide are not the rows it decided');
+  assert.strictEqual(stats.owned, stats.bySet.reduce((n, r) => n + r.owned, 0),
+    'the owned total is not the sum of the per-set counts');
+  const gaps = JSON.parse(reply.get(4).result.content[0].text);
+  assert.strictEqual(gaps.total, gaps.owned + gaps.missing, 'the gaps do not add up to the set');
+  const sets = JSON.parse(reply.get(5).result.content[0].text);
+  const eight = sets.find(s => s.code === '8ED');
+  assert.ok(eight, 'the server does not know the set 8ED');
+  assert.strictEqual(gaps.total, eight.total, 'find_gaps and list_sets disagree about the size of a set');
+  assert.strictEqual(gaps.owned, eight.owned, 'find_gaps and list_sets disagree about what you own');
+}
+
 console.log('\ngame gated on the main then locked. fresh page applies nothing.');
 console.log('one page shape everywhere: selector -> filter -> sort -> view. break honoured in 5 layouts.');
 console.log('selector collapses on pick, reopens on click, and forgets on navigation.');
