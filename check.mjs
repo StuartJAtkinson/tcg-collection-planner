@@ -21,7 +21,7 @@ const page = readFileSync('index.html', 'utf8');   // the markup too: <body> car
 const src = `${['sets.js', 'schema.js', 'trim.js', 'anatomy.js'].map(f => readFileSync(f, 'utf8')).join('\n')}
 ${page.match(/<script>([\s\S]*)<\/script>/)[1]}`;
 const js = src
-  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, artUrl, artCdn, artLocal, bytes, routeAll, routePack, makeLocal, routeAdvice, packsNeeded, packsToFetch, packsUnused, planBytes, unusedBytes, eltRows, eltPick, setElt, eltKind, ELEMENTS, srcKeys, srcBytes, onDisk, Table, DisplayChip, GroupHead, CARD_VIEWS, UNALIGNED, unaligned, anatomyKey, setFact, AlignList, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, VIEWS, FORMATS, CARD_TYPES, RARITIES, FINISHES, RARITY_NAME, FINISH, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, plateOf, scopedCards, LANGS, langFilter, langName, setLang, contrast, relLum, SURFACE, FRAME, lum, surfaceKey, mix, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, roles, roleOf, roleCount, ROLE_MIN, fieldLabel, zoneWeight, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, heldOf, heldByPrint, setBand, BandList, framable, printingsOf, alignFacts, finishesOf, printingsOf, pickPrinting, printKey, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, addSortTo, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, UNRESOLVED, IMPORT_GROUPS, filtered, ownedIn, holdingsChanged, organisePlan, applyOrganise, GENERIC, CANON, flatLine, P, TABS, LISTS, GAMES, CFG, render, grouping, resolveRow, resolveUnresolved, setCodeOf, canonSet, packsFor, PACK_ART, kindFor, setIconUrl, loadSymIndex, setIcon,'
+  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, artUrl, artCdn, artLocal, bytes, routeAll, routePack, makeLocal, routeAdvice, packsNeeded, packsToFetch, packsUnused, planBytes, unusedBytes, eltRows, eltPick, setElt, eltKind, ELEMENTS, srcKeys, srcBytes, onDisk, Table, DisplayChip, GroupHead, CARD_VIEWS, UNALIGNED, unaligned, anatomyKey, setFact, AlignList, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, VIEWS, FORMATS, CARD_TYPES, RARITIES, FINISHES, RARITY_NAME, FINISH, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, plateOf, scopedCards, LANGS, langFilter, langName, setLang, contrast, relLum, SURFACE, FRAME, lum, surfaceKey, mix, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, roles, roleOf, roleCount, ROLE_MIN, typeHead, typeTail, fieldLabel, zoneWeight, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, heldOf, heldByPrint, setBand, BandList, framable, printingsOf, alignFacts, finishesOf, printingsOf, pickPrinting, printKey, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, addSortTo, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, UNRESOLVED, IMPORT_GROUPS, filtered, ownedIn, holdingsChanged, organisePlan, applyOrganise, GENERIC, CANON, flatLine, P, TABS, LISTS, GAMES, CFG, render, grouping, resolveRow, resolveUnresolved, setCodeOf, canonSet, packsFor, PACK_ART, kindFor, setIconUrl, loadSymIndex, setIcon,'
   + ' get IMPORT_MATCHED() { return IMPORT_MATCHED; },'
   + ' get IMPORT_NAME() { return IMPORT_NAME; }, set IMPORT_NAME(v) { IMPORT_NAME = v; },'
   + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen, PARENT_COLLATION, collationFor,'
@@ -2977,6 +2977,34 @@ assert.ok(t.DisplayChip('grid', '#', true, "setView('grid')").includes("setView(
   assert.ok(!existsSync(join(dir, 'x.bin.part')), 'the half file was left behind');
   server.close();
   rmSync(dir, { recursive: true, force: true });
+}
+
+/* THE REAL CATALOGUE'S TYPE LINES, WHICH THE MOCKS CANNOT CARRY. The harness's
+   mock catalogue uses an ASCII hyphen and the page's own mocks use the entity;
+   neither is the catalogue's shape - which is how the Subtype filter stayed
+   dead for three months without one check failing. The catalogue is generated,
+   so it is not in git: this is DEFERRED when it is not here. */
+if (existsSync('cards.json.gz')) {
+  const real = JSON.parse(gunzipSync(readFileSync('cards.json.gz')));
+  const dashed = real.o.filter(r => (r[2] || '').includes('—'));
+  assert.ok(dashed.length > 20000,
+    `the catalogue's type lines no longer carry an em dash (${dashed.length} of ${real.o.length})`);
+  const sample = dashed[0][2];
+  const head = t.typeHead({ type: sample });
+  assert.strictEqual(head.trim(), sample.split('—')[0].trim(),
+    `the type head does not split on a real em dash: "${sample}" -> "${head}"`);
+  const tail = t.typeTail({ type: sample });
+  assert.ok(tail.trim().length > 0, `the type tail of "${sample}" is empty`);
+  assert.ok(!tail.includes('—'), 'the type tail still carries the em dash');
+  /* AND THE SUBTYPE VOCABULARY THE SIDEBAR OFFERS, off the real catalogue. */
+  const subs = new Map();
+  for (const c of t.materialise(real)) {
+    for (const s of t.typeTail(c).trim().split(/\s+/).filter(Boolean)) subs.set(s, (subs.get(s) || 0) + 1);
+  }
+  assert.ok(subs.size > 100, `the subtype vocabulary is ${subs.size} words - the split is finding nothing`);
+  assert.ok(subs.has('Human'), 'the real catalogue has no Human subtypes');
+} else {
+  DEFERRED.push('cards.json.gz is not in git - the catalogue\'s own type lines were not checked');
 }
 
 /* THE MCP SERVER, TALKED TO OVER ITS OWN TRANSPORT, AGAINST A FIXTURE. The
