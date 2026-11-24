@@ -18,7 +18,7 @@
 // ponytail: sequential with a delay, the same as gen-art.mjs and for the same
 // reason — Scryfall asks for 50-100ms between requests, so a worker pool would
 // add concurrency code to hit an identical ceiling. 336 files is under a minute.
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync } from 'node:fs';
 
 const force = process.argv.includes('--force');
 const OUT = 'sym';
@@ -68,7 +68,13 @@ for (const [i, icon] of icons.entries()) {
     else if (!res.ok) { failed++; failures.push(`${icon} (HTTP ${res.status})`); }
     else {
       const svg = Buffer.from(await res.arrayBuffer());
-      writeFileSync(path, svg);
+      /* THE BYTES LAND IN A .part FILE AND THE NAME CHANGES AT THE END. A write
+         that dies half way left a truncated symbol under the real name, and
+         sym/index.json is built from what exists - so the page masked with a
+         broken file, which draws as a solid square rather than the plain disc
+         it falls back to when there is no symbol at all. */
+      writeFileSync(`${path}.part`, svg);
+      renameSync(`${path}.part`, path);
       got++; bytes += svg.length;
     }
   } catch (e) { failed++; failures.push(`${icon} (${e.message})`); }

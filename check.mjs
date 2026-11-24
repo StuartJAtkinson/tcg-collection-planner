@@ -22,7 +22,7 @@ const src = `${['sets.js', 'schema.js', 'trim.js', 'anatomy.js'].map(f => readFi
 ${page.match(/<script>([\s\S]*)<\/script>/)[1]}`;
 const js = src
   + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, artUrl, artCdn, artLocal, bytes, routeAll, routePack, makeLocal, routeAdvice, packsNeeded, packsToFetch, packsUnused, planBytes, unusedBytes, eltRows, eltPick, setElt, eltKind, ELEMENTS, srcKeys, srcBytes, onDisk, Table, DisplayChip, GroupHead, CARD_VIEWS, UNALIGNED, unaligned, anatomyKey, setFact, AlignList, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, VIEWS, FORMATS, CARD_TYPES, RARITIES, FINISHES, RARITY_NAME, FINISH, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, plateOf, scopedCards, LANGS, langFilter, langName, setLang, contrast, relLum, SURFACE, FRAME, lum, surfaceKey, mix, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, roles, roleOf, roleCount, ROLE_MIN, fieldLabel, zoneWeight, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, heldOf, heldByPrint, setBand, BandList, framable, printingsOf, alignFacts, finishesOf, printingsOf, pickPrinting, printKey, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, addSortTo, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, UNRESOLVED, IMPORT_GROUPS, filtered, ownedIn, holdingsChanged, organisePlan, applyOrganise, GENERIC, CANON, flatLine, P, TABS, LISTS, GAMES, CFG, render, grouping, resolveRow, resolveUnresolved, setCodeOf, canonSet, packsFor, PACK_ART, kindFor, setIconUrl, loadSymIndex, setIcon,'
-  + ' get IMPORT_MATCHED() { return IMPORT_MATCHED; }, get IMPORT_SKIPPED() { return IMPORT_SKIPPED; },'
+  + ' get IMPORT_MATCHED() { return IMPORT_MATCHED; },'
   + ' get IMPORT_NAME() { return IMPORT_NAME; }, set IMPORT_NAME(v) { IMPORT_NAME = v; },'
   + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen, PARENT_COLLATION, collationFor,'
   + ' applyImport, setGroupKind, clearHoldings, parseCsv, mapColumns,'
@@ -960,7 +960,12 @@ for (const c of mtgCards) {
   assert.strictEqual(t.GROUP_LABEL.price({ usd: 42.10 }), '£20–100',
     'the price label is banding the card object instead of its price');
   assert.strictEqual(t.GROUP_LABEL.price({ usd: 0.25 }), 'under £1', 'cheap cards are not banded');
-  for (const dash of ['&mdash;', '-'])   // mocks carry the entity, the catalogue a real dash
+  /* THE THREE SHAPES THAT EXIST: the page's mocks carry the entity, the
+     catalogue carries a real em dash, and the harness's own mock catalogue
+     carries an ASCII hyphen - which is NOT a separator, because three real
+     cards have a hyphen inside the subtype ("Urza's Power-Plant"). The em dash
+     was never tried here, which is how the split lost it in the first place. */
+  for (const dash of ['&mdash;', '—'])
     assert.strictEqual(t.GROUP_LABEL.type({ type: `Basic Land ${dash} Forest` }), 'Basic Land',
       `the type label does not split on "${dash}"`);
   // no break, no grouping
@@ -2153,10 +2158,10 @@ assert.strictEqual(t.kindFor(60), 'deck', 'a 60-row group is a deck');
 /* AN AMBIGUOUS ROW YOU CAN ACTUALLY DO SOMETHING WITH. The section rendered 154
    rows of ranked candidates whose tiles and Skip button had no handlers, so the
    only available action was to leave it - the inert Run button one screen down,
-   again. Both directions are asserted because they are different outcomes: a
-   pick writes the holding you meant, a skip records that you declined. */
+   again. The Skip button is gone now, so there is one direction left: a pick
+   writes the holding you meant. */
 {
-  const before = t.IMPORT_MATCHED.length, skipped = t.IMPORT_SKIPPED;
+  const before = t.IMPORT_MATCHED.length;
   /* art_id is what PrintedFace reads to build the URL. Real candidates from
      `resolveRow` are catalogue cards that always carry one; the test mock is
      realistic on this point so the rendering code under test sees the same
@@ -2198,12 +2203,10 @@ assert.strictEqual(t.kindFor(60), 'deck', 'a 60-row group is a deck');
      ambiguous had no line on the grouping table to send anywhere. */
   assert.ok(t.IMPORT_GROUPS.some(g => g[0] === 'Promos' && g[1] === 1 && g[2] === 'binder'),
     'resolving into a group that had no matched rows did not create it');
-
-  // skip is a decision, and counted apart from "no printing matched"
-  t.resolveUnresolved(0, -1);
-  assert.strictEqual(t.UNRESOLVED.length, 0, 'skipping a row did not remove it');
-  assert.strictEqual(t.IMPORT_SKIPPED, skipped + 1, 'a skipped row is not counted');
-  assert.strictEqual(t.IMPORT_MATCHED.length, before + 1, 'a skipped row was filed anyway');
+  /* the second row, so the app is left as it was found - there is no Skip to
+     remove a row that is not picked */
+  t.resolveUnresolved(0, 0);
+  assert.strictEqual(t.UNRESOLVED.length, 0, 'resolving the last row did not remove it');
   t.IMPORT_MATCHED.length = before;
 }
 t.IMPORT_GROUPS.length = 0;
@@ -4815,8 +4818,18 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
    assertions. */
 {
   const readme = readFileSync('README.md', 'utf8');
+  /* THE CATALOGUE AND THE PACK MIRROR ARE GENERATED, AND NOT IN GIT. A fresh
+     clone has neither, and this block read them without asking: the run died
+     with ENOENT, the deferred failures never printed and the exit code was 1
+     for a reason that had nothing to do with the code. A fact about the
+     working directory is DEFERRED, exactly like the other two artefact checks
+     - and it still fails the run, at the end. */
+  if (!existsSync('cards.json.gz')) {
+    DEFERRED.push('cards.json.gz is not in git - run `node gen-cards.mjs` to build the catalogue');
+  } else {
   const cat = JSON.parse(gunzipSync(readFileSync('cards.json.gz')));
-  const packAt = (sz) => readdirSync('packs').filter(f => f.endsWith(`_${sz}.png`))
+  const packAt = (sz) => (existsSync('packs') ? readdirSync('packs') : [])
+    .filter(f => f.endsWith(`_${sz}.png`))
     .reduce((n, f) => n + statSync(`packs/${f}`).size, 0) / 1e6;
   let openable = 0;
   for (const r of t.SETS) { try { if ((t.packsFor(r[0]) || []).length) openable++; } catch { /* label miss */ } }
@@ -4841,6 +4854,7 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
   ];
   for (const [what, text] of claims)
     if (!readme.includes(text)) DEFERRED.push(`README's ${what} figure is stale - it does not say "${text}"`);
+  }
 }
 
 /* CONFIG NAMES THE FILE THE PIPELINE ACTUALLY READS, and this is asserted

@@ -255,13 +255,17 @@ const toolError = (id, message) => ok(id, { content: [{ type: 'text', text: mess
 
 const handle = (m) => {
   const { id, method, params = {} } = m;
+  /* NO ID, NO REPLY. A notification is a message with no id, and JSON-RPC says
+     a server must not answer one - answering an unknown notification wrote a
+     response with no id to stdout, which a strict client reads as a stray
+     message. */
+  if (id === undefined) return;
   if (method === 'initialize') {
     const asked = params.protocolVersion;
     return ok(id, { protocolVersion: PROTOCOLS.includes(asked) ? asked : PROTOCOLS[0],
       capabilities: { tools: {}, resources: {} },
       serverInfo: { name: 'card-collection', version: '1.0.0' } });
   }
-  if (method === 'notifications/initialized' || method === 'notifications/cancelled') return;
   if (method === 'ping') return ok(id, {});
   if (method === 'tools/list') return ok(id, { tools: TOOLS });
   if (method === 'resources/list') return ok(id, { resources: RESOURCES });

@@ -388,8 +388,8 @@ const SOURCES = {
        printing exists in, so the pip column is silently absent from any
        catalogue built without gen-langs.mjs having run over it. */
     cmd: q => (q === 'all_cards'
-      ? `npm run import                # fetches data/scryfall-all-cards.jsonl.gz\nnode gen-langs.mjs             # writes data/lang-index.json - the language pips\nnode gen-cards.mjs             # folds it into cards.json.gz`
-      : `npm run import   # fetches data/scryfall-${q.replace(/_/g, '-')}.jsonl.gz`),
+      ? `node gen-data.mjs scryfall:all_cards  # fetches data/scryfall-all-cards.jsonl.gz\nnode gen-langs.mjs                      # writes data/lang-index.json - the language pips\nnode gen-cards.mjs                      # folds it into cards.json.gz`
+      : `node gen-data.mjs scryfall:${q}   # fetches data/scryfall-${q.replace(/_/g, '-')}.jsonl.gz`),
     local: 'one bulk file, read start to finish with the network off',
     online: 'api.scryfall.com &middot; 10/s, 2/s on search &mdash; ~15 hours for a 108k catalogue',
     q: [['oracle_cards', 'one row per card', 24.5e6],
@@ -434,7 +434,7 @@ const SOURCES = {
   mtgjson: { name: 'MTGJSON', gives: 'printings &middot; booster collation &middot; sealed products', kind: 'data', game: 'mtg',
     def: ['local', 'AllPrintings'], full: 'AllPrintings', units: 1,
     file: q => `data/${q}.json.gz`,
-    cmd: q => `curl -o data/${q}.json.gz https://mtgjson.com/api/v5/${q}.json.gz`,
+    cmd: q => `node gen-data.mjs mtgjson:${q}   # fetches data/${q}.json.gz`,
     local: 'one published file &mdash; the whole point of this source',
     online: null, why: 'MTGJSON publishes files, not an API',
     q: [['AllPrintings', 'every set', 178.1e6], ['Standard', 'Standard-legal sets', 16.4e6],
@@ -442,7 +442,7 @@ const SOURCES = {
   prices: { name: 'MTGJSON prices', gives: 'price history', kind: 'live', game: 'mtg',
     def: ['local', 'AllPrices'], full: 'AllPrices', units: 1,
     file: q => q === 'none' ? '' : `data/${q}.json.gz`,
-    cmd: q => q === 'none' ? '' : `curl -o data/${q}.json.gz https://mtgjson.com/api/v5/${q}.json.gz`,
+    cmd: q => q === 'none' ? '' : `node gen-data.mjs mtgjson:${q}   # fetches data/${q}.json.gz`,
     local: 'republished nightly, so a local copy is a day old at worst',
     online: null, why: 'same source, same files',
     /* Live data is "none to frequent": no prices on the left, the 90-day file
@@ -469,7 +469,7 @@ const SOURCES = {
   ptcg: { name: 'pokemon-tcg-data', gives: 'Pok&eacute;mon card data', kind: 'data', game: 'pokemon',
     def: ['local', 'master'], full: 'master', units: 1,
     file: () => 'data/pokemon-tcg-data.tar.gz',
-    cmd: () => 'curl -Lo data/pokemon-tcg-data.tar.gz https://github.com/PokemonTCG/pokemon-tcg-data/archive/master.tar.gz',
+    cmd: () => 'node gen-data.mjs pokemon   # fetches data/pokemon-tcg-data.tar.gz',
     local: 'a GitHub repo, not an API key',
     online: null, why: 'the API needs a key; the repo behind it does not',
     q: [['master', 'the whole repo', 2.7e6]] },
@@ -3436,7 +3436,7 @@ const ComboSlicer = () => {
 // the head of a type line is everything before the em-dash, the tail everything after
 // catalogue cards carry a real em dash, the mocks carry the entity - matching
 // only one left every mock card's full type line standing in for its head
-const typeHead = c => (c.type || '').split(/&mdash;|-/)[0];
+const typeHead = c => (c.type || '').split(/&mdash;|—/)[0];
 /* MAIN TYPE IS A BINARY: the cards you build a deck out of, and the ones you
    do not. Not the same question as Type - the type line says a Token Creature
    is a creature and a Snow Artifact Land is an artifact, and neither is a card
@@ -3468,7 +3468,7 @@ const mainType = (c) => {
   if (!head.trim()) return 'NotMain';
   return NOT_MAIN.test(head) ? 'NotMain' : 'Main';
 };
-const typeTail = c => (c.type || '').split('-')[1] || '';
+const typeTail = c => (c.type || '').split(/&mdash;|—/)[1] || '';
 const topN = (cards, of, n) => {
   const seen = new Map();
   for (const c of cards) for (const v of of(c)) seen.set(v, (seen.get(v) || 0) + 1);
@@ -6623,7 +6623,6 @@ let IMPORT_NAME = '';     // the file you chose, so the page can say which one
 let IMPORT_MATCHED = [];  // [{ card, group }] - rows that resolved to one printing
 let IMPORT_MISSED = 0;    // rows that matched no printing at all
 let IMPORT_OTHER = 0;     // rows for a different game, skipped rather than missed
-let IMPORT_SKIPPED = 0;   // ambiguous rows YOU declined - a decision, not a failure
 /* rows in a group with no destination. A THIRD kind of 'not filed', apart from
    both of the above: the printing matched and you did not decline it, the group
    it belongs to was simply never sent anywhere. Counted separately because one
@@ -6880,7 +6879,13 @@ function resolveRow(v) {
      widening that is a change to what a holding IS, not to this match. */
   const said = (v['finish / variant'] || '').trim();
   if (said && out.length > 1) {
-    const bit = 1 << (FOIL_WORD.test(said) ? 1 : 0);
+    /* THE BIT THE ROW NAMES, NOT THE FOIL BIT. "Etched" is in FOIL_WORD, so it
+       took the Foil bit - and an etched-only printing is fin 4, which 4 & 2
+       does not match: the etched candidate was excluded and the copy landed on
+       the plain printing, with the etched one showing as unheld. 892 printings
+       are etched-only, over 858 cards. */
+    const bit = /etched/i.test(said) ? 1 << FINISHES.indexOf('Etched')
+      : 1 << (FOIL_WORD.test(said) ? 1 : 0);
     const inFin = out.filter(c => c.fin & bit);
     if (inFin.length && inFin.length < out.length) out = inFin;
   }
@@ -6896,7 +6901,7 @@ async function readImport(file) {
   if (!file) return;
   IMPORT_NAME = file.name;
   IMPORT_GROUPS.length = 0; UNRESOLVED.length = 0; IMPORT_MATCHED = [];
-  IMPORT_MISSED = 0; IMPORT_OTHER = 0; IMPORT_SKIPPED = 0; IMPORT_UNSENT = 0;
+  IMPORT_MISSED = 0; IMPORT_OTHER = 0; IMPORT_UNSENT = 0;
   const rows = parseCsv(await file.text());
   if (rows.length < 2) { IMPORT_ROWS = 0; render(); return; }
   const at = mapColumns(rows[0]);
@@ -6941,23 +6946,20 @@ async function readImport(file) {
 /* THE ONE THING YOU COULD DO WITH AN AMBIGUOUS ROW WAS LEAVE IT. The section
    rendered 154 rows with ranked candidates, and its tiles and its Skip button
    had no handlers - the same defect as the inert Run button, one screen down.
-   Both directions are a DECISION and both remove the row: picking writes the
-   holding you meant, Skip records that you declined. Skip is counted apart from
-   IMPORT_MISSED on purpose - "no printing matched" and "I chose not to file
-   this" are different outcomes and a single number would hide which. */
+   The Skip button is gone now: either of the candidates is the right answer,
+   and not picking one leaves the row for a later read of the same file. The
+   counter that went with it is gone too - nothing in the app can reach it, so
+   it was a number that could only ever read zero. */
 function resolveUnresolved(i, ci) {
   const u = UNRESOLVED[i];
   if (!u) return;
   UNRESOLVED.splice(i, 1);
-  if (ci < 0) IMPORT_SKIPPED++;
-  else {
-    IMPORT_MATCHED.push({ group: u.group, card: { ...u.candidates[ci][0], ...u.hold } });
-    /* The group may not be on the page yet: IMPORT_GROUPS is built from rows
-       that resolved, so a portfolio whose every row was ambiguous had no line
-       to send anywhere. Resolving the first one is what creates it. */
-    const g = IMPORT_GROUPS.find(x => x[0] === u.group);
-    if (g) g[1]++; else IMPORT_GROUPS.push([u.group, 1, 'binder']);
-  }
+  IMPORT_MATCHED.push({ group: u.group, card: { ...u.candidates[ci][0], ...u.hold } });
+  /* The group may not be on the page yet: IMPORT_GROUPS is built from rows
+     that resolved, so a portfolio whose every row was ambiguous had no line
+     to send anywhere. Resolving the first one is what creates it. */
+  const g = IMPORT_GROUPS.find(x => x[0] === u.group);
+  if (g) g[1]++; else IMPORT_GROUPS.push([u.group, 1, 'binder']);
   render();
 }
 function setGroupKind(name, kind) {
@@ -7091,7 +7093,6 @@ PAGES.io = () => Frame('io', {
               &middot; ${num(IMPORT_ROWS)} rows &middot; <span class="text-emerald-400">${num(IMPORT_MATCHED.length)} matched</span>${
               UNRESOLVED.length ? ` &middot; <span class="text-amber-400">${UNRESOLVED.length} ambiguous</span>` : ''}${
               IMPORT_MISSED ? ` &middot; <span class="text-neutral-500">${num(IMPORT_MISSED)} unmatched</span>` : ''}${
-              IMPORT_SKIPPED ? ` &middot; <span class="text-neutral-500">${num(IMPORT_SKIPPED)} skipped</span>` : ''}${
               /* AMBER, LIKE `ambiguous`, BECAUSE IT IS THE SAME KIND OF THING:
                  rows waiting on a decision from you. It reads after an apply
                  that filed less than it matched, which is the moment the old
@@ -7734,8 +7735,18 @@ const CfgDefaultsBody = () => `
    rather than at the next reload. */
 function setLang(l) {
   if (!LANGS.includes(l)) return;
+  const was = P.lang;
   P.lang = l;
-  langFilter(P.filter); langFilter(P.filterDraft);
+  /* ONLY THE GROUP THAT STILL HOLDS THE OLD LANGUAGE IS RE-SEEDED. langFilter
+     cannot tell a language you picked yourself from the seeded default - both
+     are one language with value 1 - so changing the collection language
+     replaced a filter you had set with the new setting. A pick that is not
+     the old default is a choice and outranks the setting. */
+  for (const f of [P.filter, P.filterDraft]) {
+    const had = f.chips.Language;
+    const one = had && Object.keys(had).length === 1 ? Object.keys(had)[0] : null;
+    if (!one || (one === was && Object.values(had)[0] === 1)) f.chips.Language = { [l]: 1 };
+  }
   P.page = PAGE;
   saveState();
   render();

@@ -12,7 +12,7 @@
 // cards, so the rules text - the expensive field by a distance - is stored once
 // per ORACLE and pointed at by index. Flat, every printing carrying its own copy
 // of the text, is 10.2 MB gzipped; split it is ~5.3 MB with the same information.
-import { createReadStream, readFileSync, writeFileSync, statSync, existsSync } from 'node:fs';
+import { createReadStream, readFileSync, writeFileSync, statSync, existsSync, renameSync } from 'node:fs';
 import { createGunzip, gzipSync } from 'node:zlib';
 import readline from 'node:readline';
 
@@ -40,8 +40,13 @@ const RAR = { common: 1, uncommon: 2, rare: 3, mythic: 4, special: 5, bonus: 5 }
 const treatOf = (c) => {
   const fe = new Set(c.frame_effects || []);
   if (c.textless) return 'textless';            // no rules box at all
-  if (c.full_art) return 'fullart';             // art under the whole card
-  if (c.border_color === 'borderless') return 'borderless';
+  /* THE FRAME EFFECTS SAY IT TOO. Scryfall carries the treatment twice - a
+     boolean and a frame_effects entry - and three printings only carry the
+     second: two fullart (sld/1516, sld/1517) and one borderless (thob/15).
+     They fell through to framed and were drawn with a frame and a rules box
+     the illustration does not have. */
+  if (c.full_art || fe.has('fullart')) return 'fullart';             // art under the whole card
+  if (c.border_color === 'borderless' || fe.has('borderless')) return 'borderless';
   if (fe.has('extendedart')) return 'extendedart';  // art past the window, frame intact
   if (fe.has('showcase')) return 'showcase';        // an alternate frame, same anatomy
   return 0;                                     // 0, not 'framed' - see the note below
@@ -206,13 +211,13 @@ const rl = readline.createInterface({
   input: createReadStream('data/scryfall-default-cards.jsonl.gz').pipe(createGunzip()),
 });
 
-let lines = 0, skipped = 0;
+let lines = 0, skipped = 0, unparsed = 0;
 for await (const raw of rl) {
   const line = raw.trim().replace(/,$/, '');
   if (!line || line === '[' || line === ']') continue;
   lines++;
   let c;
-  try { c = JSON.parse(line); } catch { skipped++; continue; }
+  try { c = JSON.parse(line); } catch { unparsed++; continue; }
   // paper only, to match sets.js - the app imports with game:paper
   if (c.digital || !c.games?.includes('paper')) { skipped++; continue; }
 
@@ -307,7 +312,13 @@ const json = JSON.stringify({ o: oracles, p: printings, artists, flavour, kws,
   // the vocabulary the masks are bit positions in, so the page never has to
   // keep a copy of it in step by hand
   langs: LANG_INDEX?.langs || 0 });
-writeFileSync('cards.json.gz', gzipSync(json, { level: 9 }));
+/* THE CATALOGUE IS REPLACED, NOT TRUNCATED. Writing straight onto the live
+   name meant a run that died half way left a truncated gzip where the good
+   7.4 MB catalogue was - and the page swallows the parse error and quietly
+   draws its mock cards, so "the app works" and "the catalogue is gone" look
+   the same. The bytes land in a .part file and the name changes at the end. */
+writeFileSync('cards.json.gz.part', gzipSync(json, { level: 9 }));
+renameSync('cards.json.gz.part', 'cards.json.gz');
 
 // The anatomy census, printed because it is the input to the /anatomy page and
 // to every "does this render" judgement made from it - a class that quietly
@@ -321,7 +332,11 @@ const kb = statSync('cards.json.gz').size;
 console.log(`cards.json.gz - ${oracles.length.toLocaleString('en-GB')} cards · ${
   printings.length.toLocaleString('en-GB')} printings · ${
   (json.length / 1e6).toFixed(1)} MB raw · ${(kb / 1e6).toFixed(2)} MB gzipped${
-  skipped ? ` · skipped ${skipped.toLocaleString('en-GB')} digital/unparsed of ${lines.toLocaleString('en-GB')}` : ''}`);
+  skipped ? ` · skipped ${skipped.toLocaleString('en-GB')} digital of ${lines.toLocaleString('en-GB')}` : ''}${
+  /* TWO COUNTERS, BECAUSE THEY ARE TWO THINGS. A row that could not be parsed
+     and a row that is another game both leave the catalogue, and sharing one
+     number meant the first printing to vanish read as "digital". */
+  unparsed ? ` · ${unparsed} UNPARSED` : ''}`);
 console.log(`dictionaries - ${(artists.length - 1).toLocaleString('en-GB')} artists · ${
   (flavour.length - 1).toLocaleString('en-GB')} distinct flavour texts over ${
   printings.filter(p => p[10]).length.toLocaleString('en-GB')} printings that carry one · ${

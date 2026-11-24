@@ -13,8 +13,9 @@ the exact **column order and semantic content** of each app's export — which i
 fingerprint a file by its column count and shape — but **not the literal header text**.
 
 Our importer matches by header alias (the alias table at the bottom of `index.html`),
-which is more robust to column reordering. The two approaches complement each other:
-alias-match first, and fall back to positional fingerprinting when the headers are unfamiliar.
+which is more robust to column reordering. Header matching is the whole mechanism —
+there is no positional fallback: the per-app column positions used to live in the
+page, and when they went the table that documented a fallback went with them.
 
 ## Canonical fields
 
@@ -30,7 +31,6 @@ Archidekt's target vocabulary, which is near-identical to ours:
 | `modifier` | finish (foil/normal) | Foil/Variant |
 | `condition` | condition | Condition |
 | `language` | language | Language |
-| `uid` | external printing id | — |
 | `tags` | containers (the grouping column) | — |
 | `ignore` | dropped | Ignore |
 

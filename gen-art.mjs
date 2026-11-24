@@ -28,15 +28,18 @@
 // 50-100ms between requests, which caps this at ~10/s no matter how many
 // sockets you open — a pool would add concurrency code to hit the same ceiling.
 // Upgrade path if they ever lift it: a pool of 6 and drop the sleep.
-import { readFileSync, writeFileSync, mkdirSync, existsSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, statSync, renameSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { dirname } from 'node:path';
 
 const SIZES = { art_crop: 'jpg', small: 'jpg', normal: 'jpg', large: 'jpg', png: 'png' };
 const args = process.argv.slice(2);
-const size = args.find(a => SIZES[a]) || 'art_crop';
+/* Object.hasOwn, not a lookup: SIZES is a plain object, so SIZES['toString'] is
+   Object.prototype.toString and a word that is not a size was taken as one -
+   every URL became garbage and the run still reported success. */
+const size = args.find(a => Object.hasOwn(SIZES, a)) || 'art_crop';
 const ext = SIZES[size];
-if (args.some(a => !a.startsWith('--') && !SIZES[a] && !/^[A-Za-z0-9]{2,8}$/.test(a))) {
+if (args.some(a => !a.startsWith('--') && !Object.hasOwn(SIZES, a) && !/^[A-Za-z0-9]{2,8}$/.test(a))) {
   console.error(`size must be one of: ${Object.keys(SIZES).join(', ')}`);
   process.exit(1);
 }
@@ -132,7 +135,12 @@ for (const j of todo) {
     if (!res.ok) throw new Error(`${res.status}`);
     const buf = Buffer.from(await res.arrayBuffer());
     mkdirSync(dirname(j.file), { recursive: true });
-    writeFileSync(j.file, buf);
+    /* THE BYTES LAND IN A .part FILE AND THE NAME CHANGES AT THE END. A write
+       that dies half way left a truncated file under the real name, and the
+       next run skips any file that exists - so the broken one was never
+       fetched again. The same pattern gen-data.mjs has. */
+    writeFileSync(`${j.file}.part`, buf);
+    renameSync(`${j.file}.part`, j.file);
     bytes += buf.length;
     done++;
   } catch (e) {
@@ -148,3 +156,8 @@ console.log(`\nart/sf/${size} — ${done.toLocaleString('en-GB')} written, ${gb(
   failed ? `, ${failed} missing` : ''}`);
 console.log(`total on disk for this size: ${gb(jobs.filter(j => existsSync(j.file))
   .reduce((n, j) => n + statSync(j.file).size, 0))}`);
+/* A RUN THAT LOST IMAGES IS NOT A RUN THAT SUCCEEDED. gen-symbols sets the
+   exit code for exactly this, and the reason is the same: a mirror that
+   reports success is how the app ends up quietly drawing a disc for a set
+   that has a picture. */
+if (failed) process.exitCode = 1;

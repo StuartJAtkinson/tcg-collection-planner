@@ -18,7 +18,7 @@
 // the app, i.e. "this card was never printed in Japanese" about several
 // thousand cards that were. Absent data has to look absent, so where this file
 // is missing the column says so rather than drawing a row of dim pips.
-import { createReadStream, writeFileSync, existsSync } from 'node:fs';
+import { createReadStream, writeFileSync, existsSync, renameSync } from 'node:fs';
 import { createGunzip } from 'node:zlib';
 import readline from 'node:readline';
 
@@ -34,7 +34,7 @@ const rl = readline.createInterface({ input: createReadStream(SRC).pipe(createGu
 // because the vocabulary is not known until the file is finished - it is
 // counted out of the data below rather than declared here.
 const seen = new Map();
-let lines = 0, kept = 0;
+let lines = 0;
 for await (const raw of rl) {
   const line = raw.trim().replace(/,$/, '');
   if (!line || line === '[' || line === ']') continue;
@@ -43,7 +43,6 @@ for await (const raw of rl) {
   try { c = JSON.parse(line); } catch { continue; }
   // the same gate gen-cards.mjs uses, so the two indexes cover the same rows
   if (c.digital || !c.games?.includes('paper')) continue;
-  kept++;
   const k = `${(c.set || '').toUpperCase()}/${c.collector_number}`;
   (seen.get(k) || seen.set(k, new Set()).get(k)).add(c.lang || 'en');
   if (lines % 500000 === 0) console.log(`  ${lines} lines · ${seen.size} printings`);
@@ -64,7 +63,12 @@ for (const [k, s] of seen) {
   index[k] = mask;
 }
 
-writeFileSync('data/lang-index.json', JSON.stringify({ langs: LANGS, index }));
+/* THE INDEX IS REPLACED, NOT TRUNCATED. A write that dies half way left a
+   truncated JSON file, and gen-cards.mjs reads it at the start of its own run
+   and throws "Unexpected end of JSON input" - so the catalogue could not be
+   rebuilt at all until this was run again. */
+writeFileSync('data/lang-index.json.part', JSON.stringify({ langs: LANGS, index }));
+renameSync('data/lang-index.json.part', 'data/lang-index.json');
 console.log(`data/lang-index.json - ${seen.size} printings, ${LANGS.length} languages`);
 console.log(LANGS.map(l => `${l} ${freq.get(l)}`).join(' · '));
 const multi = [...seen.values()].filter(s => s.size > 1).length;

@@ -17,7 +17,7 @@
 // provenance that will be. `packs/.recipe.json` is the same idea for pack art.
 import postcss from 'postcss';
 import tailwind from '@tailwindcss/postcss';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, renameSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 
 // source(none) turns OFF automatic source detection. Without it Tailwind scans the
@@ -33,5 +33,9 @@ const { css } = await postcss([tailwind()]).process(input, { from: 'input.css', 
    run the whole Tailwind build to get at one hash. */
 const recipe = createHash('sha1')
   .update(readFileSync('index.html')).update(readFileSync('foil.css')).digest('hex').slice(0, 12);
-writeFileSync('draft.css', `/* built by build.mjs from index.html + foil.css - recipe ${recipe} */\n${css}`);
+/* REPLACED, NOT TRUNCATED: a build that dies half way leaves a stylesheet with
+   the recipe line and half the classes in it, and the recipe check cannot see
+   that - the page is simply unstyled. */
+writeFileSync('draft.css.part', `/* built by build.mjs from index.html + foil.css - recipe ${recipe} */\n${css}`);
+renameSync('draft.css.part', 'draft.css');
 console.log(`draft.css - ${(css.length / 1024).toFixed(1)} KB - recipe ${recipe}`);
