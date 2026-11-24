@@ -9,6 +9,13 @@
 2026-10-03 Organise work below and the 2026-11-21 MCP server. Reviewed 2026-11-21.
 
 ## Done
+- [x] **A whole-repo audit, and the twenty defects it found** — 2026-11-21. The Subtype
+  filter was dead against the real catalogue (the type line carries an em dash and the
+  split looked for a hyphen); a card an import filed could not be found again, because
+  the holding was keyed by a language the catalogue does not carry; a generator that died
+  half way destroyed the catalogue it was replacing; the harness could not run on a fresh
+  clone; and the Config page printed a command from a deleted app. All twenty are fixed
+  and recorded in ISSUES.md, each with what was measured.
 - [x] **An MCP server over the catalogue** — `mcp-server.mjs` speaks MCP over stdio and
   answers five read-only questions from the same files the page reads: `list_sets`,
   `list_cards`, `get_card`, `collection_stats`, `find_gaps`, plus `cards://sets` and
