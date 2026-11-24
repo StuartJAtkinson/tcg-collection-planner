@@ -1680,6 +1680,7 @@ const ALL = () => (CATALOGUE && P.game === 'mtg') ? CATALOGUE : (CARD_ROWS[P.gam
    anywhere, so they stay on the mocks rather than dress arbitrary catalogue
    cards up as their contents. A BINDER is the exception: it carries a rule
    (`BINDER_RULE`), so it can say which catalogue cards are its own. */
+let SCOPE = null, SCOPE_OF = null, SCOPE_KEY = null;
 const scopedCards = () => {
   const mocks = CARD_ROWS[P.game] || CARD_ROWS.mtg;
   /* A CONTAINER HOLDS WHAT IS STORED ON IT - index 4, the shape a kept draft
@@ -1695,7 +1696,14 @@ const scopedCards = () => {
   // filtering it by the picked set empties the page instead of narrowing it
   if (all === mocks) return mocks;
   const r = P.tab === 'printings' && picked() ? setRow() : null;
-  return r ? all.filter(c => c.set === r[1]) : all;
+  if (!r) return all;
+  /* THE SAME ARRAY, NOT A NEW ONE. filtered(), sortCards() and facetCounts()
+     memoise on the scope's IDENTITY, and a fresh filter every call meant the
+     memos could never hit - so every render on a set page redid the work they
+     exist to avoid. */
+  if (SCOPE_OF === all && SCOPE_KEY === r[1]) return SCOPE;
+  SCOPE_OF = all; SCOPE_KEY = r[1];
+  return (SCOPE = all.filter(c => c.set === r[1]));
 };
 // sorted BEFORE the cap, or the order only rearranges the arbitrary first 240
 /* THE FILTER FINALLY FILTERS. Everything above this line - the vocabulary, the
@@ -3469,9 +3477,9 @@ const mainType = (c) => {
   return NOT_MAIN.test(head) ? 'NotMain' : 'Main';
 };
 const typeTail = c => (c.type || '').split(/&mdash;|—/)[1] || '';
-const topN = (cards, of, n) => {
+const topN = (ix, cards, of, n) => {
   const seen = new Map();
-  for (const c of cards) for (const v of of(c)) seen.set(v, (seen.get(v) || 0) + 1);
+  for (const i of ix) for (const v of of(cards[i])) seen.set(v, (seen.get(v) || 0) + 1);
   return [...seen].sort((a, b) => b[1] - a[1]).slice(0, n);
 };
 
@@ -3582,12 +3590,27 @@ function applyFilter() { P.filter = JSON.parse(JSON.stringify(P.filterDraft)); P
    see every language, widen the group; that is what the group is for. */
 function clearFilter() { P.filter = langFilter(emptyFilter()); P.filterDraft = langFilter(emptyFilter()); P.page = PAGE; render(); }
 
+/* THE GROUPS A CARD FAILS, AS ONE STRING. Empty means it passes everything;
+   otherwise the names of the groups it fails, separated. The sidebar's chip
+   counts are "what you would get by ALSO clicking this one", so every count
+   needs the cards that pass everything but that group - and doing that with a
+   filter per group meant nine passes over the scope (77 ms measured, not the
+   half second the first audit guessed). One pass answers it: a card is in
+   group g's count when the only group it fails is g. */
+const filterFails = (c, f) => {
+  let bad = '';
+  for (const g in f.chips) if (!chipMatch(c, g, f.chips[g])) bad += (bad ? '\u0001' : '') + g;
+  for (const g in f.range) if (!inRange(c, g, f.range[g])) bad += (bad ? '\u0001' : '') + g;
+  if (!comboMatch(c.col || '', f)) bad += (bad ? '\u0001' : '') + 'Colour';
+  // the cost list is one group, not one per symbol: it is a set of symbols and
+  // the card has to carry all of them
+  for (const k of f.cost) if (!COST_OF[k]?.(c)) { bad += (bad ? '\u0001' : '') + 'Cost'; break; }
+  return bad;
+};
 const matchesFilter = (c, f, skip) => {
-  for (const g in f.chips) if (g !== skip && !chipMatch(c, g, f.chips[g])) return false;
-  for (const g in f.range) if (g !== skip && !inRange(c, g, f.range[g])) return false;
-  if (skip !== 'Colour' && !comboMatch(c.col || '', f)) return false;
-  if (skip !== 'Mana value') for (const k of f.cost) if (!COST_OF[k]?.(c)) return false;
-  return true;
+  const bad = filterFails(c, f);
+  if (!bad) return true;
+  return skip !== undefined && bad.indexOf('\u0001') < 0 && bad === skip;
 };
 /* One pass per scope, not one per render: the scope is up to 107k cards and the
    sidebar is redrawn on every click. Keyed on the array itself, the same trick
@@ -3603,33 +3626,45 @@ const facetCounts = () => {
   /* Counted with every OTHER group applied and this one's own terms ignored, so
      a chip reads what you would get by ALSO clicking it. Counted against the
      whole filter instead, every chip you have not picked reads 0 and the
-     sidebar becomes a wall of zeroes the moment you narrow anything. */
-  const pool = new Map();
-  const scoped = (skip) => pool.get(skip)
-    || (pool.set(skip, cards.filter(c => matchesFilter(c, P.filter, skip))), pool.get(skip));
-  const n = (test, skip) => scoped(skip).reduce((t, c) => t + (test(c) ? 1 : 0), 0);
+     sidebar becomes a wall of zeroes the moment you narrow anything.
+     ONE PASS: each card is asked once which groups it fails, and a card is in
+     group g's count when the only group it fails is g. */
+  const fails = cards.map(c => filterFails(c, P.filter));
+  /* THE TYPE HEAD, ONCE PER CARD. FACET.Type is asked once per type per card -
+     a million splits of the same type line - and the split was the cost of the
+     whole sidebar. */
+  const heads = cards.map(c => typeHead(c));
+  const scoped = (skip) => {
+    const out = [];
+    for (let i = 0; i < cards.length; i++) {
+      const bad = fails[i];
+      if (!bad || (bad.indexOf('\u0001') < 0 && bad === skip)) out.push(i);
+    }
+    return out;
+  };
+  const n = (test, skip) => scoped(skip).reduce((t, i) => t + (test(cards[i], i) ? 1 : 0), 0);
   FACETS_OF = cards; FACETS_KEY = key;
   FACETS = {
     Legality: FORMATS.map(f => [f, n(c => FACET.Legality(c, f), 'Legality')]),
-    Type: CARD_TYPES.map(t => [t, n(c => FACET.Type(c, t), 'Type')]),
-    Subtype: topN(scoped('Subtype'), c => typeTail(c).trim().split(/\s+/).filter(Boolean), 12),
+    Type: CARD_TYPES.map(t => [t, n((c, i) => heads[i].includes(t), 'Type')]),
+    Subtype: topN(scoped('Subtype'), cards, c => typeTail(c).trim().split(/\s+/).filter(Boolean), 12),
     /* Most-printed first, out of the catalogue, the same as Subtype and Artist.
        The four hand-picked words in the anatomy spec were a sample presented as
        a vocabulary - there are 868, and which twelve matter depends on what you
        have already narrowed to. In a Kamigawa binder this reads Ninjutsu. */
-    Keywords: topN(scoped('Keywords'), c => c.kw || EMPTY, 12),
+    Keywords: topN(scoped('Keywords'), cards, c => c.kw || EMPTY, 12),
     Rarity: RARITIES.map(([label]) => [label, n(c => FACET.Rarity(c, label), 'Rarity')]),
     /* EVERY LANGUAGE, not the top six. A cap is right for Subtype (868 values)
        and Artist (2,527) where any list is a sample - it is wrong here, because
        19 is the whole vocabulary and Language is the one group that arrives
        ALREADY APPLIED. At six, widening to Japanese was possible and widening
        to Korean was not, with nothing on screen saying so. */
-    Language: topN(scoped('Language'), c => [c.lang || 'en'], LANGS.length || 19),
+    Language: topN(scoped('Language'), cards, c => [c.lang || 'en'], LANGS.length || 19),
     Finish: FINISHES.map(f => [f, n(c => FACET.Finish(c, f), 'Finish')]),
     /* Most-illustrated first, the same as Subtype and for the same reason:
        2,527 names is not a chip list, and any six picked by hand would be a
        sample presented as a vocabulary. */
-    Artist: topN(scoped('Artist'), c => (c.art ? [c.art] : []), 8),
+    Artist: topN(scoped('Artist'), cards, c => (c.art ? [c.art] : []), 8),
   };
   return FACETS;
 };
@@ -4750,7 +4785,7 @@ const ownedIndex = () => {
     for (const c of row[4]) {
       const q = c.qty || 0;
       if (!(q > 0)) continue;
-      OWNED_PRINT.set(printKey(c), (OWNED_PRINT.get(printKey(c)) || 0) + q);
+      OWNED_PRINT.set(printId(c), (OWNED_PRINT.get(printId(c)) || 0) + q);
       if (c.n) OWNED_NAME.set(c.n, (OWNED_NAME.get(c.n) || 0) + q);
     }
   }
@@ -4762,7 +4797,7 @@ const ownedIndex = () => {
    twice, and `all` can never read below `here`. */
 const ownedOf = (c) => {
   ownedIndex();
-  const here = Math.max(c.qty || 0, OWNED_PRINT.get(printKey(c)) || 0);
+  const here = Math.max(c.qty || 0, OWNED_PRINT.get(printId(c)) || 0);
   return [here, Math.max(here, OWNED_NAME.get(c.n) || 0)];
 };
 const ownedIn = (code) => {
@@ -8087,6 +8122,16 @@ const flatLine = c => `${c.qty || 1} ${esc(c.n)}${c.set ? ` (${c.set})` : ''}${c
    card's printings read as its history. Memoised on the name because it is a
    scan of 107k rows and the page redraws on every click. */
 const printKey = c => `${c.set}/${c.num}/${c.lang || 'en'}`;
+/* A HOLDING IS MATCHED AGAINST THE CATALOGUE BY SET AND NUMBER, NOT BY THE
+   FULL KEY. The catalogue carries one row per (set, number) - measured, 0
+   duplicates in 107,347 - so the language in the key can only ever break a
+   match, never make one. And it did break one: an import filed every holding
+   under the COLLECTION's language, so a card imported into a German collection
+   was keyed "de" while the catalogue's row is "en", and the app could not find
+   the card it had just imported. The language stays on the holding - it is a
+   fact about your copy - and the catalogue's own key keeps it for the links
+   that open a printing. */
+const printId = c => `${c.set}/${c.num}`;
 let PRINTS = null, PRINTS_OF = null, PRINTS_NAME = null;
 const printingsOf = (name) => {
   const all = ALL();
@@ -8115,7 +8160,7 @@ const printingsOf = (name) => {
 const heldByPrint = (name) => {
   const by = new Map();
   for (const [kind, where, c] of heldOf(name)) {
-    const k = printKey(c);
+    const k = printId(c);
     if (!by.has(k)) by.set(k, { qty: 0, at: [] });
     const e = by.get(k);
     e.qty += c.qty || 0;
@@ -8229,7 +8274,7 @@ const Candidates = () => {
   const mark = (c) => {
     if (!P.matched) return `<button onclick="event.stopPropagation();setMatched(true);pickPrinting('${jsArg(printKey(c))}')"
       class="${BTN_SECONDARY} shrink-0">Match</button>`;
-    const h = held.get(printKey(c));
+    const h = held.get(printId(c));
     /* FIXED WIDTH, ALWAYS DRAWN - this is a COLUMN, and it was neither. The
        container name was rendered only on rows you hold and sized to whatever
        it said, so the marker was a different width on every row; the row's card

@@ -2,7 +2,7 @@
 // route under a stubbed DOM and asserts the decisions we keep re-making, so they stop
 // regressing silently. Run: node check.mjs
 import { readFileSync, readdirSync, existsSync, statSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -3055,6 +3055,48 @@ assert.ok(t.DisplayChip('grid', '#', true, "setView('grid')").includes("setView(
     'the server did not file the foil row under the foil printing');
   assert.strictEqual(mine.find(c => c.num === '1★').foil, 1, 'the foil printing was filed as a plain one');
   assert.strictEqual(reply.get(6).result.isError, true, 'a set that does not exist came back as an answer');
+  rmSync(dir, { recursive: true, force: true });
+}
+
+/* THE SERVER RE-READS THE COLLECTION WHEN THE FILE CHANGES. The browser's
+   holdings are newer than the export, so a server that read the file at
+   startup answered about yesterday: buy a card, re-export, and find_gaps still
+   said you were missing it. The file is watched, not read once. */
+{
+  const dir = mkdtempSync(join(tmpdir(), 'ponytail-refresh-'));
+  const HEAD = 'Portfolio Name,Category,Set,Product Name,Card Number,Rarity,Variance,Quantity\n';
+  const csv = join(dir, 'collection.csv');
+  writeFileSync(csv, `${HEAD}Main,Magic: The Gathering,10th Edition,Forest,1,Common,Normal,1\n`);
+  const cat = join(dir, 'cards.json.gz');
+  const card = (n, type, cmc) => [n, '', type, '', '', '', cmc, 'normal', 0, null, 0, null, 0, 0];
+  writeFileSync(cat, gzipSync(JSON.stringify({
+    o: [card('Forest', 'Basic Land — Forest', 0), card('Grizzly Bears', 'Creature — Bear', 2)],
+    p: [[0, '10E', '1', 1, '', 0.1, 0, 1, 0, 0, 0, 0, 0],
+        [1, '10E', '2', 1, '', 0.1, 0, 1, 0, 0, 0, 0, 0]],
+  })));
+  const server = spawn(process.execPath, ['mcp-server.mjs', csv, cat], { cwd: process.cwd() });
+  const ask = (msg) => new Promise((resolve) => {
+    const on = (d) => {
+      const line = d.toString().split('\n').find(l => l.trim());
+      if (!line) return;
+      const j = JSON.parse(line);
+      if (j.id !== msg.id) return;
+      server.stdout.off('data', on);
+      resolve(j);
+    };
+    server.stdout.on('data', on);
+    server.stdin.write(`${JSON.stringify(msg)}\n`);
+  });
+  const gaps = async () => JSON.parse((await ask({ jsonrpc: '2.0', id: 1, method: 'tools/call',
+    params: { name: 'find_gaps', arguments: { set: '10E' } } })).result.content[0].text);
+  await ask({ jsonrpc: '2.0', id: 0, method: 'initialize', params: { protocolVersion: '2025-06-18' } });
+  const before = await gaps();
+  writeFileSync(csv, `${HEAD}Main,Magic: The Gathering,10th Edition,Forest,1,Common,Normal,1\n`
+    + 'Main,Magic: The Gathering,10th Edition,Grizzly Bears,2,Common,Normal,1\n');
+  const after = await gaps();
+  server.kill();
+  assert.strictEqual(after.owned, before.owned + 1,
+    'the server answered from a snapshot: a changed collection file was not re-read');
   rmSync(dir, { recursive: true, force: true });
 }
 

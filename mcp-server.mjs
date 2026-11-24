@@ -26,7 +26,7 @@
 // spent three rounds getting them right. So the server runs the page's script
 // in a vm - the same trick check.mjs uses - and asks the page. One
 // implementation, so "which printing is this row" cannot mean two things.
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, statSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
@@ -86,8 +86,19 @@ const ALL = t.ALL();
 const owned = new Map();       // "SET/number" -> { qty, foil, lang, name }
 const ownedPerSet = new Map(); // set -> owned printings
 const seen = { rows: 0, matched: 0, ambiguous: 0, missed: 0, other: 0 };
+/* THE FILE IS WATCHED, NOT READ ONCE. The browser's holdings are newer than
+   the export, so a server that read the file at startup answers about
+   yesterday: buy a card, re-export, and find_gaps still says you are missing
+   it. A stat per call costs nothing next to the import. */
+let stamp = '';
+const collectionStamp = () => {
+  try { const s = statSync(CSV); return `${s.mtimeMs}:${s.size}`; } catch { return 'none'; }
+};
 const readCollection = async () => {
-  if (!existsSync(CSV)) { stderr(`no collection file at ${CSV} - the tools will read the catalogue only`); return; }
+  owned.clear(); ownedPerSet.clear();
+  for (const k of Object.keys(seen)) seen[k] = 0;
+  stamp = collectionStamp();
+  if (stamp === 'none') { stderr(`no collection file at ${CSV} - the tools read the catalogue only`); return; }
   const text = readFileSync(CSV, 'utf8');
   await t.readImport({ name: path.basename(CSV), text: async () => text });
   for (const { card } of t.IMPORT_MATCHED) {
@@ -106,6 +117,7 @@ const readCollection = async () => {
   seen.missed = t.IMPORT_MISSED;
   seen.other = t.IMPORT_OTHER;
 };
+const refresh = async () => { if (collectionStamp() !== stamp) await readCollection(); };
 await readCollection();
 
 /* THE CATALOGUE, COUNTED. One pass, because 107k rows is a scan and every
@@ -126,34 +138,45 @@ const codeOf = (s) => {
   return SET_BY_CODE.has(up) ? up : (t.setCodeOf(s) || '');
 };
 
-/* ============================ THE TOOLS ============================ */
-const listSets = () => t.SETS
-  .filter(r => total.get(r[1]))
-  .map(r => ({ code: r[1], name: r[0], released: r[2], total: total.get(r[1]),
-    owned: ownedIn(r[1]), draftable: !!r[6] }));
+/* ============================ THE TOOLS ============================
+   EVERY ANSWER IS CAPPED AND SAYS WHAT IT LEFT OUT. Measured on the real
+   catalogue: list_sets was 151 KB, get_card("Forest") 290 KB, list_cards
+   114 KB, collection_stats 90 KB - 13,000 to 72,000 tokens in one tool result,
+   which is most of a model's context spent on a list it will not read, and a
+   client that caps tool output truncates the JSON mid-string. */
+const listSets = ({ q, limit = 100 } = {}) => {
+  const needle = (q || '').trim().toLowerCase();
+  const all = t.SETS.filter(r => total.get(r[1]))
+    .filter(r => !needle || r[1].toLowerCase().includes(needle) || r[0].toLowerCase().includes(needle));
+  const cap = Math.min(Math.max(+limit || 100, 1), 986);
+  return { total: all.length, shown: Math.min(all.length, cap),
+    sets: all.slice(0, cap).map(r => ({ code: r[1], name: r[0], released: r[2],
+      total: total.get(r[1]), owned: ownedIn(r[1]), draftable: !!r[6] })) };
+};
 
-const listCards = ({ set, q, owned: onlyOwned, limit = 50 }) => {
-  const cap = Math.min(Math.max(+limit || 50, 1), 500);
+const listCards = ({ set, q, owned: onlyOwned, limit = 25 } = {}) => {
+  const cap = Math.min(Math.max(+limit || 25, 1), 200);
   const needle = (q || '').trim().toLowerCase();
   const code = set ? codeOf(set) : '';
   /* a set that did not resolve is not "no filter" - it is a wrong answer, and
      the wrong answer is the whole catalogue */
   if (set && !code) throw new Error(`no set called "${set}"`);
   const out = [];
+  let found = 0;
   for (const c of ALL) {
     if (code && c.set !== code) continue;
     if (needle && !c.n.toLowerCase().includes(needle)) continue;
     const hold = owned.get(`${c.set}/${c.num}`);
     if (onlyOwned === true && !hold) continue;
     if (onlyOwned === false && hold) continue;
-    out.push({ set: c.set, num: c.num, name: c.n, type: c.type, rarity: rarityOf(c),
-      cmc: c.cmc, usd: c.usd, owned: !!hold, qty: hold?.qty || 0, foil: hold?.foil || 0 });
-    if (out.length >= cap) break;
+    found++;
+    if (out.length < cap) out.push({ set: c.set, num: c.num, name: c.n, type: c.type,
+      rarity: rarityOf(c), cmc: c.cmc, usd: c.usd, owned: !!hold, qty: hold?.qty || 0, foil: hold?.foil || 0 });
   }
-  return { count: out.length, cards: out };
+  return { found, shown: out.length, cards: out };
 };
 
-const getCard = ({ id }) => {
+const getCard = ({ id, limit = 50 } = {}) => {
   const raw = String(id || '').trim();
   const slash = raw.indexOf('/');
   let card = null;
@@ -172,11 +195,14 @@ const getCard = ({ id }) => {
     layout: c.layout, cmc: c.cmc, usd: c.usd, art: c.art, text: c.text, kw: c.kw,
     faces: (c.faces || []).map(f => ({ name: f.n, type: f.type, cost: f.cost, text: f.text })),
     owned: !!owned.get(`${c.set}/${c.num}`), qty: owned.get(`${c.set}/${c.num}`)?.qty || 0 });
-  return { card: one(card), printings: t.printingsOf(card.n).map(one),
+  const every = t.printingsOf(card.n);
+  const cap = Math.min(Math.max(+limit || 50, 1), 200);
+  return { card: one(card), printings: every.slice(0, cap).map(one),
+    printingsTotal: every.length, printingsShown: Math.min(every.length, cap),
     holding: hold ? { qty: hold.qty, foil: !!hold.foil, lang: hold.lang } : null };
 };
 
-const collectionStats = ({ set } = {}) => {
+const collectionStats = ({ set, limit = 50 } = {}) => {
   const code = set ? codeOf(set) : '';
   if (set && !code) throw new Error(`no set called "${set}"`);
   const rows = [...total].map(([s, n]) => ({ code: s, total: n, owned: ownedIn(s) }))
@@ -192,14 +218,20 @@ const collectionStats = ({ set } = {}) => {
   }
   const tot = rows.reduce((t2, r) => t2 + r.total, 0);
   const own = rows.reduce((t2, r) => t2 + r.owned, 0);
+  /* THE SETS WITH THE MOST TO GET, NOT ALL OF THEM. The full list was 90 KB of
+     one answer; the sets you are missing the most are the ones worth showing. */
+  const worst = rows.map(r => ({ ...r, percent: r.total ? Math.round((r.owned / r.total) * 1000) / 10 : 0 }))
+    .sort((a, b) => (a.total - a.owned) - (b.total - b.owned)).reverse();
+  const cap = Math.min(Math.max(+limit || 50, 1), 200);
   return { set: code || null, printings: tot, owned: own, missing: tot - own,
     percent: tot ? Math.round((own / tot) * 1000) / 10 : 0,
     byRarity: [...rarity.values()],
-    bySet: rows.map(r => ({ ...r, percent: r.total ? Math.round((r.owned / r.total) * 1000) / 10 : 0 })),
+    setsTotal: rows.length, setsShown: Math.min(rows.length, cap),
+    bySet: worst.slice(0, cap),
     collection: { ...seen, file: path.basename(CSV) } };
 };
 
-const findGaps = ({ set }) => {
+const findGaps = ({ set, limit = 200 } = {}) => {
   const code = codeOf(set);
   if (!code) throw new Error(`no set called "${set}"`);
   const cards = bySet.get(code) || [];
@@ -207,8 +239,10 @@ const findGaps = ({ set }) => {
     .sort((a, b) => String(a.num).localeCompare(String(b.num), undefined, { numeric: true }))
     .map(c => ({ num: c.num, name: c.n, type: c.type, rarity: rarityOf(c) }));
   const row = SET_BY_CODE.get(code);
+  const cap = Math.min(Math.max(+limit || 200, 1), 1000);
   return { set: code, name: row ? row[0] : '', total: cards.length,
-    owned: cards.length - missing.length, missing: missing.length, cards: missing };
+    owned: cards.length - missing.length, missing: missing.length,
+    shown: Math.min(missing.length, cap), cards: missing.slice(0, cap) };
 };
 
 /* =========================== THE RESOURCES =========================== */
@@ -217,28 +251,33 @@ const RESOURCES = [
   { uri: 'cards://stats', name: 'Stats', description: 'Ownership summary: totals, by rarity and by set' },
 ];
 const resourceText = (uri) => uri === 'cards://sets'
-  ? JSON.stringify({ sets: listSets() })
+  ? JSON.stringify(listSets({ limit: 986 }))
   : JSON.stringify(collectionStats());
 
 /* =========================== THE PROTOCOL =========================== */
 const TOOLS = [
-  { name: 'list_sets', description: 'Every set in the catalogue with its printing count, how many you own and whether it can be drafted',
-    inputSchema: { type: 'object', properties: {}, additionalProperties: false } },
+  { name: 'list_sets', description: 'The sets in the catalogue with their printing count, how many you own and whether it can be drafted',
+    inputSchema: { type: 'object', properties: {
+      q: { type: 'string', description: 'Substring of the set code or name' },
+      limit: { type: 'number', description: 'How many to return, 100 by default, 986 at most' } } } },
   { name: 'list_cards', description: 'Cards in the catalogue, filtered by set, by name or by whether you own them',
     inputSchema: { type: 'object', properties: {
       set: { type: 'string', description: 'Set code or name' },
       q: { type: 'string', description: 'Substring of the card name' },
       owned: { type: 'boolean', description: 'true for cards you own, false for the ones you do not' },
-      limit: { type: 'number', description: 'How many to return, 50 by default, 500 at most' } } } },
-  { name: 'get_card', description: 'One card with every printing of it, and which of them you own',
+      limit: { type: 'number', description: 'How many to return, 25 by default, 200 at most' } } } },
+  { name: 'get_card', description: 'One card with its printings, and which of them you own',
     inputSchema: { type: 'object', properties: {
-      id: { type: 'string', description: 'A printing as SET/number, or a card name' } }, required: ['id'] } },
-  { name: 'collection_stats', description: 'How much of the collection you own: overall, by rarity and by set',
+      id: { type: 'string', description: 'A printing as SET/number, or a card name' },
+      limit: { type: 'number', description: 'How many printings to list, 50 by default' } }, required: ['id'] } },
+  { name: 'collection_stats', description: 'How much of the collection you own: overall, by rarity, and the sets with the most to get',
     inputSchema: { type: 'object', properties: {
-      set: { type: 'string', description: 'One set to report on; every set when left out' } } } },
+      set: { type: 'string', description: 'One set to report on; every set when left out' },
+      limit: { type: 'number', description: 'How many sets to list, 50 by default' } } } },
   { name: 'find_gaps', description: 'What you are still missing from a set - the question the server exists for',
     inputSchema: { type: 'object', properties: {
-      set: { type: 'string', description: 'Set code or name' } }, required: ['set'] } },
+      set: { type: 'string', description: 'Set code or name' },
+      limit: { type: 'number', description: 'How many missing cards to list, 200 by default' } }, required: ['set'] } },
 ];
 const RUN = { list_sets: listSets, list_cards: listCards, get_card: getCard,
   collection_stats: collectionStats, find_gaps: findGaps };
@@ -253,7 +292,7 @@ const bad = (id, code, message) => send({ jsonrpc: '2.0', id, error: { code, mes
    should read what went wrong and try something else, not see a dead socket. */
 const toolError = (id, message) => ok(id, { content: [{ type: 'text', text: message }], isError: true });
 
-const handle = (m) => {
+const handle = async (m) => {
   const { id, method, params = {} } = m;
   /* NO ID, NO REPLY. A notification is a message with no id, and JSON-RPC says
      a server must not answer one - answering an unknown notification wrote a
@@ -272,14 +311,17 @@ const handle = (m) => {
   if (method === 'resources/read') {
     const uri = params.uri;
     if (!RESOURCES.some(r => r.uri === uri)) return bad(id, -32602, `no resource called ${uri}`);
+    await refresh();
     return ok(id, { contents: [{ uri, mimeType: 'application/json', text: resourceText(uri) }] });
   }
   if (method === 'tools/call') {
     const fn = RUN[params.name];
     if (!fn) return toolError(id, `no tool called ${params.name}`);
     try {
+      await refresh();                     // the collection, if the file changed
       const out = fn(params.arguments || {});
-      const text = JSON.stringify(out, null, 2);
+      // no indentation: it is a third of the size and nothing reads it as prose
+      const text = JSON.stringify(out);
       return ok(id, { content: [{ type: 'text', text }] });
     } catch (err) {
       return toolError(id, `${params.name} failed: ${err.message}`);
@@ -289,6 +331,9 @@ const handle = (m) => {
 };
 
 let buf = '';
+/* ONE MESSAGE AT A TIME. The handler can wait - re-reading the collection is
+   a whole import - and two answers must not cross. */
+let queue = Promise.resolve();
 process.stdin.setEncoding('utf8');
 process.stdin.on('data', (chunk) => {
   buf += chunk;
@@ -299,8 +344,8 @@ process.stdin.on('data', (chunk) => {
     if (!line) continue;
     let msg;
     try { msg = JSON.parse(line); } catch { continue; }   // a broken line is not a message
-    handle(msg);
+    queue = queue.then(() => handle(msg));
   }
 });
-process.stdin.on('end', () => process.exit(0));
+process.stdin.on('end', () => queue.then(() => process.exit(0)));
 stderr(`card-collection: ${ALL.length} printings, ${owned.size} owned from ${path.basename(CSV)}`);
