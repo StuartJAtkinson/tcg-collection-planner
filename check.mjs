@@ -67,7 +67,11 @@ const seedCollation = (code) => {
   const keys = new Set();
   for (const cfg of Object.values(kinds))
     for (const sh of Object.values(cfg.sheets)) for (const k of Object.keys(sh.cards)) keys.add(k);
-  const o = [['Alpha Card', '{G}', 'Creature - Elf', 'One.', '1/1', 'G', 1],
+  /* THE ENTITY, NOT AN ASCII HYPHEN. This is the catalogue's shape - the real
+     one carries a real em dash - and an ASCII hyphen in the fixture is how the
+     Subtype filter stayed dead for three months without a check failing: the
+     split had nothing to split on, and nothing here could see it. */
+  const o = [['Alpha Card', '{G}', 'Creature &mdash; Elf', 'One.', '1/1', 'G', 1],
              ['Beta Card', '{U}', 'Instant', 'Two.', '', 'U', 1],
              ['Gamma Card', '{R}', 'Sorcery', 'Three.', '', 'R', 2],
              ['Delta Card', '{W}', 'Enchantment', 'Four.', '', 'W', 3]];
@@ -4264,10 +4268,10 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
      existed does. Between them they are the whole keyword fix: the regex over
      the rules text said yes to both. */
   const FIX = { kws: ['', 'Flying|Trample'], o: [
-      ['Bear',   '{1}{G}', 'Creature - Bear',  'Text.', '2/2', 'G', 2, 'normal', '', 0, 0b000000100, 0, 1],
+      ['Bear',   '{1}{G}', 'Creature &mdash; Bear',  'Text.', '2/2', 'G', 2, 'normal', '', 0, 0b000000100, 0, 1],
       ['Bolt',   '{R}',    'Instant',          'Text.', '',    'R', 1, 'normal', '', 0, 0b000000100],
       ['Wrath',  '{2}{W}{W}', 'Sorcery',       'Text.', '',    'W', 4, 'normal', '', 0, 0],
-      ['Sliver', '{U}',    'Creature - Sliver', 'Creatures you control have flying.', '1/1', 'U', 1, 'normal', '', 0, 0b000000100],
+      ['Sliver', '{U}',    'Creature &mdash; Sliver', 'Creatures you control have flying.', '1/1', 'U', 1, 'normal', '', 0, 0b000000100],
   ], p: [
       [0, 'AAA', '1', 1, '00000000-0000-4000-8000-000000000041', 0, 0, 1],
       [1, 'AAA', '2', 3, '00000000-0000-4000-8000-000000000042', 0, 0, 1],
@@ -4342,6 +4346,12 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
   // deepStrictEqual's prototype check fails on values that are otherwise equal
   assert.strictEqual(JSON.stringify(t.facetCounts().Keywords), '[["Flying",1],["Trample",1]]',
     'the keyword chips are still the hand-picked list rather than what is in scope');
+  /* AND THE SUBTYPE CHIPS ARE SUBTYPES. The fixture's type line carries the
+     entity the catalogue carries, so the split has something to split on - and
+     an ASCII hyphen here is exactly how the filter stayed dead for three
+     months without a check failing. */
+  assert.strictEqual(JSON.stringify(t.facetCounts().Subtype), '[["Bear",1],["Sliver",1]]',
+    'the Subtype chips are not the subtypes in scope - the split found nothing');
 
   /* COUNTS ARE TAKEN WITH THE OTHER GROUPS APPLIED AND THIS ONE'S IGNORED, so a
      chip reads what you would get by ALSO clicking it. Counted against the whole
