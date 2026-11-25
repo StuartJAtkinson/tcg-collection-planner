@@ -161,14 +161,23 @@ const listCards = ({ set, q, owned: onlyOwned, limit = 25 } = {}) => {
   /* a set that did not resolve is not "no filter" - it is a wrong answer, and
      the wrong answer is the whole catalogue */
   if (set && !code) throw new Error(`no set called "${set}"`);
+  /* THE ARGUMENT CAN BE A STRING. A client that sends owned: "true" means
+     what it says, and the old test - owned === true - matched neither branch
+     and answered with the whole catalogue: the exact opposite of what was
+     asked, and it looked like a legitimate answer. Anything else that is
+     neither true nor false is refused rather than guessed at. */
+  const want = onlyOwned === true || onlyOwned === 'true';
+  const not = onlyOwned === false || onlyOwned === 'false';
+  if (onlyOwned !== undefined && onlyOwned !== null && !want && !not)
+    throw new Error(`owned must be true or false, not ${JSON.stringify(onlyOwned)}`);
   const out = [];
   let found = 0;
   for (const c of ALL) {
     if (code && c.set !== code) continue;
     if (needle && !c.n.toLowerCase().includes(needle)) continue;
     const hold = owned.get(`${c.set}/${c.num}`);
-    if (onlyOwned === true && !hold) continue;
-    if (onlyOwned === false && hold) continue;
+    if (want && !hold) continue;
+    if (not && hold) continue;
     found++;
     if (out.length < cap) out.push({ set: c.set, num: c.num, name: c.n, type: c.type,
       rarity: rarityOf(c), cmc: c.cmc, usd: c.usd, owned: !!hold, qty: hold?.qty || 0, foil: hold?.foil || 0 });
@@ -188,7 +197,11 @@ const getCard = ({ id, limit = 50 } = {}) => {
   if (!card) {
     const all = t.printingsOf(raw);
     card = all[0] || null;
-    if (!card) return null;
+    /* NOT "null". A name that does not exist, a spelling that does not
+       match and a set/number that is not in the catalogue all answered the
+       one word null, and the model could not tell which of the three it had
+       got wrong - so it retried blind. */
+    if (!card) throw new Error(`no card called "${raw}"`);
   }
   const hold = owned.get(`${card.set}/${card.num}`);
   const one = (c) => ({ set: c.set, num: c.num, name: c.n, rarity: rarityOf(c), type: c.type,
@@ -250,8 +263,12 @@ const RESOURCES = [
   { uri: 'cards://sets', name: 'Sets', description: 'Every set in the catalogue, with how many printings it has and how many you own' },
   { uri: 'cards://stats', name: 'Stats', description: 'Ownership summary: totals, by rarity and by set' },
 ];
+/* THE RESOURCE IS CAPPED LIKE THE TOOL. It asked for the whole set list -
+   127,604 characters, about 32,000 tokens in one read - which is the answer
+   the caps were added to remove. The tool already reports how many sets there
+   are and how many it showed, so the same shape is enough. */
 const resourceText = (uri) => uri === 'cards://sets'
-  ? JSON.stringify(listSets({ limit: 986 }))
+  ? JSON.stringify(listSets({ limit: 100 }))
   : JSON.stringify(collectionStats());
 
 /* =========================== THE PROTOCOL =========================== */

@@ -3024,6 +3024,13 @@ if (existsSync('cards.json.gz')) {
      printings that point at them. Two Forests, so the foil-only printing can
      be told from the plain one, and a card nobody owns. */
   const card = (n, type, cmc) => [n, '', type, '', '', '', cmc, 'normal', 0, null, 0, null, 0, 0];
+  /* MORE SETS THAN THE CAP, so the cap is something a check can see. The
+     fixture had one set, and a resource that asked for the whole list looked
+     the same as a resource that asked for the first hundred of it. The codes
+     are real ones - the server reads the set list from sets.js and only
+     offers a set the catalogue has printings for. */
+  const others = t.SETS.map(r => r[1]).filter(c => c !== '10E').slice(0, 120)
+    .map(c => [0, c, '1', 1, '', 0.1, 0, 1, 0, 0, 0, 0, 0]);
   writeFileSync(join(dir, 'cards.json.gz'), gzipSync(JSON.stringify({
     o: [card('Forest', 'Basic Land — Forest', 0),
         card('Shock', 'Instant', 1),
@@ -3031,7 +3038,8 @@ if (existsSync('cards.json.gz')) {
     p: [[0, '10E', '1', 1, '', 0.1, 0, 1, 0, 0, 0, 0, 0],      // Forest, plain
         [0, '10E', '1★', 1, '', 0.2, 0, 2, 0, 0, 0, 0, 0],     // Forest, foil only
         [1, '10E', '300', 2, '', 0.3, 0, 1, 0, 0, 0, 0, 0],    // Shock
-        [2, '10E', '2', 1, '', 0.1, 0, 1, 0, 0, 0, 0, 0]],    // Grizzly Bears
+        [2, '10E', '2', 1, '', 0.1, 0, 1, 0, 0, 0, 0, 0],      // Grizzly Bears
+        ...others],
   })));
   /* A collection in the app's own import format - Collectr's columns. Six
      rows, and every one of them lands somewhere different: two that resolve,
@@ -3062,6 +3070,10 @@ if (existsSync('cards.json.gz')) {
     { jsonrpc: '2.0', id: 'x', method: 'tools/call', params: { name: 'find_gaps', arguments: { set: '10th Edition' } } },
     { jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'list_cards', arguments: { set: '10E', owned: true } } },
     { jsonrpc: '2.0', id: 6, method: 'tools/call', params: { name: 'find_gaps', arguments: { set: 'No Such Set' } } },
+    // the three shapes the audit found, one call each
+    { jsonrpc: '2.0', id: 7, method: 'resources/read', params: { uri: 'cards://sets' } },
+    { jsonrpc: '2.0', id: 8, method: 'tools/call', params: { name: 'list_cards', arguments: { owned: 'true' } } },
+    { jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name: 'get_card', arguments: { id: 'No Such Card' } } },
   ]);
   assert.strictEqual(reply.get(1).result.protocolVersion, '2025-06-18',
     'the server did not answer the handshake with the version it was asked for');
@@ -3087,6 +3099,29 @@ if (existsSync('cards.json.gz')) {
     'the server did not file the foil row under the foil printing');
   assert.strictEqual(mine.find(c => c.num === '1★').foil, 1, 'the foil printing was filed as a plain one');
   assert.strictEqual(reply.get(6).result.isError, true, 'a set that does not exist came back as an answer');
+  /* THE RESOURCE IS CAPPED LIKE THE TOOL. It asked for the whole set list -
+     127,604 characters, about 32,000 tokens in one read - which is the answer
+     the caps were added to remove. */
+  const sets = JSON.parse(reply.get(7).result.contents[0].text);
+  assert.ok(reply.get(7).result.contents[0].text.length < 20000,
+    `cards://sets is ${reply.get(7).result.contents[0].text.length} characters - the cap does not reach the resource`);
+  assert.ok(sets.shown < sets.total,
+    `cards://sets showed ${sets.shown} of ${sets.total} sets - the cap does not reach the resource`);
+  /* AND "owned" CAN BE A STRING. A client that sends owned: "true" means what
+     it says; the old test matched neither branch and answered with the whole
+     catalogue - the opposite of what was asked, and it looked right. */
+  assert.notStrictEqual(reply.get(8).result.isError, true,
+    `list_cards refused owned: "true" - ${reply.get(8).result.content[0].text}`);
+  const ownedTrue = JSON.parse(reply.get(8).result.content[0].text);
+  assert.ok(ownedTrue.found < 10, 'owned: "true" was read as no filter at all');
+  assert.ok(ownedTrue.cards.every(c => c.owned), 'owned: "true" returned cards you do not own');
+  /* AND A CARD THAT IS NOT THERE SAYS SO. A name that does not exist, a
+     spelling that does not match and a set/number that is not in the
+     catalogue all answered the one word null, and the model could not tell
+     which of the three it had got wrong. */
+  assert.strictEqual(reply.get(9).result.isError, true, 'a card that does not exist came back as an answer');
+  assert.ok(/no card called/.test(reply.get(9).result.content[0].text),
+    'the error does not say which card was not found');
   rmSync(dir, { recursive: true, force: true });
 }
 
