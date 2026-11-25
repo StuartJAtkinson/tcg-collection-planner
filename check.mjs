@@ -4518,6 +4518,30 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
     'the printings are not each a way to show that printing');
   t.pickPrinting('LEA/269/en');
   assert.strictEqual(t.openedCard().set, 'LEA', 'picking a printing did not switch to it');
+  /* THE QTY COLUMN ON A PRINTING YOU OWN. The printings list decorates each
+     row with your quantity, from the holdings map - which is keyed by set and
+     number, the printing's identity in the catalogue. Looked up by the full
+     key with the language it never finds anything, so the column read "none"
+     for every printing you own, beside a column that said which deck it was
+     in. */
+  {
+    const lea = t.ALL().find(c => c.set === 'LEA' && c.num === '269');
+    t.LISTS.decks.unshift(['Main', '', '', '', [{ ...lea, qty: 3 }]]);
+    t.holdingsChanged();
+    // the compact row is the one that carries "Copies you own"; the details
+    // table counts it itself, from the same holdings map
+    const was = t.P.prints;
+    t.setBand('prints', 'compact');
+    t.openCard('Sol Ring', 'LEA/269/en');
+    const cells = painted.match(/title="Copies you own">[^<]*/g) || [];
+    assert.ok(cells.some(c => c.includes('×3')),
+      'the printings list does not carry the quantity of a printing you own');
+    assert.ok(cells.some(c => c.includes('none')),
+      'a printing you do not own should read none');
+    t.setBand('prints', was);
+    t.LISTS.decks.shift();
+    t.holdingsChanged();
+  }
   assert.ok(painted.includes('>showing<'), 'nothing says which printing is on show');
   // the band counts what it drew rather than a number written next to it
   assert.ok(painted.includes('>3 in the catalogue'), 'the printings band does not state its own count');
@@ -4977,6 +5001,29 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
     `the Language facet offers ${offered.length} of ${codes.length} languages in scope`);
   // ...and the one you would widen TO is reachable, which is the whole point
   assert.ok(offered.includes('ko'), 'the least-printed language in scope cannot be widened to');
+}
+
+/* A LANGUAGE YOU PICKED OUTRANKS THE COLLECTION LANGUAGE. langFilter cannot
+   tell a pick from the seeded default - both are one language with value 1 -
+   so changing the collection language replaced the filter you had set. A pick
+   of TWO languages is a choice as well, and the re-seed has to leave it alone
+   too: asking "is this one language?" answered no for {en, ja}, and no was
+   read as "empty". */
+{
+  const after = (langs) => {
+    t.clearFilter();
+    t.P.filter.chips.Language = langs;
+    t.setLang('de');
+    return JSON.stringify(t.P.filter.chips.Language);
+  };
+  /* a pick of the OLD default is indistinguishable from the seeded one - the
+     app cannot tell them apart, and re-seeding it is right. A pick of any
+     other language, alone or with another, is a choice. */
+  assert.strictEqual(after({ ko: 1 }), '{"ko":1}',
+    'changing the collection language replaced a language you picked');
+  assert.strictEqual(after({ en: 1, ko: 1 }), '{"en":1,"ko":1}',
+    'changing the collection language replaced two languages you picked');
+  t.clearFilter();
 }
 
 /* THE GENERATOR AND THE PAGE NAME A SYMBOL THE SAME WAY, asserted across the two

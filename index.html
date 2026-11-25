@@ -7776,11 +7776,14 @@ function setLang(l) {
      cannot tell a language you picked yourself from the seeded default - both
      are one language with value 1 - so changing the collection language
      replaced a filter you had set with the new setting. A pick that is not
-     the old default is a choice and outranks the setting. */
+     the old default is a choice and outranks the setting.
+     A GROUP OF TWO OR MORE IS A CHOICE TOO. Asking "is this one language?"
+     answered no for {en, ja}, and no was read as "empty" - so picking two
+     languages and changing the collection language wiped the pair. */
   for (const f of [P.filter, P.filterDraft]) {
     const had = f.chips.Language;
     const one = had && Object.keys(had).length === 1 ? Object.keys(had)[0] : null;
-    if (!one || (one === was && Object.values(had)[0] === 1)) f.chips.Language = { [l]: 1 };
+    if (!had || (one === was && Object.values(had)[0] === 1)) f.chips.Language = { [l]: 1 };
   }
   P.page = PAGE;
   saveState();
@@ -8290,9 +8293,13 @@ const Candidates = () => {
   // taller for the two that draw cards: 26rem of card is a row and a half,
   // where it is a dozen rows
   const tall = P.prints === 'grid' || P.prints === 'align';
-  // your quantity, on the catalogue row, before anything draws it
-  const rows = printingsOf(P.card).map(c => (held.has(printKey(c))
-    ? { ...c, qty: held.get(printKey(c)).qty } : c));
+  // your quantity, on the catalogue row, before anything draws it.
+  // printId, NOT printKey: the holdings map is keyed by set and number (the
+  // printing's identity in the catalogue), so looking it up by the full key
+  // with the language never found anything - the column read "none" for every
+  // printing you own, beside a column that said which binder it was in.
+  const rows = printingsOf(P.card).map(c => (held.has(printId(c))
+    ? { ...c, qty: held.get(printId(c)).qty } : c));
   return `<div data-scroll="printings" class="${tall ? 'max-h-[44rem]' : 'max-h-[26rem]'} overflow-y-auto">${
     BandList(rows, P.prints, mark, c => printKey(c) === here)}</div>`;
 };
