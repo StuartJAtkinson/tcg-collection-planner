@@ -6580,8 +6580,18 @@ const BrowsePage = () => {
        combination chosen once - so narrowing it afterwards asks a question the
        binder has already answered. Looking for a card is what Search and
        Printings are; a binder is where you go to see what you put in it. */
-    body: `<div class="flex flex-wrap items-start gap-6">
-      ${P.tab === 'binders' ? '' : `<div class="${PANEL} w-[21rem] shrink-0 px-3 pt-3 pb-3">
+    /* TWO SCROLLBARS, NOT ONE. The filter panel and the card list were both
+       inside the page's one scroller, so scrolling the cards dragged the filter
+       up with them - measured, 240px of it on a 300px scroll. The filter is
+       what you reach for while reading the list, and a filter that scrolls out
+       of sight is a filter you cannot use.
+       So the row fills the pane and each column scrolls itself: the filter on
+       the left, the results on the right, and neither moves the other. The
+       results keep their scroll position across a re-render through
+       data-scroll, the same mechanism the page's other scrollers use. */
+    body: `<div class="flex h-full min-h-0 gap-6">
+      ${P.tab === 'binders' ? '' : `<div class="${PANEL} w-[21rem] shrink-0 overflow-y-auto px-3 pt-3 pb-3"
+        data-scroll="filter">
         ${Band('filter', AnatomyFilter(), {
           /* Apply-gated, the same as the sort bar: clicking chips composes a
              filter and nothing narrows until you say so. Dimmed when the draft
@@ -6593,7 +6603,7 @@ const BrowsePage = () => {
           stick: true,
         })}
       </div>`}
-      <div class="min-w-0 flex-1">
+      <div class="min-w-0 flex-1 overflow-y-auto" data-scroll="results">
         ${Band('sort', SortRow())}
         ${Band('view', Results() + Sentinel(), { note: !P.view ? 'not chosen yet'
           : views().length < 2 ? `${P.view} &mdash; the only layout here`

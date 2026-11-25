@@ -5027,10 +5027,12 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
 
   const claims = [
     ['oracle cards', cat.o.length.toLocaleString('en-GB')],
-    ['sets', `${t.SETS.length} paper MTG sets`],
-    ['PACK_ART sets', `\`PACK_ART\`: ${Object.keys(t.PACK_ART).length} sets`],
-    ['distinct pack products', `fetches all ${new Set(Object.values(t.PACK_ART).flatMap(o => Object.values(o))).size}`],
-    ['openable sets', `${openable} of ${t.SETS.length} do`],
+    // the thousands separator matters: the README writes 1,007 and the check
+    // looked for 1007, so a correct README read as a stale one
+    ['sets', `${t.SETS.length.toLocaleString('en-GB')} paper MTG sets`],
+    ['PACK_ART sets', `\`PACK_ART\`: ${Object.keys(t.PACK_ART).length.toLocaleString('en-GB')} sets`],
+    ['distinct pack products', `fetches all ${new Set(Object.values(t.PACK_ART).flatMap(o => Object.values(o))).size.toLocaleString('en-GB')}`],
+    ['openable sets', `${openable.toLocaleString('en-GB')} of ${t.SETS.length.toLocaleString('en-GB')} do`],
     ['200w megabytes', `${packAt('200w').toFixed(1)} MB at 200w`],
   ];
   for (const [what, text] of claims)
