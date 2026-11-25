@@ -298,11 +298,18 @@ looks like it got the orientation wrong when it is the scan that is turned.
 [MCP.md](MCP.md) — the MCP position for this repo: the server it should have,
 or why it should not have one.
 
-There is one now. `node mcp-server.mjs [collection.csv]` speaks MCP over stdio
-and reads the same files the page does — `cards.json.gz`, `sets.js` and the
-export your collection tool writes (`MTGCards.csv` by default). It offers five
-read-only tools: `list_sets`, `list_cards`, `get_card`, `collection_stats` and
-`find_gaps`, plus the two resources `cards://sets` and `cards://stats`.
+There is one now. `node mcp-server.mjs [collection.csv] [catalogue.json.gz]`
+speaks MCP over stdio and reads the same files the page does — `cards.json.gz`,
+`sets.js` and the export your collection tool writes (`MTGCards.csv` by
+default). It offers five read-only tools: `list_sets`, `list_cards`,
+`get_card`, `collection_stats` and `find_gaps`, plus the two resources
+`cards://sets` and `cards://stats`.
+
+Two things about the answers. **Every one is capped and says what it left
+out** — `get_card("Forest")` covers 864 printings, and uncapped it was 290 KB
+of JSON in a single tool result, which is most of a model's context spent on a
+list it will not read. And **the collection file is watched, not read once**:
+buy a card, re-export, and `find_gaps` knows, without restarting the server.
 
 Nothing here can change what you own. Marking a card owned is a claim about
 the physical world, and a model cannot check it; wrong ownership is worse than
@@ -322,4 +329,5 @@ To give it to a client, point the client at the command:
 The server resolves an export row to a printing with the page's own import
 rules rather than a copy of them: it runs `index.html` in a `node:vm` and
 calls `readImport`, so "which printing is this row" cannot mean two things.
-That is why it needs `index.html`, `sets.js` and `cards.json.gz` next to it.
+That is why it needs the page's own files next to it: `index.html`,
+`sets.js`, `schema.js`, `trim.js`, `anatomy.js` and `cards.json.gz`.

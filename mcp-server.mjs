@@ -71,6 +71,14 @@ const t = ctx.__t;
 
 /* THE CATALOGUE, MATERIALISED BY THE PAGE. */
 t.pickGame('mtg');
+/* NOT A STACK TRACE. Without the catalogue the server died with ENOENT and a
+   path, and the client showed the user that instead of the one command that
+   fixes it. The catalogue is generated data and is not in git, so a client
+   pointed at a fresh clone hits this. */
+if (!existsSync(CATALOGUE)) {
+  stderr(`card-collection: ${CATALOGUE} is not here - run \`node gen-cards.mjs\` to build it`);
+  process.exit(1);
+}
 await t.loadCards(JSON.parse(gunzipSync(readFileSync(CATALOGUE))));
 const ALL = t.ALL();
 

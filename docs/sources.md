@@ -98,8 +98,8 @@ for "don't cache art that's still low-res".
   right after set releases would most likely be sufficient."*
 - Cache anything you download for at least 24 hours.
 
-Our importer already caches downloads for 20h (`gen-data.mjs`'s CACHE) and only
-re-downloads when Scryfall's `updated_at` moves.
+Our importer already caches downloads for 20h (`gen-data.mjs`'s
+`MAX_AGE_HOURS`) and only re-downloads when Scryfall's `updated_at` moves.
 
 ## Download vs stream
 

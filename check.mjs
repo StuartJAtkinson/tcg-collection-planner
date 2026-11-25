@@ -18,6 +18,11 @@ const MONTHS_3 = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','N
 // browser loads them: sets.js is generated data, trim.js and anatomy.js are the
 // two things the generators read as well so they cannot drift from the page.
 const DEFERRED = [];   // environment failures, reported after the code checks
+/* THE REAL CATALOGUE, READ ONCE. It is generated data and is not in git, so
+   it may not be there at all; the two checks that want it ask for it here and
+   get null. Reading and parsing it twice cost 169 ms and 60 MB each time. */
+const CATALOGUE = existsSync('cards.json.gz')
+  ? JSON.parse(gunzipSync(readFileSync('cards.json.gz'))) : null;
 const page = readFileSync('index.html', 'utf8');   // the markup too: <body> carries the UI scale
 const src = `${['sets.js', 'schema.js', 'trim.js', 'anatomy.js'].map(f => readFileSync(f, 'utf8')).join('\n')}
 ${page.match(/<script>([\s\S]*)<\/script>/)[1]}`;
@@ -2989,8 +2994,8 @@ assert.ok(t.DisplayChip('grid', '#', true, "setView('grid')").includes("setView(
    neither is the catalogue's shape - which is how the Subtype filter stayed
    dead for three months without one check failing. The catalogue is generated,
    so it is not in git: this is DEFERRED when it is not here. */
-if (existsSync('cards.json.gz')) {
-  const real = JSON.parse(gunzipSync(readFileSync('cards.json.gz')));
+if (CATALOGUE) {
+  const real = CATALOGUE;
   const dashed = real.o.filter(r => (r[2] || '').includes('—'));
   assert.ok(dashed.length > 20000,
     `the catalogue's type lines no longer carry an em dash (${dashed.length} of ${real.o.length})`);
@@ -3001,10 +3006,14 @@ if (existsSync('cards.json.gz')) {
   const tail = t.typeTail({ type: sample });
   assert.ok(tail.trim().length > 0, `the type tail of "${sample}" is empty`);
   assert.ok(!tail.includes('—'), 'the type tail still carries the em dash');
-  /* AND THE SUBTYPE VOCABULARY THE SIDEBAR OFFERS, off the real catalogue. */
+  /* AND THE SUBTYPE VOCABULARY THE SIDEBAR OFFERS, off the real catalogue.
+     The oracle rows carry the type line - it is slot 2 of them - so there is
+     no need to materialise a second 107,347-card catalogue to read it, which
+     is what this did: 161 ms and 120 MB of extra heap for a count. */
   const subs = new Map();
-  for (const c of t.materialise(real)) {
-    for (const s of t.typeTail(c).trim().split(/\s+/).filter(Boolean)) subs.set(s, (subs.get(s) || 0) + 1);
+  for (const r of real.o) {
+    const tail = t.typeTail({ type: r[2] || '' });
+    for (const s of tail.trim().split(/\s+/).filter(Boolean)) subs.set(s, (subs.get(s) || 0) + 1);
   }
   assert.ok(subs.size > 100, `the subtype vocabulary is ${subs.size} words - the split is finding nothing`);
   assert.ok(subs.has('Human'), 'the real catalogue has no Human subtypes');
@@ -4992,10 +5001,10 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
      for a reason that had nothing to do with the code. A fact about the
      working directory is DEFERRED, exactly like the other two artefact checks
      - and it still fails the run, at the end. */
-  if (!existsSync('cards.json.gz')) {
+  if (!CATALOGUE) {
     DEFERRED.push('cards.json.gz is not in git - run `node gen-cards.mjs` to build the catalogue');
   } else {
-  const cat = JSON.parse(gunzipSync(readFileSync('cards.json.gz')));
+  const cat = CATALOGUE;
   const packAt = (sz) => (existsSync('packs') ? readdirSync('packs') : [])
     .filter(f => f.endsWith(`_${sz}.png`))
     .reduce((n, f) => n + statSync(`packs/${f}`).size, 0) / 1e6;

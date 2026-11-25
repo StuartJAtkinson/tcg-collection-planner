@@ -31,3 +31,7 @@ STYLE.html
 
 # a dump of browser state taken while debugging - personal, never committed
 .localstorage-snapshot.json
+
+# half-written generated files - every generator writes one of these and renames
+# it into place, so a run that dies between the two leaves one behind
+*.part

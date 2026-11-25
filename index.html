@@ -3607,11 +3607,7 @@ const filterFails = (c, f) => {
   for (const k of f.cost) if (!COST_OF[k]?.(c)) { bad += (bad ? '\u0001' : '') + 'Cost'; break; }
   return bad;
 };
-const matchesFilter = (c, f, skip) => {
-  const bad = filterFails(c, f);
-  if (!bad) return true;
-  return skip !== undefined && bad.indexOf('\u0001') < 0 && bad === skip;
-};
+const matchesFilter = (c, f) => !filterFails(c, f);
 /* One pass per scope, not one per render: the scope is up to 107k cards and the
    sidebar is redrawn on every click. Keyed on the array itself, the same trick
    anatomyClasses() uses - a new scope is a new array. */

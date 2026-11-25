@@ -23,15 +23,34 @@ last month" are exactly what a catalogue is for.
 
 | Tool | Params | Returns |
 |---|---|---|
-| `list_sets` | — | sets in the catalogue with counts |
+| `list_sets` | `q?`, `limit?` | sets in the catalogue with counts |
 | `list_cards` | `set?`, `q?`, `owned?`, `limit?` | cards, filtered |
-| `get_card` | `id` | one card with its variants (front/back, foil) |
-| `collection_stats` | `set?` | owned vs total, by set and rarity |
-| `find_gaps` | `set` | what's missing from a set you're working on |
+| `get_card` | `id`, `limit?` | one card with every printing of it |
+| `collection_stats` | `set?`, `limit?` | owned vs total, by set and rarity |
+| `find_gaps` | `set`, `limit?` | what's missing from a set you're working on |
 
 `find_gaps` is the tool worth building the server for. Everything else is
 browsable in the page; "what do I still need" is the question that is tedious
 by hand and trivial for a query.
+
+**EVERY ANSWER IS CAPPED, AND SAYS WHAT IT LEFT OUT.** The lists carry a
+`total` (or `found`) and a `shown`, and the shown one is the smaller. This is
+not decoration: `get_card("Forest")` covers 864 printings, and uncapped it
+was 290 KB of JSON — 72,000 tokens in one tool result, most of a model's
+context spent on a list it will not read, and a client that caps tool output
+truncates the JSON mid-string. The caps are 100 sets, 200 cards, 200
+printings and 1,000 gaps.
+
+**THE COLLECTION FILE IS WATCHED, NOT READ ONCE.** The browser's holdings are
+newer than the export, so a server that read the file at startup answered
+about yesterday: buy a card, re-export, and `find_gaps` still said you were
+missing it. The file's timestamp is checked before every call.
+
+**A CARD THAT IS NOT THERE SAYS SO.** `get_card` throws "no card called ..." 
+rather than answering `null`, because a name that does not exist, a spelling
+that does not match and a set/number that is not in the catalogue all used to
+answer the one word null, and a model could not tell which of the three it had
+got wrong.
 
 ## Resources
 
