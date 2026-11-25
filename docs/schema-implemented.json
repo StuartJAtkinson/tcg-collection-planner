@@ -1,0 +1,97 @@
+{
+  "//": "WHICH SCHEMA VARIABLES THE APP ACTUALLY IMPLEMENTS. The schema document enumerates what the VENDORS publish; this says what the APP has. A variable the app does not implement is not a defect - it is a decision to make, and it needs to be visible rather than inferred.",
+  "//how": "Each key is a document row's `group::element`. The value is the app's own name for it: the catalogue field it lands in, the constant the page declares, or the function that derives it. A row that is NOT in this file is one the app does not have.",
+  "//why": "The honest signal is the code that reads the fields: gen-cards.mjs writes the catalogue row, and the page declares the constants. gen-schema.mjs checks every entry here against one of those two, so a name that stops existing fails the build rather than quietly claiming the app has it.",
+
+  "Identity::Primary UUID": "art_id",
+  "Identity::Oracle UUID": "art_id",
+  "Identity::Card name": "n",
+  "Identity::Layout": "layout",
+  "Identity::Collector number": "num",
+  "Identity::Language": "lang",
+  "Identity::Sort key": "numKey",
+
+  "Card text::Oracle text (card-level)": "text",
+  "Card text::Flavor text (card-level)": "flav",
+
+  "Picture::Illustration id": "art_id",
+
+  "Gameplay::Mana cost": "cost",
+  "Gameplay::Converted mana cost": "cmc",
+  "Gameplay::Type line": "type",
+  "Gameplay::Power": "pt",
+  "Gameplay::Toughness": "pt",
+  "Gameplay::Loyalty": "loy",
+  "Gameplay::Keywords": "kw",
+
+  "Faces::Face container": "faces",
+  "Faces::Per-face name": "faces",
+  "Faces::Per-face mana cost": "faces",
+  "Faces::Per-face type line": "faces",
+  "Faces::Per-face oracle text": "faces",
+  "Faces::Per-face power/toughness/loyalty": "faces",
+  "Faces::Per-face flavor text": "faces",
+  "Faces::Per-face color indicator": "faces",
+
+  "Colors & colour identity::Card colours": "col",
+  "Colors & colour identity::Colour identity (Commander)": "col",
+  "Colors & colour identity::WUBRG order": "COLOURS",
+
+  "Types & tribes::Types[]": "type",
+  "Types & tribes::Subtypes[]": "type",
+  "Types & tribes::Supertypes[]": "type",
+
+  "Frame & finish::Finishes": "fin",
+  "Frame & finish::Has foil": "fin",
+  "Frame & finish::Has nonfoil": "fin",
+  "Frame & finish::Border colour": "treat",
+
+
+  "Prices::USD (nonfoil)": "usd",
+  "Prices::USD (foil)": "usd",
+  "Prices::EUR (foil)": "usd",
+  "Prices::Prices table": "usd",
+
+  "Legalities::Card legalities object": "legal",
+  "Legalities::Standard": "legal",
+  "Legalities::Pioneer": "legal",
+  "Legalities::Modern": "legal",
+  "Legalities::Legacy": "legal",
+  "Legalities::Vintage": "legal",
+  "Legalities::Commander": "legal",
+  "Legalities::Pauper": "legal",
+  "Legalities::Oathbreaker": "legal",
+  "Legalities::Brawl": "legal",
+  "Legalities::Historic": "legal",
+  "Legalities::Alchemy": "legal",
+  "Legalities::Explorer": "legal",
+  "Legalities::Gladiator": "legal",
+  "Legalities::Standardbrawl": "legal",
+  "Legalities::Timeless": "legal",
+  "Legalities::Predh": "legal",
+  "Legalities::Premodern": "legal",
+
+  "Related cards::All parts (combo/meld)": "meld",
+
+  "Sets::Set code": "SETS",
+  "Sets::Set name": "SETS",
+  "Sets::Set release date": "SETS",
+  "Sets::Set block (we call it series)": "BLOCK",
+  "Sets::Card count": "SETS",
+  "Sets::Parent set code": "SETS",
+  "Sets::Set icon (SVG)": "setIconUrl",
+
+  "Taxonomy (app)::games table": "GAMES",
+  "Taxonomy (app)::ENABLED_GAMES": "GAMES",
+  "Taxonomy (app)::MTG_DECK_TYPES": "SETS",
+  "Taxonomy (app)::FORMAT_LIST (mtg)": "FORMATS",
+  "Taxonomy (app)::FORMAT_LIST (pokemon)": "FORMATS",
+
+  "Facets (derived)::color facet": "colourKey",
+  "Facets (derived)::color_combo facet": "comboMatch",
+  "Facets (derived)::kind facet": "mainType",
+
+  "Constants (app)::MTG_KINDS list": "MAIN_ORDER",
+  "Constants (app)::MTG_RARITY_TIER map": "RARITIES",
+  "Constants (app)::sortKey() heuristic": "SORT_KEY"
+}

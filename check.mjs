@@ -27,7 +27,7 @@ const page = readFileSync('index.html', 'utf8');   // the markup too: <body> car
 const src = `${['sets.js', 'schema.js', 'trim.js', 'anatomy.js'].map(f => readFileSync(f, 'utf8')).join('\n')}
 ${page.match(/<script>([\s\S]*)<\/script>/)[1]}`;
 const js = src
-  + '\nglobalThis.__t = { SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, artUrl, artCdn, artLocal, bytes, routeAll, routePack, makeLocal, routeAdvice, packsNeeded, packsToFetch, packsUnused, planBytes, unusedBytes, eltRows, eltPick, setElt, eltKind, ELEMENTS, srcKeys, srcBytes, onDisk, Table, DisplayChip, GroupHead, CARD_VIEWS, UNALIGNED, unaligned, anatomyKey, setFact, AlignList, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, VIEWS, FORMATS, CARD_TYPES, RARITIES, FINISHES, RARITY_NAME, FINISH, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, plateOf, scopedCards, LANGS, langFilter, langName, setLang, contrast, relLum, SURFACE, FRAME, lum, surfaceKey, mix, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, roles, roleOf, roleCount, ROLE_MIN, typeHead, typeTail, fieldLabel, zoneWeight, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, heldOf, heldByPrint, setBand, BandList, framable, printingsOf, alignFacts, finishesOf, printingsOf, pickPrinting, printKey, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, addSortTo, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, UNRESOLVED, IMPORT_GROUPS, filtered, ownedIn, holdingsChanged, organisePlan, applyOrganise, GENERIC, CANON, flatLine, P, TABS, LISTS, GAMES, CFG, render, grouping, resolveRow, resolveUnresolved, setCodeOf, canonSet, packsFor, PACK_ART, kindFor, setIconUrl, loadSymIndex, setIcon,'
+  + '\nglobalThis.__t = { SCHEMA_ROWS, SETS, jsArg, gutterMid, PACK_TALL, ROW_PX, PACK_ART, PACK_SAT, packArt, packUrl, draftPack, SOURCES, artUrl, artCdn, artLocal, bytes, routeAll, routePack, makeLocal, routeAdvice, packsNeeded, packsToFetch, packsUnused, planBytes, unusedBytes, eltRows, eltPick, setElt, eltKind, ELEMENTS, srcKeys, srcBytes, onDisk, Table, DisplayChip, GroupHead, CARD_VIEWS, UNALIGNED, unaligned, anatomyKey, setFact, AlignList, SIDED, PAIRED, LANDSCAPE, BANDED, OVERLAID, VIEWS, FORMATS, CARD_TYPES, RARITIES, FINISHES, RARITY_NAME, FINISH, aftermath, framable, anatomyClasses, anatomyKey, ANATOMY_SAMPLES, twoFaced, CARDS, MockCard, TitleRow, MANA, MTG, INK, pipOf, manaValue, frameOf, plateOf, scopedCards, LANGS, langFilter, langName, setLang, contrast, relLum, SURFACE, FRAME, lum, surfaceKey, mix, lum, ink, factsOf, setFace, packsFor, BOOSTER, collationNote, DRAFTABLE, ALL, materialise, facetCounts, filtered, toggleChip, chipState, setRange, applyFilter, clearFilter, filterDirty, filterOn, PAGE, costTokens, openedCard, loadCards, scopedCards, glyphOf, symbolise, nameFit, typeFit, textFit, fitLen, setCols, colsOf, binderDims, setBinderDim, setAcross, views, defaultView, sortCards, GROUPS, SORT_KEY, GROUP_LABEL, DEFAULT_SORT, mainType, MAIN_ORDER, groupable, roles, roleOf, roleCount, ROLE_MIN, typeHead, typeTail, fieldLabel, zoneWeight, legalSort, setIconUrl, RARITY_DOT, pipOf, askDraw, cancelDraw, draftSet, clearItem, PULL, revealOne, closeDraw, drawn, allDrawn, packAt, pool, setPackMode, discardDraw, pickCard, keepDraw, MODES, packsForMode, LISTS, reDraw, reveal, revealAt, nextPack, packLabel, drawPack, loadBoosters, loadPackIndex, COLLATION, printingAt, selectItem, goTab, cycleSort, openCard, setMatched, heldOf, heldByPrint, setBand, BandList, framable, printingsOf, alignFacts, finishesOf, printingsOf, pickPrinting, printKey, cardQ, saveState, loadState, forgetState, savedBytes, STORE, ease, DEAL_MS, SWEEP_MS, BURST, dragSort, moveSort, applySort, clearSort, addSort, addSortTo, setView: v => { P.view = v; }, sortDirty, BUCKETS, namesFit, countsFit, nameRoom, num, toggleCost, pickColour, clearColours, setComboMode, ORDER, PAGES, NAV, UNRESOLVED, IMPORT_GROUPS, filtered, ownedIn, holdingsChanged, organisePlan, applyOrganise, GENERIC, CANON, flatLine, P, TABS, LISTS, GAMES, CFG, render, grouping, resolveRow, resolveUnresolved, setCodeOf, canonSet, packsFor, PACK_ART, kindFor, setIconUrl, loadSymIndex, setIcon,'
   + ' get IMPORT_MATCHED() { return IMPORT_MATCHED; },'
   + ' get IMPORT_NAME() { return IMPORT_NAME; }, set IMPORT_NAME(v) { IMPORT_NAME = v; },'
   + ' pickGame, selectItem, clearItem, toggleSelector, picked, selectorOpen, PARENT_COLLATION, collationFor,'
@@ -2118,6 +2118,45 @@ assert.ok(!painted.includes('NO COLUMN YET'), 'the import map still claims langu
   assert.ok(t.flatLine({ n: 'A', set: 'X', num: '1', lang: 'ja' }).includes('[ja]'), 'the import line drops language');
   // external ids identify nothing this app needs - set, number and language do
   assert.ok(!t.CANON.some(r => /uid|uuid/i.test(r[0])), 'the column map still carries an external id');
+}
+
+/* WHAT THE APP IMPLEMENTS, AND THAT IT IS THE APP'S OWN CLAIM. The schema
+   document enumerates what the VENDORS publish; docs/schema-implemented.json
+   says what the APP has, under the app's own names - the catalogue field a
+   variable lands in, or the constant the page declares. A variable that is in
+   neither is a decision nobody has taken yet, and the Matrix tab sorts those
+   to the bottom so they are visible rather than lost.
+
+   The map is checked against the code that owns it here as well as in
+   gen-schema.mjs, because a name that stops existing must fail rather than
+   quietly claim the app has it. */
+{
+  const map = JSON.parse(readFileSync('docs/schema-implemented.json', 'utf8'));
+  const rows = JSON.parse(readFileSync('docs/schema-rows.json', 'utf8'));
+  const known = new Set(rows.map(r => `${r.group}::${r.element}`));
+  const page = readFileSync('index.html', 'utf8');
+  const code = page.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/.*$/gm, ' ');
+  /* THE CATALOGUE'S FIELDS - what gen-cards.mjs writes into the row */
+  const CAT = ['art', 'art_id', 'cmc', 'col', 'cost', 'dfc', 'faces', 'fin', 'flav', 'foil', 'kw',
+    'lang', 'layout', 'legal', 'lmask', 'loy', 'meld', 'n', 'num', 'pt', 'qty', 'rar', 'rest', 'set',
+    'text', 'treat', 'type', 'usd'];
+  const entries = Object.entries(map).filter(([k]) => !k.startsWith('//'));
+  assert.ok(entries.length > 50, `the implementation map has only ${entries.length} entries`);
+  for (const [key, where] of entries) {
+    assert.ok(known.has(key), `the implementation map names "${key}", which is not a document row`);
+    assert.ok(where, `"${key}" says the app has it but does not say what it calls it`);
+    const bare = where.replace(/\[\].*$/, '').replace(/\(.*\)$/, '');
+    assert.ok(CAT.includes(where) || code.includes(bare),
+      `the implementation map says "${key}" is "${where}", which the app does not have`);
+  }
+  /* AND THE TABLE CARRIES IT. The flag is what the Matrix tab sorts on, so a
+     schema.js built without it would sort on nothing and say nothing. */
+  const rows2 = t.SCHEMA_ROWS;
+  assert.strictEqual(rows2.length, rows.length - 2,
+    'the schema table and the document disagree about how many variables there are');
+  const impl = rows2.filter(r => r[7]).length;
+  assert.strictEqual(impl, entries.length,
+    `the schema table says ${impl} variables are implemented and the map says ${entries.length}`);
 }
 /* Resolve ambiguous is gated on having rows to resolve - the previous version
    rendered the heading and a "nothing imported yet" placeholder, which is the

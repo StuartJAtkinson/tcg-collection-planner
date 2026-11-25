@@ -536,7 +536,7 @@ const pullsForSource = (k, el, group) => {
     : ['small', 'normal', 'large', 'png'];
   return (SOURCES[k]?.q || []).map(q => q[0]);
 };
-const DOC_ELEMENTS = (typeof SCHEMA_ROWS === 'undefined' ? [] : SCHEMA_ROWS).map(([group, element, sf, mj, sfn, mjn, keys], gi) => ({
+const DOC_ELEMENTS = (typeof SCHEMA_ROWS === 'undefined' ? [] : SCHEMA_ROWS).map(([group, element, sf, mj, sfn, mjn, keys, impl], gi) => ({
   el: `${group}::${element}`,
   label: element,
   group,
@@ -546,6 +546,11 @@ const DOC_ELEMENTS = (typeof SCHEMA_ROWS === 'undefined' ? [] : SCHEMA_ROWS).map
      and never which field, so two variables that differ only in which column
      they read looked identical. */
   sf, mj, sfn, mjn,
+  /* AND WHAT THE APP CALLS IT - the catalogue field it lands in, or the
+     constant the page declares. Empty means the app does not have it: a
+     decision still to make, not an oversight to find. It is read from
+     docs/schema-implemented.json and checked against the code that owns it. */
+  impl: impl || '',
   pulls: (keys ? keys.split(' ') : []).flatMap(k =>
     SOURCES[k] ? pullsForSource(k, element, group).filter(q => SOURCES[k].q.some(x => x[0] === q)).map(q => [k, q]) : []),
 }));
@@ -713,13 +718,22 @@ function sortSchema(by) {
   render();
 }
 const schemaSorted = (rows) => {
-  const s = P.schemaSort || { by: 'group', dir: 1 };
+  /* IMPLEMENTED FIRST, BY DEFAULT. The table's job is to say what there is to
+     decide, and a variable the app does not have is a decision - so they sort
+     to the bottom of their own section rather than sitting in the middle of a
+     list of things that are already true. The document's own order is the
+     tiebreak, so an unsorted table still reads as the document reads.
+     The other keys are the sorts the reader reaches for: by name, by route,
+     by group, by size, by language. */
+  const s = P.schemaSort || { by: 'impl', dir: 1 };
   const key = ({
     name:  e => (e.label || e.el).toLowerCase(),
     route: e => routeRank(e),
     group: e => e.gi,
     size:  e => { const c = eltPick(e.el); return c && c.at === 'disk' ? srcBytes(c.source, c.pull) : -1; },
     lang:  e => langRank(e),
+    /* 0 for implemented, 1 for not: the app has it, or the app does not. */
+    impl:  e => e.impl ? 0 : 1,
   })[s.by] || (e => e.gi);
   return [...rows].sort((a, b) => {
     const x = key(a), y = key(b);
@@ -7327,10 +7341,13 @@ const GenPacksBlock = () => {
 const pickCfgSection = (k) => { P.cfgSection = k; render(); };
 const CfgSub2 = () => {
   if (P.cfgSection == null) P.cfgSection = 'schema';
-  /* THREE SUB-TABS. Defaults moved off Schema because it isn't routing — it's
+  /* FOUR SUB-TABS. Defaults moved off Schema because it isn't routing — it's
      numbers the app reads. Sources and Refresh stay with Schema because the
-     schema table needs them in the same conversation as the routing choices. */
-  const tabs = [['schema', 'Schema'], ['defaults', 'Defaults'], ['anatomy', 'Anatomy &amp; kit']];
+     schema table needs them in the same conversation as the routing choices.
+     Matrix is the same schema the other way up: one row per THING and one
+     column per source, most covered first, instead of one row per variable. */
+  const tabs = [['schema', 'Schema'], ['matrix', 'Matrix'], ['defaults', 'Defaults'],
+    ['anatomy', 'Anatomy &amp; kit']];
   return `<div class="${SUBBAR}">
     <nav class="flex items-center gap-4 px-4">
       ${tabs.map(([k, l]) => `<button onclick="pickCfgSection('${k}')"
@@ -7529,13 +7546,16 @@ const CfgSchemaRow = (e) => {
   return `<tr class="border-t border-neutral-800/60">
     <td class="py-1.5 pr-3 align-top">
       <div class="flex items-baseline gap-2">
-        <span class="text-neutral-300">${e.label || e.el}</span>
+        <span class="${e.impl ? 'text-neutral-300' : 'text-neutral-500'}">${e.label || e.el}</span>
         <span class="shrink-0 text-[9px] uppercase tracking-wide text-neutral-700"
           title="the document group this variable belongs to">${esc(e.group)}</span>
+        ${e.impl ? '' : `<span class="shrink-0 text-[9px] uppercase tracking-wide text-amber-500/70"
+          title="the app does not have this yet - a decision, not a fault">not implemented</span>`}
       </div>
       <div class="flex flex-wrap gap-x-2 text-[10px] text-neutral-600">
         ${vendor('sf', e.sf, e.sfn, 'text-neutral-600')}
         ${vendor('mj', e.mj, e.mjn, 'text-neutral-600')}
+        ${e.impl ? `<span class="text-neutral-600" title="what the app calls it">as <span class="font-mono">${esc(e.impl)}</span></span>` : ''}
         ${e.note ? `<span class="${e.gap ? 'text-amber-500/80' : 'text-neutral-600'}">${e.note}</span>` : ''}
       </div>
       ${e.el === 'Picture::Art crop' ? `
@@ -7555,6 +7575,9 @@ const CfgSchemaRow = (e) => {
              <span class="text-neutral-600">imports as</span> <span class="font-mono">${a.map(esc).join(', ')}</span></div>`
         : ''; })()}
     </td>
+    ${e.impl
+      ? `<td class="py-1.5 align-top"><span class="text-emerald-400/80" title="the app has this, as ${esc(e.impl)}">yes</span></td>`
+      : `<td class="py-1.5 align-top"><span class="text-amber-500/70" title="the app does not have this yet - a decision, not a fault">no</span></td>`}
     ${['none', 'api', 'disk', 'nonen'].map(b => `<td class="py-1.5 align-top">${cell(b)}</td>`).join('')}
   </tr>`;
 };
@@ -7579,7 +7602,8 @@ const CfgSchemaSections = () => {
     if (!inKind.length) return '';
     const routable = inKind.filter(e => e.pulls.length).length;
     const onDiskNow = inKind.filter(e => routeRank(e) === 2).length;
-    return `<tr><td colspan="5" class="border-t border-neutral-800 pt-3 pb-1">
+    const have = inKind.filter(e => e.impl).length;
+    return `<tr><td colspan="6" class="border-t border-neutral-800 pt-3 pb-1">
         <span class="${NUM_LABEL}">${label}</span>
         <span class="ml-2 text-[10px] text-neutral-600">${inKind.length} variable${inKind.length === 1 ? '' : 's'}${
           k === 'holdings'
@@ -7588,7 +7612,8 @@ const CfgSchemaSections = () => {
             ? ` &middot; ${inKind.filter(e => e.store).length} stored on the holding${
                 inKind.some(e => e.gap) ? ` &middot; ${inKind.filter(e => e.gap).length} read but dropped` : ''}`
             : ` &middot; ${onDiskNow} downloaded${routable < inKind.length
-                ? ` &middot; ${inKind.length - routable} computed here` : ''}`}</span>
+                ? ` &middot; ${inKind.length - routable} computed here` : ''}${
+                have < inKind.length ? ` &middot; ${inKind.length - have} not implemented` : ''}`}</span>
       </td></tr>${inKind.map(CfgSchemaRow).join('')}`;
   }).join('');
 };
@@ -7609,6 +7634,7 @@ const SchemaHead = (by, label, sub = '') => {
 const CfgBody = () => {
   if (P.cfgSection === 'anatomy') return CfgAnatomyBody();
   if (P.cfgSection === 'defaults') return CfgDefaultsBody();
+  if (P.cfgSection === 'matrix') return CfgMatrixBody();
   return CfgSchemaBody();
 };
 
@@ -7729,6 +7755,97 @@ const DownloadPlan = () => {
    it can take. The sections after the schema are the same three columns for
    things that are not pulls - what is in the browser, what is counted, what is
    on disk, and the header names the importer accepts. */
+/* ======================= THE MATRIX: MOST TO LEAST =======================
+   The schema table has one row per VARIABLE, which is 174 rows and reads as a
+   list. What the question "where does this come from" wants is the other
+   shape: how many sources carry each thing, most first, and the things only
+   one source has collected at the bottom where they are decisions rather than
+   facts.
+
+   And where EVERY source has it, the rows collapse into one: eleven
+   identifiers that all publishers carry are one question - "who else has this"
+   - not eleven. The collapse is by the app's own name for the thing, so it is
+   the same collapsing the catalogue already does: twelve legalities are one
+   bitmask, seven prices are one number.
+   WHAT THE APP HAS COMES FIRST, so the ones still to decide are at the bottom
+   of their own group rather than lost in a list. */
+const matrixRows = () => {
+  /* THE SAME THING, COLLAPSED. The app's name is the key: two variables that
+     land in the same field are one variable with two spellings. */
+  const by = new Map();
+  for (const e of DOC_ELEMENTS) {
+    const key = e.impl || e.el;
+    const cur = by.get(key);
+    if (!cur) { by.set(key, { key, impl: e.impl, sources: new Set(), names: [], rows: [] }); continue; }
+    cur.rows.push(e);
+  }
+  for (const e of DOC_ELEMENTS) {
+    const m = by.get(e.impl || e.el);
+    for (const [k] of e.pulls) m.sources.add(k);
+    if (!m.names.includes(e.label)) m.names.push(e.label);
+  }
+  const out = [...by.values()].map(m => ({ ...m, n: m.sources.size }));
+  /* MOST SOURCES FIRST, then implemented, then by name - so the order answers
+     "how well covered is this" before "do we have it". */
+  out.sort((a, b) => b.n - a.n || (b.impl ? 1 : 0) - (a.impl ? 1 : 0)
+    || a.names.join().localeCompare(b.names.join()));
+  return out;
+};
+/* THE SOURCE COLUMNS, in a fixed order, so the matrix reads as a grid. The
+   order is the registry's own, which is grouped by what a thing IS: the card
+   data, then the images, then the live feeds. */
+const MATRIX_SOURCES = ['scryfall', 'mtgjson', 'prices', 'sfart', 'sfsym', 'tcg', 'ptcg', 'ptcgart', 'mana'];
+const CfgMatrixBody = () => {
+  const rows = matrixRows();
+  const has = (m, k) => m.sources.has(k);
+  const cell = (m, k) => {
+    const s = SOURCES[k];
+    if (!s) return '';
+    const on = has(m, k);
+    return `<td class="py-1 align-top text-center">${on
+      ? `<span class="text-emerald-400/80" title="${esc(s.name)} carries this">&#9679;</span>`
+      : `<span class="text-neutral-800" title="no ${esc(s.name)} source carries this">&middot;</span>`}</td>`;
+  };
+  const coverage = MATRIX_SOURCES.map(k => ({
+    k, n: rows.filter(m => has(m, k)).length,
+    label: SOURCES[k]?.name || k,
+  }));
+  return `<div class="${PANEL} mb-5 px-4 pt-4">
+    ${Band('', `<div class="border-t border-neutral-800 pt-2 text-xs">
+      <table class="w-full">
+        <thead>
+          <tr class="${NUM_LABEL}">
+            <th class="pb-1 pr-3 text-left">thing</th>
+            ${coverage.map(c => `<th class="pb-1 pr-1 text-center" title="${esc(c.label)} carries ${c.n} of ${rows.length}">${
+              esc(c.label)}<span class="block text-[9px] font-normal tabular-nums text-neutral-700">${c.n}</span></th>`).join('')}
+            <th class="pb-1 pl-2 text-left">the app has</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(m => `<tr class="border-t border-neutral-800/60">
+            <td class="py-1 pr-3 align-top">
+              <div class="text-neutral-300">${esc(m.names.join(', '))}</div>
+              ${m.names.length > 1 ? `<div class="text-[10px] text-neutral-600">${
+                m.rows.length} rows collapsed</div>` : ''}
+            </td>
+            ${coverage.map(c => cell(m, c.k)).join('')}
+            <td class="py-1 pl-2 align-top">
+              ${m.impl ? `<span class="font-mono text-[11px] text-neutral-400">${esc(m.impl)}</span>`
+                : `<span class="text-[11px] text-amber-500/80">not implemented</span>`}
+            </td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+      <p class="mt-3 text-[10px] text-neutral-600">
+        One row per thing, most sources first. A filled dot is a source that carries it, a
+        middot is one that does not. Rows where every source agrees are collapsed into
+        one, and the app's own name for it is in the last column &mdash; empty there means
+        the app does not have it yet, which is a decision to make rather than a fault to find.
+        ${rows.filter(m => !m.impl).length} of ${rows.length} are not implemented.
+      </p>
+    </div>`, { note: 'rows = thing &middot; cols = source' })}</div>`;
+};
+
 const CfgSchemaBody = () => {
   /* WHAT THIS BROWSER IS REMEMBERING, and the way to stop it. A store with
      no way out is a trap: a kept draft has no delete anywhere else on the
@@ -7737,7 +7854,7 @@ const CfgSchemaBody = () => {
   const kb = savedBytes() / 1024;
   const forgetCell = `<button onclick="forgetState()" class="${BTN_DANGER}"
     title="Clear everything saved here and reload with the defaults">Forget saved state</button>`;
-  const section = (t, tone = 'text-neutral-500') => `<tr><td colspan="5"
+  const section = (t, tone = 'text-neutral-500') => `<tr><td colspan="6"
     class="border-t border-neutral-800 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wide ${tone}">${t}</td></tr>`;
   const cacheRows = [['cards', ALL().length], ['sets', SETS.length],
     ['facets', Object.values(facetCounts()).reduce((n, g) => n + g.length, 0)],
@@ -7753,6 +7870,7 @@ const CfgSchemaBody = () => {
       <thead>
         <tr class="${NUM_LABEL}">
           ${SchemaHead('name', 'variable')}
+          ${SchemaHead('impl', 'App has', 'implemented first')}
           ${SchemaHead('route', 'None')}
           ${SchemaHead('route', 'API', 'live, nothing stored')}
           ${SchemaHead('size', 'Downloaded', 'English only')}

@@ -118,3 +118,26 @@ aliases. Deckstats remains unknown.
 Moxfield, Scryfall and Deckbox all return HTTP 403 to non-browser fetchers, so their own
 docs weren't reachable — this table came from Archidekt's implementation instead, which is
 better evidence anyway: it's what a working importer actually does.
+
+## What the app implements — 2026-11-25
+
+The schema document enumerates what the **vendors** publish. What the app
+**has** is a different list, and it was nowhere: `docs/schema-implemented.json`
+says which of the document's 174 variables the app has, under the app's own
+names — the catalogue field it lands in, or the constant the page declares.
+
+**76 of the 172 variables are implemented; 96 are not.** A variable the app
+does not have is not a fault — it is a decision nobody has taken yet — so it
+needs to be visible rather than inferred.
+
+Config has a **Matrix** tab for it: one row per *thing* rather than per
+variable, one column per source, most-covered first, with the rows every
+source agrees on collapsed into one. 172 rows become 129.
+
+The map is checked against the code that owns it — `gen-schema.mjs` and
+`check.mjs` both fail if an entry names a field or a constant that stopped
+existing — so it cannot claim the app has something it does not.
+
+**Every source is mapped.** Scryfall, MTGJSON, the price file, card art, set
+symbols, pack art, both Pokémon sources and the mana font: the first five are
+carried by document rows, the last four by a row of their own.
