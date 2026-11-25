@@ -4976,8 +4976,12 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
    the code, and it must not stop the assertions that are about the code. */
 {
   const built = /recipe ([0-9a-f]{12})/.exec(readFileSync('draft.css', 'utf8').slice(0, 200));
-  const now = createHash('sha1').update(readFileSync('index.html'))
-    .update(readFileSync('foil.css')).digest('hex').slice(0, 12);
+  /* THE LINE ENDINGS ARE NORMALISED, the same way build.mjs does it: foil.css
+     comes out of git with CRLF on Windows and LF in CI, so hashing the raw
+     bytes made the same file hash differently on each platform and every CI
+     run reported the committed stylesheet as stale. */
+  const now = createHash('sha1').update(readFileSync('index.html', 'utf8').replace(/\r\n/g, '\n'))
+    .update(readFileSync('foil.css', 'utf8').replace(/\r\n/g, '\n')).digest('hex').slice(0, 12);
   if (!built) DEFERRED.push('draft.css carries no recipe line - rebuild it with `node build.mjs`');
   else if (built[1] !== now) DEFERRED.push(
     `draft.css was built from a different index.html/foil.css (${built[1]}, now ${now}) - classes used by the page may not exist in it; run \`node build.mjs\``);

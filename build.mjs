@@ -30,9 +30,15 @@ const { css } = await postcss([tailwind()]).process(input, { from: 'input.css', 
    to it changes the output exactly as an edit to index.html does. Twelve hex
    digits - this is a cache key, not a security boundary. check.mjs recomputes
    this the same way rather than importing it, because importing this file would
-   run the whole Tailwind build to get at one hash. */
+   run the whole Tailwind build to get at one hash.
+   THE LINE ENDINGS ARE NORMALISED, or the same file hashes differently on
+   Windows and on Linux: foil.css comes out of git with CRLF here and LF in
+   CI, so the recipe changed with the checkout and every CI run reported the
+   committed stylesheet as stale. A cache key that depends on the platform is
+   not a cache key. */
 const recipe = createHash('sha1')
-  .update(readFileSync('index.html')).update(readFileSync('foil.css')).digest('hex').slice(0, 12);
+  .update(readFileSync('index.html', 'utf8').replace(/\r\n/g, '\n'))
+  .update(readFileSync('foil.css', 'utf8').replace(/\r\n/g, '\n')).digest('hex').slice(0, 12);
 /* REPLACED, NOT TRUNCATED: a build that dies half way leaves a stylesheet with
    the recipe line and half the classes in it, and the recipe check cannot see
    that - the page is simply unstyled. */
