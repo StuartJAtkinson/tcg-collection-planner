@@ -4961,6 +4961,37 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
     'a finish that does not distinguish the candidates picked one anyway');
 }
 
+/* THE RESEARCHED EXPORT FORMATS. Six of the nine write the finish as
+   "Modifier" - Moxfield, ManaBox, Deckbox, Dragonshield, Cardsphere, Delver
+   Lens - and it was not in the alias table, so their rows arrived with no
+   finish at all. That is invisible on a row with a collector number (the
+   number pins the printing) and decisive on a row without one, which is 936
+   of Collectr's 2,796 and a large share of every other format: the row falls
+   back to the name, both 8ED 256 and 8ED 256* match, and the one thing that
+   separates them was never read.
+   And the three formats that carry a `uid` - ManaBox, Helvault, Lion's Eye -
+   carry the one column that identifies a printing outright. */
+{
+  /* THE FINISH UNDER THE NAME THE RESEARCHED FORMATS USE. */
+  const mod = (row) => t.mapColumns(Object.keys(row));
+  assert.ok(mod({ 'Name': 1, 'Edition Code': 1, 'Collector Number': 1, 'Modifier': 1 })['finish / variant'] !== undefined,
+    'a column called Modifier is not read as the finish - six of the researched exports write it that way');
+  /* THE UID, MATCHED EXACTLY. The catalogue carries Scryfall's id on every
+     one of its printings and they are unique, so a row naming one needs no set
+     name, no number and no choosing between two candidates. */
+  const star = t.ALL().find(c => c.set === '8ED' && c.num === '256★');
+  const plain = t.ALL().find(c => c.set === '8ED' && c.num === '256');
+  const byId = (id) => t.resolveRow({ 'printing id': id, 'card name': 'Grizzly Bears' });
+  assert.strictEqual(byId(star.art_id).hits.length, 1, 'a row naming a printing id matched nothing');
+  assert.strictEqual(byId(star.art_id).hits[0].num, '256★', 'the id did not decide the printing');
+  assert.strictEqual(byId(plain.art_id).hits[0].num, '256', 'the id did not decide the printing');
+  /* ...and it is a FALLBACK, not a requirement: a uid that names nothing in
+     this catalogue falls through to the ordinary match rather than failing. */
+  assert.strictEqual(t.resolveRow({ 'printing id': '00000000-0000-0000-0000-000000000000',
+    'card name': 'Grizzly Bears', 'set code': '8ED' }).hits.length, 2,
+    'a uid that names nothing did not fall through to the ordinary match');
+}
+
 /* THE STYLESHEET IS A GENERATED ARTEFACT AND IT IS CHECKED IN, which is the same
    shape of problem as packs/ and gets the same answer. It fell three weeks behind
    the markup with nothing to notice: BTN_DANGER was restated in rose and never

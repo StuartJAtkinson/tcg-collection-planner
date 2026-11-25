@@ -6724,7 +6724,26 @@ const HEADER_ALIAS = {
   'set code': [/^(set ?code|edition ?code|expansion ?code)$/, /^set_?id$/],
   'set name': [/^set ?name$/, /^(edition|expansion)$/, /^set$/],
   'collector number': [/^(collector ?number|card ?number)$/, /^(number|card ?no\.?|cn)$/],
-  'finish / variant': [/^(variance|finish|variant)$/, /^(foil|printing|is ?foil)$/],
+  /* THE FINISH, UNDER EVERY NAME IT ARRIVES IN. `modifier` is what six of the
+     researched exports call it - Moxfield, Deckbox, Dragonshield, ManaBox,
+     Cardsphere, Delver Lens all write "Modifier" where Collectr writes
+     "Variance" - and it was not in the list, so their rows arrived with no
+     finish at all. That is invisible on a row with a collector number (the
+     number pins the printing) and decisive on a row without one, which is 936
+     of Collectr's 2,796 and a large share of every other format: the row
+     falls back to the name, both 8ED 256 and 8ED 256* match, and the finish -
+     the one thing that separates them - was never read.
+     `foil` and `printing` were here before and are the looser names; `modifier`
+     joins the exact ones. */
+  'finish / variant': [/^(variance|finish|variant|modifier)$/, /^(foil|printing|is ?foil)$/],
+  /* THE PRINTING'S OWN ID. ManaBox, Helvault and Lion's Eye write it as `uid`,
+     and it is the only column in any of these exports that identifies a
+     printing outright: the catalogue holds Scryfall's id for all 111,107 of
+     them, and they are unique. A row carrying it needs no set-name
+     normalisation, no number parsing and no choosing between two candidates.
+     It is a fallback rather than a requirement - a uid that names nothing in
+     this catalogue falls through to the ordinary match. */
+  'printing id': [/^(uid|printing ?id|scryfall ?id)$/],
   condition: [/^card ?condition$/, /^(condition|cond)$/],
   language: [/^(language|lang)$/],
   // read for one purpose only: telling another game's rows apart from a row
@@ -6863,15 +6882,21 @@ const FOIL_WORD = /^(foil|holo|holofoil|etched|foil etched|rainbow foil)$/i;
 let ROW_IX = null;
 const rowIndex = (pool) => {
   if (ROW_IX?.pool === pool) return ROW_IX;
-  const bySetNum = new Map(), byName = new Map();
+  const bySetNum = new Map(), byName = new Map(), byArt = new Map();
   const add = (m, k, c) => { const a = m.get(k); if (a) a.push(c); else m.set(k, [c]); };
   for (const c of pool) {
     add(bySetNum, `${c.set}/${c.num}`, c);
     const full = String(c.n), front = full.split(' // ')[0];
     add(byName, full, c);
     if (front !== full) add(byName, front, c);
+    /* AND THE PRINTING'S OWN ID, for the exports that carry it. Scryfall's id
+       is on every catalogue row and is unique - 111,107 rows, 111,107 ids - so
+       an export that names it identifies the printing outright, with no set
+       name to normalise, no number to parse and no two candidates to choose
+       between. */
+    if (c.art_id) byArt.set(String(c.art_id).toLowerCase(), c);
   }
-  return (ROW_IX = { pool, bySetNum, byName });
+  return (ROW_IX = { pool, bySetNum, byName, byArt });
 };
 function resolveRow(v) {
   const code = (v['set code'] || '').toUpperCase() || setCodeOf(v['set name']);
@@ -6879,6 +6904,19 @@ function resolveRow(v) {
   const name = (v['card name'] || '').trim();
   const lang = (v.language || '').trim().toLowerCase() || P.lang;
   const pool = ALL();
+  /* THE EXACT ID, WHEN THE FILE CARRIES ONE. ManaBox, Helvault and Lion's Eye
+     all write a `uid`, and the catalogue holds Scryfall's own id for every
+     printing, so a row that names it needs no matching at all: the id IS the
+     printing. It is checked FIRST, before the set name and the number, because
+     everything below it is inference and this is not.
+     It is a fallback, not a requirement: the id is only as good as the export's
+     claim, so a row whose uid names nothing in this catalogue falls through to
+     the ordinary match rather than failing. */
+  const uid = (v['printing id'] || '').trim().toLowerCase();
+  if (uid) {
+    const exact = rowIndex(pool).byArt.get(uid);
+    if (exact) return { hits: [exact], lang };
+  }
   /* THE SIX ROWS THAT RESOLVED TO NOTHING WERE TWO FAULTS, NOT SIX ODDITIES, and
      both are the same shape: the row's name is a PREFIX of the catalogue's.
        - Collectr writes the variant into the product name - "Herald's Horn

@@ -68,6 +68,47 @@ Sample row Archidekt shows for Moxfield:
 - **`uid`** (ManaBox, Helvault, Lion's Eye) is the cheap win: an exact printing id, no
   matching required.
 
+## Measured against the importer, 2026-11-25
+
+Every format's header line was put through `mapColumns` and a real row through
+`readImport`, on the rebuilt 111,107-printing catalogue:
+
+| Format | set code | number | language | finish | grouping | a row imports |
+|---|---|---|---|---|---|---|
+| **Moxfield** | ✓ | ✓ | ✓ | `Modifier` | — | cleanly |
+| **ManaBox** | ✓ | ✓ | ✓ | `Modifier` | — | cleanly |
+| **Deckbox** | ✓ | ✓ | ✓ | `Modifier` | `tags` | cleanly |
+| **Dragonshield** | ✓ | ✓ | ✓ | `Modifier` | — | cleanly |
+| **Helvault** | ✓ | ✓ | ✓ | — | `tags` | cleanly |
+| **Lion's Eye** | ✓ | ✓ | ✓ | `Foil` | `tags` | cleanly |
+| Cardsphere | — | — | ✓ | `Modifier` | — | ambiguous |
+| Delver Lens | — | ✓ | — | `Modifier` | — | ambiguous |
+
+**THE FINISH IS THE COLUMN THAT DECIDES.** Six of the nine write the finish as
+**`Modifier`** — Moxfield, ManaBox, Deckbox, Dragonshield, Cardsphere, Delver Lens —
+and `modifier` was not in the alias table, so those rows arrived with no finish at
+all. It is invisible on a row with a collector number (the number pins the printing)
+and decisive on a row without one, which is 936 of Collectr's 2,796 and a large
+share of every other format: the row falls back to the name, both 8ED 256 and
+8ED 256★ match, and the one thing that separates them was never read. Measured:
+with the name alone, a ManaBox row is **ambiguous between 8ED/256 and 8ED/256★**;
+with `Modifier` read, it is the star.
+
+**THE `uid` IS THE ONLY EXACT KEY, AND IT IS NOT IN THE CATALOGUE'S KEY.** The
+catalogue carries Scryfall's own id on every one of its 111,107 printings
+(`art_id`), and it is unique — 8ED/256 and 8ED/256★ have different ids. So a `uid`
+column that holds a Scryfall id would match exactly, with no name, no set-name
+normalisation and no ambiguity. **It is not used today**: `resolveRow` matches on
+set + number + language, and the alias table has no `uid` entry. The catalogue
+does not carry `uid` in the import path either — `CANON` has no external id, and
+`check.mjs` asserts that it has none, on the argument that "external ids identify
+nothing this app needs — set, number and language do".
+
+That argument was right about the id the app has and wrong about the id the
+EXPORT carries: the export's `uid` is the one thing in the file that identifies a
+printing outright. ManaBox, Helvault and Lion's Eye all carry it.
+
+
 ## Not covered
 
 **Deckstats** and **Collectr** aren't in Archidekt's preset list, so nothing here is
