@@ -3,6 +3,7 @@
 // regressing silently. Run: node check.mjs
 import { readFileSync, readdirSync, existsSync, statSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { spawn, spawnSync } from 'node:child_process';
+import http from 'node:http';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -3074,6 +3075,10 @@ if (existsSync('cards.json.gz')) {
     { jsonrpc: '2.0', id: 7, method: 'resources/read', params: { uri: 'cards://sets' } },
     { jsonrpc: '2.0', id: 8, method: 'tools/call', params: { name: 'list_cards', arguments: { owned: 'true' } } },
     { jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name: 'get_card', arguments: { id: 'No Such Card' } } },
+    // a notification: JSON-RPC says a server must not answer one
+    { jsonrpc: '2.0', method: 'notifications/progress', params: { progress: 1 } },
+    { jsonrpc: '2.0', method: 'notifications/roots/list_changed' },
+    { jsonrpc: '2.0', id: 10, method: 'tools/call', params: { name: 'list_cards', arguments: { limit: 2 } } },
   ]);
   assert.strictEqual(reply.get(1).result.protocolVersion, '2025-06-18',
     'the server did not answer the handshake with the version it was asked for');
@@ -3122,6 +3127,30 @@ if (existsSync('cards.json.gz')) {
   assert.strictEqual(reply.get(9).result.isError, true, 'a card that does not exist came back as an answer');
   assert.ok(/no card called/.test(reply.get(9).result.content[0].text),
     'the error does not say which card was not found');
+  /* A NOTIFICATION GETS NO REPLY. JSON-RPC says a server must not answer one,
+     and answering a notification writes a message with no id to stdout - which
+     a strict client reads as a stray response. The replies are collected into
+     a map keyed by id, so a stray one lands under the key undefined: the map
+     has to have no such key. */
+  assert.ok(!reply.has(undefined),
+    'the server answered a notification - JSON-RPC says it must not');
+  assert.strictEqual(reply.size, 10, 'the server answered something that was not asked for');
+  /* AND THE ANSWERS ARE CAPPED. Every list says how many it found and how
+     many it showed, and the shown one is the smaller. */
+  const capped = JSON.parse(reply.get(10).result.content[0].text);
+  assert.ok(capped.found > capped.shown,
+    `list_cards showed ${capped.shown} of ${capped.found} - the cap does not bite`);
+  assert.strictEqual(capped.shown, 2, 'the limit asked for was not the limit taken');
+  /* AND A SET IS ANSWERED FROM ITS OWN PRINTINGS. The filter was a `continue`
+     inside a loop over all 107,347 rows, so asking for one set walked every
+     row - and with a name filter it lower-cased every card on the way. The
+     per-set map was already built for exactly this. */
+  const one = JSON.parse((await ask([
+    { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18' } },
+    { jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'list_cards', arguments: { set: '10E' } } },
+  ])).get(2).result.content[0].text);
+  assert.ok(one.cards.every(c => c.set === '10E'),
+    'list_cards for a set returned a card from another set');
   rmSync(dir, { recursive: true, force: true });
 }
 
@@ -5083,10 +5112,45 @@ console.log(`card anatomy: ${classes.length} classes drawn, ${t.SIDED.size} two-
       `set ${r[1]} asks for a symbol gen-symbols.mjs would never write`);
 }
 
+/* THE PACK SERVER REFUSES A REQUEST THAT IS NOT THE PAGE. A POST here starts
+   a download of 385 photographs, and the origin check is the only thing between
+   that and any website you have open. 'null' used to be allowed, because a
+   page opened as a file sends it - and so does a SANDBOXED FRAME on any site,
+   which is the one that matters: the two are the same request, so allowing one
+   allows the other. */
+{
+  const server = spawn(process.execPath, ['gen-packs-server.mjs'], { cwd: process.cwd() });
+  await new Promise((r) => setTimeout(r, 1500));   // it prints when it is listening
+  const ask = (headers) => new Promise((resolve) => {
+    const req = http.request({ host: '127.0.0.1', port: 5245, path: '/status', headers }, (res) => {
+      res.resume();
+      res.on('end', () => resolve(res.statusCode));
+    });
+    req.on('error', () => resolve(0));
+    req.end();
+  });
+  assert.strictEqual(await ask({ Origin: 'null' }), 403,
+    'the pack server answers a null origin - a sandboxed frame on any site sends one');
+  assert.strictEqual(await ask({ Origin: 'https://evil.example' }), 403,
+    'the pack server answers a request from another site');
+  assert.strictEqual(await ask({ Origin: 'http://localhost:5255' }), 200,
+    'the pack server refuses the page it is there for');
+  assert.strictEqual(await ask({}), 200,
+    'the pack server refuses a request from a terminal');
+  server.kill();
+}
+
 /* Environment failures, held back so they cannot switch off the rest of the
-   file. The run still fails - it just says everything it found first. */
+   file. The run still fails - it just says everything it found first.
+   `--allow-deferred` says otherwise: a CLEAN CHECKOUT has no catalogue and no
+   pack mirror, because both are generated data and neither is in git. The
+   deferred failures are the honest way to say that, but they made the exit code
+   1 on a fresh clone, so any continuous-integration job would be permanently
+   red for a reason that had nothing to do with the code. The flag is for that
+   case; a plain run still fails, because a stale working directory is still
+   worth knowing about. */
 if (DEFERRED.length) {
   console.error(String.fromCharCode(10) + DEFERRED.length + String.fromCharCode(32) + 'deferred failure(s):');
   for (const d of DEFERRED) console.error('  - ' + d);
-  process.exit(1);
+  if (!process.argv.includes('--allow-deferred')) process.exit(1);
 }

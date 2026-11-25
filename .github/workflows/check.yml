@@ -1,0 +1,21 @@
+name: check
+
+# The repo's only guard is `node check.mjs`. It needs no secrets and no
+# network, so it runs on every push. The catalogue and the pack mirror are
+# generated data and are not in git, so the run passes --allow-deferred: the
+# deferred failures are how the harness says "the working directory is not
+# built", and without the flag they would make every run red for a reason
+# that has nothing to do with the code.
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node check.mjs --allow-deferred

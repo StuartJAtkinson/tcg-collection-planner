@@ -172,8 +172,13 @@ const listCards = ({ set, q, owned: onlyOwned, limit = 25 } = {}) => {
     throw new Error(`owned must be true or false, not ${JSON.stringify(onlyOwned)}`);
   const out = [];
   let found = 0;
-  for (const c of ALL) {
-    if (code && c.set !== code) continue;
+  /* THE SET'S OWN PRINTINGS, not the whole catalogue. The filter was a
+     `continue` inside a loop over all 107,347 rows, so asking for one set
+     walked every row to return 300 - and with a name filter it lower-cased
+     every card on the way. The per-set map was already built for exactly
+     this. */
+  const pool = code ? (bySet.get(code) || []) : ALL;
+  for (const c of pool) {
     if (needle && !c.n.toLowerCase().includes(needle)) continue;
     const hold = owned.get(`${c.set}/${c.num}`);
     if (want && !hold) continue;

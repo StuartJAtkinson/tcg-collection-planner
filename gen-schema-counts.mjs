@@ -5,7 +5,7 @@
    touched here.
 
    Run: node gen-schema-counts.mjs    (rewrites docs/schema-counts.json) */
-import { readFileSync, writeFileSync, createReadStream } from 'node:fs';
+import { readFileSync, writeFileSync, createReadStream, renameSync } from 'node:fs';
 import { createGunzip } from 'node:zlib';
 import readline from 'node:readline';
 
@@ -187,6 +187,11 @@ set('Taxonomy (app)::MTG_DECK_TYPES', sf.deckTypes, mj.deckTypes);
 set('Taxonomy (app)::FORMAT_LIST (mtg)', sf.legalPresent, mj.legalPresent);
 set('Not imported::Rulings', null, mj.rulings);
 
-writeFileSync(path, `${JSON.stringify(doc, null, 2)}\n`);
+/* THE FILE IS REPLACED, NOT TRUNCATED. docs/schema-counts.json is TRACKED, so a
+   write that dies half way leaves a broken file in the repository - and the
+   next gen-schema.mjs reads it and throws, so the catalogue's schema cannot be
+   rebuilt at all. The same .part-and-rename as every other generated file. */
+writeFileSync(`${path}.part`, `${JSON.stringify(doc, null, 2)}\n`);
+renameSync(`${path}.part`, path);
 console.log(`${path} - filled 23 rows. Scryfall ${sf.total.toLocaleString('en-GB')} printings, MTGJSON ${mj.total.toLocaleString('en-GB')} cards.`);
 console.log(`mtgjson isStarter/numberSort are blank: v4 field names, this file is v5.3.0 and neither exists in it any more with nothing standing in for them. hasFoil/hasNonFoil are also gone but v5's finishes answers the same question, so they are measured off it (${mj.hasFoil.toLocaleString()} foil / ${mj.hasNonfoil.toLocaleString()} nonfoil).`);

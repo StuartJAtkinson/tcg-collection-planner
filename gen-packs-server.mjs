@@ -19,19 +19,32 @@ import { writeFileSync, existsSync } from 'node:fs';
 
 const PORT = 5245;
 let running = null;       // child_process or null - tracks the one allowed run
-const ORIGINS = new Set(['http://localhost:5255', 'http://127.0.0.1:5255', 'null']);
+/* THE PAGE'S OWN ORIGINS, AND NOTHING ELSE. 'null' used to be here, because a
+   page opened as a file sends it - and so does a SANDBOXED FRAME on any site
+   you have open, which is the thing that matters. The two are the same request
+   to this server, so they cannot be told apart by origin; allowing 'null'
+   allowed any website to start this download, which is 385 photographs of
+   somebody else's CDN traffic.
+   'null' is gone. A page opened as a file cannot fetch the catalogue, the
+   boosters or the disk index anyway - a file:// fetch is cross-origin to
+   every browser - so that page is already the mock catalogue, and the one
+   thing it loses here is a button that starts a download it cannot report on.
+   A request with NO origin at all is still fine: that is a person at a
+   terminal, not a website. */
+const ORIGINS = new Set(['http://localhost:5255', 'http://127.0.0.1:5255']);
 
 const send = (res, event, data) => {
   res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 };
 
 const server = createServer((req, res) => {
-  // CORS for the page. Same-origin would mean serving both from one port, which
-  // would mean the page cannot be opened as a file - which it can, today. So
-  // open CORS, localhost-only is the real guard.
-  // ...but CORS only stops a page READING the answer; a plain POST from any site
-  // you have open still runs. So a browser request from anywhere else is refused
-  // outright. 'null' is the page opened as a file.
+  /* CORS for the page, and the guard. Same-origin would mean serving both from
+     one port; open CORS with the origin allow-list above is what the page
+     needs, and localhost-only is the real guard.
+     ...but CORS only stops a page READING the answer; a plain POST from any
+     site you have open still runs. So a browser request from anywhere else
+     is refused outright. A request with no origin at all is a person at a
+     terminal and is allowed. */
   const origin = req.headers.origin;
   if (origin && !ORIGINS.has(origin)) { res.writeHead(403); return res.end(); }
   res.setHeader('Access-Control-Allow-Origin', origin || '*');
